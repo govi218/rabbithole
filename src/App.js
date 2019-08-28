@@ -14,7 +14,12 @@ class App extends React.Component {
       <div className="App">
         <header> <img src={Logo} /> </header>
         <main>
-          <Dropdown />
+          <ul>
+            <li> <input type="text" name="firstname"/>  </li>
+            <a href="">  <li>  Daily Searches, Made from your history! </li> </a>
+            <a href="">  <li>  Hyper Ledger.  </li> </a>
+            <li> <input type="text" name="firstname"/>  </li>
+          </ul>
         </main>
       </div>
     );
