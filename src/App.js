@@ -15,10 +15,10 @@ class App extends React.Component {
         <header> <img src={Logo} /> </header>
         <main>
           <ul>
-            <li> <input type="text" name="firstname"/>  </li>
+            <li> <input type="text" name="website" placeholder="Add a website you want to stop tracking."/>  </li>
             <a href="">  <li>  Daily Searches, Made from your history! </li> </a>
             <a href="">  <li>  Hyper Ledger.  </li> </a>
-            <li> <input type="text" name="firstname"/>  </li>
+            <li> <input type="text" name="project" placeholder="Add a new project."/>  </li>
           </ul>
         </main>
       </div>
