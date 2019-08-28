@@ -3,6 +3,7 @@ import React from 'react';
 import logo from './logo.svg';
 import './App.css';
 
+import Dropdown from './components/Dropdown/Dropdown'
 import Button from './components/Button/Button';
 
 class App extends React.Component {
@@ -18,7 +19,7 @@ class App extends React.Component {
               });
             });
           }}> Heyyo. </button>
-        <h1> Hello World! </h1>
+        <Dropdown />
       </div>
     );
   }
