@@ -22,7 +22,12 @@ const useStyles = makeStyles(theme => ({
   input: {
     margin: theme.spacing(2),
     width: '90%'
-  }
+  },
+  icon: {
+    margin: theme.spacing(4),
+    fontSize: 32,
+  },
+
 }));
 
 export default function Navbar() {
@@ -35,7 +40,7 @@ export default function Navbar() {
           <img src={Logo} />
           <Button color="inherit">Searches</Button>
           <Button color="inherit">Hyperledger</Button>
-          <AddIcon />
+          <a href=""> <AddIcon /> </a>
         </Toolbar>
         
       </AppBar>
