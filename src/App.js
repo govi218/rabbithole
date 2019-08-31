@@ -2,9 +2,8 @@
 import React from 'react';
 import './App.css';
 
-import Logo from './assets/imgs/logo.png';
-import Button from '@material-ui/core/Button';
 import Navbar from './components/Navbar/Navbar';
+import LRCanvas from './components/LRCanvas/LRCanvas'
 
 class App extends React.Component {
 
@@ -12,6 +11,7 @@ class App extends React.Component {
     return (
       <div className="App">
         <Navbar />
+        <LRCanvas />
         <main>
         </main>
       </div>
