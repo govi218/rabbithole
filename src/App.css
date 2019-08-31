@@ -1,7 +1,3 @@
-header {
-  background-color: black;
-}
-
 img {
   padding: 15px;
   height: 30px;
@@ -11,47 +7,9 @@ main {
   font-size: 1rem;
 }
 
-main ul {
-  list-style-type: none;
-  width: 100%;
-  padding-left: 0;
-  padding-top: 2px;
-  text-align: left;
-}
-
-
-main ul li {
-  display: block;
-  width: 100%;
-  padding: 10px;
-  padding-left: 12%;
-  
-}
-
-main ul a li {
-  background-color: #282c34;
-}
-
-a {
-  color: white;
-  text-decoration: none;
-}
-
-input {
-  width: 80%;
-}
-
 .App {
-  text-align: center;
-  background:black;
+  background-color: #363943;
 }
-
-button {
-  width: 100%;
-  margin: 0;
-  padding: 0;
-}
-
 
 .App-logo {
   animation: App-logo-spin infinite 20s linear;
