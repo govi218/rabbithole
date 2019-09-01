@@ -3,6 +3,8 @@ import Graph from 'vis-react';
 
 import DetailCard from '../DetailCard/DetailCard'
 import Sun from '../../assets/imgs/sun.png';
+import './VisCanvas.css'
+
 
 var graph = {
   nodes: [
@@ -62,7 +64,7 @@ class VisCanvas extends React.Component {
 
   render() {
     return (
-      <div>
+      <div className='canvas'>
         <Graph
           graph={graph}
           options={options}
