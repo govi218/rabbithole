@@ -5,7 +5,6 @@ import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
 import Button from '@material-ui/core/Button';
 import Input from '@material-ui/core/Input';
-import AddIcon from '@material-ui/icons/Add';
 
 import Logo from '../../assets/imgs/logo.png';
 
@@ -37,10 +36,8 @@ export default function Navbar() {
         <Toolbar>
           <img src={Logo} />
           <Button color="inherit">Searches</Button>
-          <Button color="inherit">Hyperledger</Button>
-          <a href=""> <AddIcon /> </a>
+          <Button color="inherit">Projects</Button>
         </Toolbar>
-        
       </AppBar>
       <Input
         defaultValue="Add a website you want to stop tracking."
