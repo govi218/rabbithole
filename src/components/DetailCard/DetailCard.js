@@ -12,7 +12,7 @@ const useStyles = makeStyles(theme => ({
 
 export default function DetailCard() {
   const classes = useStyles();
-
+    
   return (
     <div>
       <Paper className={classes.root}>
