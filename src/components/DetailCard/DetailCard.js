@@ -3,13 +3,14 @@ import React from 'react';
 import { makeStyles } from '@material-ui/core/styles';
 import Paper from '@material-ui/core/Paper';
 import Typography from '@material-ui/core/Typography';
+import { textAlign } from '@material-ui/system';
 
 const useStyles = makeStyles(theme => ({
   root: {
-    padding: theme.spacing(3, 2),
-    position: 'absolute',
+    position: 'fixed',
+    padding: '10px',
+    marginLeft: '2.5%',
     bottom: '2.5%',
-    left: '2.5%'
   },
 }));
 
@@ -17,7 +18,6 @@ export default function DetailCard() {
   const classes = useStyles();
 
   return (
-    <div>
       <Paper className={classes.root}>
         <Typography variant="h5" component="h3">
           This is the Website Title.
@@ -32,6 +32,5 @@ export default function DetailCard() {
           Lastvisted: 
         </Typography>
       </Paper>
-    </div>
   );
 }
