@@ -7,12 +7,15 @@ import Typography from '@material-ui/core/Typography';
 const useStyles = makeStyles(theme => ({
   root: {
     padding: theme.spacing(3, 2),
+    position: 'absolute',
+    bottom: '2.5%',
+    left: '2.5%'
   },
 }));
 
 export default function DetailCard() {
   const classes = useStyles();
-    
+
   return (
     <div>
       <Paper className={classes.root}>
