@@ -3,7 +3,7 @@ import React from 'react';
 import './App.css';
 
 import Navbar from './components/Navbar/Navbar';
-import LRCanvas from './components/LRCanvas/LRCanvas';
+import LRCanvas from './components/VisCanvas/VisCanvas';
 
 import { init_user, get_user } from './utils/db_methods';
 
@@ -14,9 +14,8 @@ class App extends React.Component {
     return (
       <div className="App">
         <Navbar />
-        
         <main>
-          <LRCanvas />
+          <VisCanvas />
         </main>
       </div>
     );
