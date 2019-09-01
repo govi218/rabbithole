@@ -14,7 +14,7 @@ class App extends React.Component {
     return (
       <div className="App">
         <Navbar />
-          <VisCanvas />
+        <VisCanvas />
       </div>
     );
   }
