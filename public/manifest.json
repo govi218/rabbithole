@@ -14,6 +14,12 @@
   },
   "permissions": [
     "storage",
-    "tabs"
-  ]
+    "tabs",
+    "history",
+    "topSites"
+  ],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  }
 }

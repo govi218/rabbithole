@@ -1,8 +1,8 @@
 import Dexie from 'dexie';
 
-const db = new Dexie('myDb');
+const db = new Dexie('rabbitholeDB');
 db.version(1).stores({
-    user: `user_id`,
+    user: `user_id, active_tab, active_window, active_rabbithole, last_opened`,
     websites: `website_id, &url, from_websites, to_websites, notes, *tags`,
     rabbitholes: `rabbithole_id, websites, rabbithole_name` // might need tags here as well
 });

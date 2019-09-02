@@ -1,3 +1,5 @@
+/*global chrome*/
+
 import React from 'react';
 import Graph from 'vis-react';
 import { makeStyles } from '@material-ui/core/styles';
@@ -5,7 +7,6 @@ import DetailCard from '../DetailCard/DetailCard'
 import Sun from '../../assets/imgs/sun.png';
 import './VisCanvas.css'
 import { Grid } from '@material-ui/core';
-
 
 var graph = {
   nodes: [
