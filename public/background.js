@@ -1,93 +1,131 @@
-// function connect(name, version) {
-//   return new Promise((resolve, reject) => {
-//     const request = indexedDB.open(name, version);
-//     // request.onupgradeneeded = function(event) {
-//     //   let db = event.target.result;
-//     //   let user_store = db.createObjectStore("user", { keyPath: "user_id" });
-//     //   user_store.createIndex("active_website", "active_website", { unique: true });
-//     //   user_store.createIndex("active_tab", "active_tab", { unique: true });
-//     // };
-//     request.onsuccess = () => resolve(request.result);
-//     request.onerror = () => reject(request);
-//     request.onblocked = () => { console.log('blocked'); };
-//   });
-// }
+// Can't use ES6 due to compatibility issues :( 
 
-// function update_active(conn, item, value) {
-//   return new Promise((resolve, reject) => {
-//     const tx = conn.transaction(['user'], 'readwrite');
-//     const store = tx.objectStore('user');
-//     const request = store.getAll();
-//     request.onsuccess = (event) => {
-//       let user = event.target.result;
-//       console.log(user);
+chrome.history.onVisited.addListener(async function(history) {
+  alert('ayyy LMAO' + history.url);
+  // first get user
+  chrome.storage.local.get({ user: {} }, function(data) {
+    console.log(data);
+    let user_obj = data.user;
 
-//       user = user[0];
-//       if(item === 'website') user.active_website = value
-//       else if (item === 'tab') user.active_tab = value
-//       else reject('gtfo');
+    // if first time, set active website
+    if (user_obj === {}) {
+      user_obj.active_website = result.url;
 
-//       let request_update = store.put(user);
+      chrome.storage.local.set({ user: user_obj }, function(result) {
+        console.log(result);
+        // if no user, no website store; create it
+  
+        // add website to website list
+        let website_list = [];
+  
+        console.log('init case');
+        console.log(website_list);
+        let new_website = {
+          url: result.url,
+          tos: [],
+          froms: []
+        };
+        website_list.push(new_website);
+  
+        chrome.storage.local.set({ websites: website_list }, function(result) {
+          console.log('init case, for real');
+          console.log(result);
+        });
+      });
 
-//       request_update.onsuccess = resolve(request_update.result);
-//       request_update.onerror = reject(request_update.error);
-//     } 
-//     request.onerror = () => reject(request.error);
-//   });
-// }
+    } else {
+      let active_website = user_obj.active_website;
+      // websites HAS to exist
+      chrome.storage.local.get({ websites: [] }, function(result) {
+        let website_list = result.websites;
+        let to_flag = 0, from_flag = 1;
+        console.log(website_list);
 
-// chrome.history.onVisited.addListener(async function(result) {
-//   alert(result.url)
-//   // // await update_active_website(result.url);
-//   // let connection;
-//   // try {
-//   //   connection = await connect("rabbitholeDB", 1);
-//   //   console.log(connection);
-//   //   await update_active(connection, 'website', result.url);
-//   // } catch(exception) {
-//   //   console.log(exception);
-//   // } 
-//   let port = chrome.runtime.connect({name: "knockknock"});
-//   port.postMessage({ joke: result.url });
-// }); 
+        for (let i = 0; i < website_list.length; i++) {
+          if (website_list[i].url === active_website) {
+            let tos = [];
 
-// chrome.tabs.onCreated.addListener(function(tab) {
-//   alert(tab.url);
-//   // await update_active_tab(tab.url);
-// });
+            // update old active website tos
+            if (website_list[i].tos === undefined) {
+              tos.push(history.url);
+              website_list[i].tos = tos;
+            } else {
+              website_list[i].tos.push(history.url);
+            }
+            to_flag += 1;
+          } else if (website_list[i].url === history.url) {
+            let froms = [];
 
-/* 
-  async function putValue(value) {
-  let conn;
-  try {
-    conn = await connect(...);
-    await doStuffWithConn(conn, value);
-  } catch(exception) {
-    console.error(exception);
-  } finally {
-    if(conn)
-      conn.close();
-  }
-}
+            // update old active website tos
+            if (website_list[i].tos === undefined) {
+              froms.push(history.url);
+              website_list[i].froms = froms;
+            } else {
+              website_list[i].froms.push(history.url);
+            }
+            from_flag += 1;
+          }
+        }
 
-window.indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
+        if (to_flag === 0) {
+          let tos = [];
+          tos.push(history.url);
+          let new_website = {
+            url: active_website,
+            tos: tos,
+            froms: []
+          };
+          website_list.push(new_website);
+        }
 
-if (!window.indexedDB) alert("Your browser doesn't support a stable version of IndexedDB. Such and such feature will not be available.");
+        if (from_flag === 0) {
+          let froms = [];
+          froms.push(active_website);
+          let new_website = {
+            url: history.url,
+            tos: [],
+            froms: froms
+          };
+          website_list.push(new_website);
+        }
 
-let db;
+          
+        chrome.storage.local.set({ websites: website_list }, function(result) {
+          console.log('NOT init case, for real');
+          console.log(result);
+        });
+      });
 
-let request = window.indexedDB.open("rabbitholeDB");
-request.onerror = function(event) {
-  console.log("Why didn't you allow my web app to use IndexedDB?!");
-};
-request.onsuccess = function(event) {
-  db = event.target.result;
-};
+      // update active website
+      user_obj.active_website = history.url;
+      chrome.storage.local.set({ user: user_obj }, function(result) {
+        console.log(result);
+      });
+    }
+  });
+}); 
 
-db.onerror = function(event) {
-  // Generic error handler for all errors targeted at this database's
-  // requests!
-  alert("Database error: " + event.target.errorCode);
-};
-*/
-//-------------------------------------------------------------------------------------------------------
+chrome.tabs.onActivated.addListener(function(tab_obj) {
+  chrome.tabs.get(tab_obj.tabId, function(tab){
+    alert('ayyy lmao ' + tab.url);
+    chrome.storage.local.get({ user: {} }, function(data) {
+      console.log(data);
+      let user_obj = data.user;
+  
+      // if first time, set active website
+      if (user_obj === {}) {
+        user_obj.active_website = tab.url;
+        chrome.storage.local.set({ user: user_obj }, function(result) {
+          console.log(result);
+        });
+  
+      } else {
+        // update active website
+        user_obj.active_website = tab.url;
+        chrome.storage.local.set({ user: user_obj }, function(result) {
+          console.log(result);
+        });
+      }
+    });
+  })
+});

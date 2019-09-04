@@ -69,65 +69,65 @@ class VisCanvas extends React.Component {
     - typeof(history) is Array (Should probably be a queue)
     - history is sorted by recency of search.
   */
-  generateGraph(history, graph_options) {
-    // initialize graph (and options)
-    let
-      graph = {},
-      nodes = [],
-      edges = [],
-      // first_search = true, // why this paramater
-      // most_recent_search_id = -1, // why this paramater
-      start_node,
-      start_time,
-      end_time,
-      keywords = [];
+  // generateGraph(history, graph_options) {
+  //   // initialize graph (and options)
+  //   let
+  //     graph = {},
+  //     nodes = [],
+  //     edges = [],
+  //     // first_search = true, // why this paramater
+  //     // most_recent_search_id = -1, // why this paramater
+  //     start_node,
+  //     start_time,
+  //     end_time,
+  //     keywords = [];
 
-    for (let i = history.length; i >= 0; i--) {
-      let node = history[i];
-      let edge = {};
-      // Find a Google search 
-      if (node['url'].includes('google.com/search?q=')) {
+  //   for (let i = history.length; i >= 0; i--) {
+  //     let node = history[i];
+  //     let edge = {};
+  //     // Find a Google search 
+  //     if (node['url'].includes('google.com/search?q=')) {
 
-        // If its the first search, assign node to 'start' group
-        // Otherwise, assign it to 'queries' group.
-        if (node == history[0]) {
-          node['group'] = 'start'
-        } else {
-          node['group'] = 'queries'
+  //       // If its the first search, assign node to 'start' group
+  //       // Otherwise, assign it to 'queries' group.
+  //       if (node == history[0]) {
+  //         node['group'] = 'start'
+  //       } else {
+  //         node['group'] = 'queries'
 
-          // Create a forward edge from most recent search.
-          edge['from'] = history[i - 1][id];
-          edge['to'] = node['id'];
-          edge['arrows'] = {
-            to: {
-              enabled: true
-            }
-          };
-        }
-      } else {
-        if ((node == history[0]) || isRegularSite(node) == true) {
-          continue;
-        }
-        node['group'] = 'resources';
+  //         // Create a forward edge from most recent search.
+  //         edge['from'] = history[i - 1][id];
+  //         edge['to'] = node['id'];
+  //         edge['arrows'] = {
+  //           to: {
+  //             enabled: true
+  //           }
+  //         };
+  //       }
+  //     } else {
+  //       if ((node == history[0]) || isRegularSite(node) == true) {
+  //         continue;
+  //       }
+  //       node['group'] = 'resources';
 
-        // Create a forward edge from most recent search.
-        edge['from'] = history[i - 1][id];
-        edge['to'] = node['id'];
-        edge['arrows'] = {
-          to: {
-            enabled: true
-          }
-        };
-      }
+  //       // Create a forward edge from most recent search.
+  //       edge['from'] = history[i - 1][id];
+  //       edge['to'] = node['id'];
+  //       edge['arrows'] = {
+  //         to: {
+  //           enabled: true
+  //         }
+  //       };
+  //     }
 
-      nodes.push(node);
-      edges.push(edge);
-    }
+  //     nodes.push(node);
+  //     edges.push(edge);
+  //   }
 
-    graph['name'] = name;
-    graph['nodes'] = nodes;
-    graph['edges'] = edges;
-  }
+  //   graph['name'] = name;
+  //   graph['nodes'] = nodes;
+  //   graph['edges'] = edges;
+  // }
 
   render() {
     return (
