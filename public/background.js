@@ -1,7 +1,7 @@
 // Can't use ES6 due to compatibility issues :( 
 
 chrome.history.onVisited.addListener(async function(history) {
-  alert('ayyy LMAO' + history.url);
+  // alert('ayyy LMAO' + history.url);
   // first get user
   chrome.storage.local.get({ user: {} }, function(data) {
     console.log(data);
@@ -27,14 +27,16 @@ chrome.history.onVisited.addListener(async function(history) {
         };
         website_list.push(new_website);
   
-        chrome.storage.local.set({ websites: website_list }, function(result) {
-          console.log('init case, for real');
-          console.log(result);
-        });
+        chrome.storage.local.set({ websites: website_list });
       });
 
     } else {
       let active_website = user_obj.active_website;
+
+      if (active_website === history.url) {
+        console.log('repeat: ' + active_website);
+        return;
+      }
       // websites HAS to exist
       chrome.storage.local.get({ websites: [] }, function(result) {
         let website_list = result.websites;
@@ -90,24 +92,19 @@ chrome.history.onVisited.addListener(async function(history) {
         }
 
           
-        chrome.storage.local.set({ websites: website_list }, function(result) {
-          console.log('NOT init case, for real');
-          console.log(result);
-        });
+        chrome.storage.local.set({ websites: website_list });
       });
 
       // update active website
       user_obj.active_website = history.url;
-      chrome.storage.local.set({ user: user_obj }, function(result) {
-        console.log(result);
-      });
+      chrome.storage.local.set({ user: user_obj });
     }
   });
 }); 
 
 chrome.tabs.onActivated.addListener(function(tab_obj) {
   chrome.tabs.get(tab_obj.tabId, function(tab){
-    alert('ayyy lmao ' + tab.url);
+    // alert('ayyy lmao ' + tab.url);
     chrome.storage.local.get({ user: {} }, function(data) {
       console.log(data);
       let user_obj = data.user;
@@ -115,16 +112,12 @@ chrome.tabs.onActivated.addListener(function(tab_obj) {
       // if first time, set active website
       if (user_obj === {}) {
         user_obj.active_website = tab.url;
-        chrome.storage.local.set({ user: user_obj }, function(result) {
-          console.log(result);
-        });
+        chrome.storage.local.set({ user: user_obj });
   
       } else {
         // update active website
         user_obj.active_website = tab.url;
-        chrome.storage.local.set({ user: user_obj }, function(result) {
-          console.log(result);
-        });
+        chrome.storage.local.set({ user: user_obj });
       }
     });
   })

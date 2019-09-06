@@ -1,3 +1,5 @@
+/*global chrome*/
+
 import db from './db';
 import { create_id } from './lib';
 import { async } from 'q';
@@ -7,7 +9,6 @@ export async function init_user() {
   get_user()
     .then((user) => {
       if (user[0].user_id !== '') {
-        console.log(user[0]);
         return;
       } else {
         console.log('???'); // need to check if this gets triggered with tests
@@ -59,7 +60,7 @@ export async function create_website(url, from_website) {
 }
 
 export async function get_website_with_url(url) {
-  let website =  await db.websites.where('url').equals(url)
+  let website =  await db.websites.where('url').equals(url).toArray();
   return website;
 }
 
@@ -87,4 +88,40 @@ export async function update_last_opened(timestamp) {
       let id = user[0].user_id;
       await db.user.update(id, { last_opened: timestamp })
     });
+}
+
+export function update_websites(websites) {
+
+  // no new websites
+  if (websites === []) return;
+
+  // console.log(websites);
+  websites.forEach(website => {
+    get_website_with_url(website.url)
+      .then(async (db_website) => {
+        if (db_website.website_id !== '') {
+          console.log(db_website);
+          db_website.to_websites.concat(website.tos);
+          db_website.from_websites.concat(website.froms);
+          await db.websites.update(db_website.website_id, db_website);
+          return;
+        } else {
+          console.log('???'); // need to check if this gets triggered with tests
+        }
+      })
+      // website doesn't exist
+      .catch( async (err) => {
+        await db.websites.put({
+          website_id: create_id(),
+          url: website.url,
+          to_websites: website.tos,
+          from_websites: website.froms
+        });
+      })
+  });
+}
+
+export async function get_websites() {
+  let websites = await db.websites.toArray();
+  return websites;
 }
