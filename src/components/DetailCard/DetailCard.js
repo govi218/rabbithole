@@ -11,6 +11,10 @@ const useStyles = makeStyles(theme => ({
     padding: '10px',
     marginLeft: '2.5%',
     bottom: '2.5%',
+    opacity: 0.5,
+    '&:hover': {
+       opacity: 1.0,
+    }
   },
 }));
 
@@ -19,7 +23,7 @@ export default function DetailCard() {
 
   return (
       <Paper className={classes.root}>
-        <Typography variant="h5" component="h3">
+        <Typography variant="h6" component="h3">
           This is the Website Title.
         </Typography>
         <Typography component="p">

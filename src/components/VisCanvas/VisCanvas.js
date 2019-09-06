@@ -164,11 +164,11 @@ class VisCanvas extends React.Component {
           options={options}
           events={events}
         />
-        <Grid container spacing={0}>
-          <Grid item sm={5}>
+        <Grid container spacing={2}>
+          <Grid item sm={4}>
             <DetailCard />
           </Grid>
-          <Grid item sm={5}>
+          <Grid item sm={4}>
             <DetailCard />
           </Grid>
         </Grid>
