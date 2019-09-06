@@ -96,7 +96,7 @@ class VisCanvas extends React.Component {
   //         node['group'] = 'queries'
 
   //         // Create a forward edge from most recent search.
-  //         edge['from'] = history[i - 1][id];
+  //         edge['from'] = history[i - 1]['id'];
   //         edge['to'] = node['id'];
   //         edge['arrows'] = {
   //           to: {
@@ -137,11 +137,11 @@ class VisCanvas extends React.Component {
           options={options}
           events={events}
         />
-        <Grid container spacing={0}>
-          <Grid item sm={5}>
+        <Grid container spacing={2}>
+          <Grid item sm={4}>
             <DetailCard />
           </Grid>
-          <Grid item sm={5}>
+          <Grid item sm={4}>
             <DetailCard />
           </Grid>
         </Grid>
