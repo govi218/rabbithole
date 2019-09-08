@@ -26,9 +26,9 @@ let events = {
   // }
   beforeDrawing: (ctx) => {
     ctx.save();
-    ctx.setTransform(1,0,0,1,0,0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#222';
-    ctx.fillRect(0,0,ctx.canvas.width, ctx.canvas.height);
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     ctx.restore();
   },
   click: (ctx) => {
@@ -56,14 +56,14 @@ let events = {
 
     //   // Will display time in 10:30:23 format
     //   let formattedTime = date + '/' + month + '/' + year + ', ' + hours + ':' + minutes.substr(-2) + ':' + seconds.substr(-2);
-  
+
     //   network.focus(nodes[elementPos], {scale: 2});
 
     //   // node_data_html += '<p>ID: ' + nodes[elementPos]["id"] + '</p>';
     //   node_data_html += '<p>Last Visited: ' + formattedTime + '</p>'; 
     //   node_data_html += '<p>Title: ' + nodes[elementPos]["title"] + '</p>';
     //   node_data_html += '<p>URL: <a href=\"' + nodes[elementPos]["url"] + '\" target=\"_blank\">' + nodes[elementPos]["url"] + '</a></p>';
-      
+
     //   document.getElementById(details).innerHTML = node_data_html; 
     // }
   }
@@ -97,11 +97,11 @@ let options = {
     keyboard: true
   }
 };
- /* Precondition(s): 
-    - typeof(history) is Array (Should probably be a queue)
-    - history is sorted by recency of search.
-  */
- let generateGraph = async () => {
+/* Precondition(s): 
+   - typeof(history) is Array (Should probably be a queue)
+   - history is sorted by recency of search.
+ */
+export async function generateGraph() {
 
   // INITIAL PROTOTYPE, this needs to query rabbitholes!!
 
@@ -118,7 +118,7 @@ let options = {
 
   // incredibly inefficient
   websites.forEach(element => {
-    nodes.push({ 
+    nodes.push({
       id: element.website_id,
       label: element.url
     });
@@ -142,25 +142,56 @@ let options = {
   graph['nodes'] = nodes;
   graph['edges'] = edges;
   // console.log(graph);
+  // return new Promise((resolve, reject) => {
+  //   setTimeout(function() {
+  //     var didSucceed = Math.random() >= 0.5;
+  //     didSucceed ? resolve(new Date()) : reject('Error');
+  //   }, 2000);
+  // })
   return graph;
 }
+
 class VisCanvas extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      graph: {},
+      graph: props.graph,
       style: {},
       network: null
     }
   }
+  // getGraph() {
+  //   generateGraph().then(g => ())
+  // }
+  // async componentDidMount() {
+  //   console.log("MOUNT RENDER");
+  //   let g = await generateGraph();
+  //   // generateGraph()
+  //   //   .then((grph) => {
+  //   //     this.setState((prevState, currProps) => {
+  //   //       return {...prevState, graph: currProps.grph};
+  //   //     })
+  //   //     console.log(grph)
+  //   //     //console.log(this.state)
+  //   //   })
+  //   //   .catch((err) => {
+  //   //     console.log(err)
+  //   //   });
+  //   // console.log(g)
+  //   this.setState((prevState) => {
+  //     prevState.graph = graph;
+  //   });
+  // }
 
   render() {
-    let graph = generateGraph();
-    console.log(graph)
+    // let g = generateGraph();
+    // console.log(g);
+    // console.log(this.state)
+    console.log("VISCANVAS RENDER");
     return (
       <div className='canvas'>
         <Graph
-          graph={graph}
+          graph={this.state.graph}
           options={options}
           events={events}
         />
