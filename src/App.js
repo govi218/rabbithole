@@ -9,15 +9,13 @@ import VisCanvas from './components/VisCanvas/VisCanvas';
 
 import { init_user, update_last_opened, update_websites, get_user } from './utils/db_methods';
 
+/** Asynchronously generate a vis graph, from
+ *  search history.
+ */
 export async function generateGraph() {
 
   // INITIAL PROTOTYPE, this needs to query rabbitholes!!
-
   let websites = await get_websites();
-
-  // console.log(websites);
-
-  // build graph 
 
   let
     graph = {},
@@ -32,7 +30,6 @@ export async function generateGraph() {
     });
     element.to_websites.forEach(async (to_website) => {
       let to_website_url = await get_website_with_url(to_website);
-      // console.log(to_website_url);
       if (to_website_url[0] === undefined) return;
       let edge = {
         from: element.website_id,
@@ -49,13 +46,6 @@ export async function generateGraph() {
   });
   graph['nodes'] = nodes;
   graph['edges'] = edges;
-  // console.log(graph);
-  // return new Promise((resolve, reject) => {
-  //   setTimeout(function() {
-  //     var didSucceed = Math.random() >= 0.5;
-  //     didSucceed ? resolve(new Date()) : reject('Error');
-  //   }, 2000);
-  // })
   return graph;
 }
 
@@ -68,27 +58,16 @@ class App extends React.Component {
     }
   }
   componentDidMount() {
-    console.log("MOUNT RENDER");
-    let g = generateGraph().then((grph) => {
-      console.log("This ish")
+    console.log("App Component Mounting...")
+    generateGraph().then((grph) => {
       this.setState({ graph: grph, flag: true });
+      console.log("Graph State initialized...")
+      console.log(this.state.graph);
     })
       .catch(err => {
         console.log(err)
         this.setState({ graph: err })
       });
-    // generateGraph()
-    //   .then((grph) => {
-    //     this.setState((prevState, currProps) => {
-    //       return {...prevState, graph: currProps.grph};
-    //     })
-    //     console.log(grph)
-    //     //console.log(this.state)
-    //   })
-    //   .catch((err) => {
-    //     console.log(err)
-    //   });
-    // console.log("PARANOIA WORKS IN MYSTERIOUS WAYS")
   }
 
   render() {
@@ -106,7 +85,7 @@ class App extends React.Component {
   
     if (!this.state.flag) {
       return (
-        <h2> PARANOIA </h2>
+        <h2> Loading... </h2>
       )
     } else {
       console.log(this.state);
