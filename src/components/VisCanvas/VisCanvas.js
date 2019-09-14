@@ -21,8 +21,8 @@ import { get_websites, get_website_with_url } from '../../utils/db_methods'
 // };
 
 let events = {
-  
-  }
+
+}
 //   beforeDrawing: (ctx) => {
 //     ctx.save();
 //     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -97,61 +97,97 @@ let options = {
   }
 };
 
+/** Asynchronously generate a vis graph, from
+ *  search history.
+ */
+export async function generateGraph() {
+
+  // INITIAL PROTOTYPE, this needs to query rabbitholes!!
+  let websites = await get_websites();
+  let
+    graph = {},
+    nodes = [],
+    edges = [];
+
+  // incredibly inefficient
+  for (let website of websites) {
+    nodes.push({
+      id: website.website_id,
+      label: website.url
+    });
+    
+    for (let to_website of website.to_websites) {
+      let to_website_url = await get_website_with_url(to_website);
+      console.log(website)
+      if (to_website_url[0] === undefined) continue;
+
+      let edge = {
+        from: website.website_id,
+        to: to_website_url[0].website_id
+      };
+      edges.push(edge);
+    }
+
+  }
+  console.log("GENGRAPH2")
+  graph['nodes'] = nodes;
+  graph['edges'] = edges;
+  console.log(graph)
+  return graph;
+}
+
 class VisCanvas extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      graph: props.graph,
+      graph: {},
       style: {},
+      flag: false,
       network: null
     }
   }
-  // getGraph() {
-  //   generateGraph().then(g => ())
-  // }
-  // async componentDidMount() {
-  //   console.log("MOUNT RENDER");
-  //   let g = await generateGraph();
-  //   // generateGraph()
-  //   //   .then((grph) => {
-  //   //     this.setState((prevState, currProps) => {
-  //   //       return {...prevState, graph: currProps.grph};
-  //   //     })
-  //   //     console.log(grph)
-  //   //     //console.log(this.state)
-  //   //   })
-  //   //   .catch((err) => {
-  //   //     console.log(err)
-  //   //   });
-  //   // console.log(g)
-  //   this.setState((prevState) => {
-  //     prevState.graph = graph;
-  //   });
-  // }
+
+  componentDidMount() {
+    console.log("App Component Mounting...")
+    generateGraph().then((grph) => {
+      this.setState({ graph: grph, flag: true });
+      console.log("Graph State initialized...")
+      console.log(this.state.graph.edges[1]);
+    })
+      .catch(err => {
+        console.log(err)
+        this.setState({ graph: err })
+      });
+  }
 
   render() {
-    // let g = generateGraph();
-    // console.log(g);
-    // console.log(this.state)
     console.log("Rendering Viscanvas...");
-    console.log(this.state.graph)
-    return (
-      <div className='canvas'>
-        <Graph
-          graph={this.state.graph}
-          options={options}
-          events={events}
-        />
-        <Grid container spacing={2}>
-          <Grid item sm={4}>
-            <DetailCard />
+    // console.log(this.state.graph)
+
+    if (!this.state.flag) {
+      return (
+        <h2> Loading... </h2>
+      )
+    } else {
+
+      return (
+        <div className='canvas'>
+          <Graph
+            graph={this.state.graph}
+            options={options}
+            events={events}
+          />
+          <Grid container spacing={2}>
+            <Grid item sm={4}>
+              <DetailCard />
+            </Grid>
+            <Grid item sm={4}>
+              <DetailCard />
+            </Grid>
           </Grid>
-          <Grid item sm={4}>
-            <DetailCard />
-          </Grid>
-        </Grid>
-      </div>
-    );
+        </div>
+      );
+    }
   }
 }
 

@@ -9,6 +9,7 @@
     "react": "^16.9.0",
     "react-dom": "^16.9.0",
     "react-scripts": "3.1.1",
+    "vis-network": "^6.0.0",
     "vis-react": "^0.4.5"
   },
   "scripts": {
