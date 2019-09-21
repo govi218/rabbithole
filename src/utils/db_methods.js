@@ -95,12 +95,10 @@ export function update_websites(websites) {
   // no new websites
   if (websites === []) return;
 
-  // console.log(websites);
   websites.forEach(website => {
     get_website_with_url(website.url)
       .then(async (db_website) => {
         if (db_website.website_id !== '') {
-          console.log(db_website);
           db_website.to_websites.concat(website.tos);
           db_website.from_websites.concat(website.froms);
           await db.websites.update(db_website.website_id, db_website);
@@ -114,6 +112,8 @@ export function update_websites(websites) {
         await db.websites.put({
           website_id: create_id(),
           url: website.url,
+          title: website.title,
+          last_visited: website.last_visited,
           to_websites: website.tos,
           from_websites: website.froms
         });

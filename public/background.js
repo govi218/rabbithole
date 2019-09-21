@@ -1,15 +1,18 @@
 // Can't use ES6 due to compatibility issues :( 
 
 chrome.history.onVisited.addListener(async function(history) {
-  // alert('ayyy LMAO' + history.url);
-  // first get user
+
+  console.log(history)
+  // first, get user
   chrome.storage.local.get({ user: {} }, function(data) {
     console.log(data);
     let user_obj = data.user;
 
     // if first time, set active website
     if (user_obj === {}) {
-      user_obj.active_website = result.url;
+      user_obj.active_website = history.url;
+      user_obj.lastVisited = history.lastVisitTime;
+      user_obj.title = history.title;
 
       chrome.storage.local.set({ user: user_obj }, function(result) {
         console.log(result);
@@ -22,6 +25,8 @@ chrome.history.onVisited.addListener(async function(history) {
         console.log(website_list);
         let new_website = {
           url: result.url,
+          title: history.title,
+          last_visited: history.lastVisitTime,
           tos: [],
           froms: []
         };
@@ -32,9 +37,10 @@ chrome.history.onVisited.addListener(async function(history) {
 
     } else {
       let active_website = user_obj.active_website;
+      let active_website_title = user_obj.active_website_title;
+      let active_website_last_visit = user_obj.active_website_last_visit;
 
       if (active_website === history.url) {
-        console.log('repeat: ' + active_website);
         return;
       }
       // websites HAS to exist
@@ -74,6 +80,8 @@ chrome.history.onVisited.addListener(async function(history) {
           tos.push(history.url);
           let new_website = {
             url: active_website,
+            title: active_website_title,
+            last_visited: active_website_last_visit,
             tos: tos,
             froms: []
           };
@@ -85,6 +93,8 @@ chrome.history.onVisited.addListener(async function(history) {
           froms.push(active_website);
           let new_website = {
             url: history.url,
+            title: history.title,
+            last_visited: history.lastVisitTime,
             tos: [],
             froms: froms
           };
@@ -97,6 +107,8 @@ chrome.history.onVisited.addListener(async function(history) {
 
       // update active website
       user_obj.active_website = history.url;
+      user_obj.active_website_title = history.title;
+      user_obj.active_website_last_visit = history.lastVisitTime;
       chrome.storage.local.set({ user: user_obj });
     }
   });
@@ -104,7 +116,7 @@ chrome.history.onVisited.addListener(async function(history) {
 
 chrome.tabs.onActivated.addListener(function(tab_obj) {
   chrome.tabs.get(tab_obj.tabId, function(tab){
-    // alert('ayyy lmao ' + tab.url);
+    
     chrome.storage.local.get({ user: {} }, function(data) {
       console.log(data);
       let user_obj = data.user;

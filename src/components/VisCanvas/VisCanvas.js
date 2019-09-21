@@ -72,24 +72,24 @@ let events = {
 // The Options object defines the configuration of your 
 // Network Graph.
 let options = {
-  // groups: {
-  //   queries: {
-  //     shape: 'image',
-  //     image: Sun,
-  //   },
-  //   resources: {
-  //     shape: 'image',
-  //     image: '../../assets/imgs/mars1.png'
-  //   },
-  //   start: {
-  //     shape: 'image',
-  //     image: '../../assets/imgs/rocket.png'
-  //   },
-  //   end: {
-  //     shape: 'image',
-  //     image: '../../assets/imgs/finish.png'
-  //   }
-  // },
+  groups: {
+    queries: {
+      shape: 'image',
+      image: Sun,
+    },
+    resources: {
+      shape: 'image',
+      image: '../../assets/imgs/mars1.png'
+    },
+    start: {
+      shape: 'image',
+      image: '../../assets/imgs/rocket.png'
+    },
+    end: {
+      shape: 'image',
+      image: '../../assets/imgs/finish.png'
+    }
+  },
   interaction: {
     hover: true,
     navigationButtons: true,
@@ -113,7 +113,8 @@ export async function generateGraph() {
   for (let website of websites) {
     nodes.push({
       id: website.website_id,
-      label: website.url
+      label: website.url,
+      group: 'resources'
     });
     
     for (let to_website of website.to_websites) {
@@ -129,7 +130,7 @@ export async function generateGraph() {
     }
 
   }
-  console.log("GENGRAPH2")
+  
   graph['nodes'] = nodes;
   graph['edges'] = edges;
   console.log(graph)
