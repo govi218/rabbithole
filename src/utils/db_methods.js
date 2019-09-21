@@ -63,6 +63,11 @@ export async function get_website_with_url(url) {
   return website;
 }
 
+export async function get_website_with_id(id) {
+  let website = await db.websites.where('website_id').equals(id).toArray();
+  return website;
+}
+
 export async function update_active_website(website) {
   get_user()
     .then(async (user) => {

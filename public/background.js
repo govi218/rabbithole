@@ -161,15 +161,12 @@ chrome.windows.onFocusChanged.addListener(function (window_id) {
   // if it's not a standard window, ignore
   if (window_id === -1) return;
   chrome.storage.local.get({ user: {} }, function (data) {
-    console.log(window_id);
-    console.log(data.user);
     let user_obj = data.user;
     let rabbithole_id = '';
 
     // if first time, create rabbithole map
     if (user_obj === {} || user_obj.rabbitholes === undefined) {
       user_obj.rabbitholes = [];
-      console.log('no user obj on focus change');
     }
 
     // find the rabbithole ID
@@ -179,7 +176,6 @@ chrome.windows.onFocusChanged.addListener(function (window_id) {
       }
     }
     if (rabbithole_id === '') {
-      console.log('rabbithole_id not found');
       rabbithole_id = create_id();
       // update active website
       user_obj.rabbitholes.push({
@@ -187,7 +183,6 @@ chrome.windows.onFocusChanged.addListener(function (window_id) {
         rabbithole: rabbithole_id
       });
     }
-    console.log('rab id: ' + rabbithole_id);
     user_obj.active_rabbithole = rabbithole_id;
     chrome.storage.local.set({ user: user_obj });
   });
