@@ -6,24 +6,23 @@ import { Grid } from '@material-ui/core';
 
 import DetailCard from '../DetailCard/DetailCard';
 
-import Bang from '../../assets/space-set/png/001-big-bang.png';
-import Colony from '../../assets/space-set/png/002-colony.png';
-import Constellation from '../../assets/space-set/png/003-constellation.png';
+// import Bang from '../../assets/space-set/png/001-big-bang.png';
+// import Colony from '../../assets/space-set/png/002-colony.png';
+// import Constellation from '../../assets/space-set/png/003-constellation.png';
 import Planet from '../../assets/space-set/png/007-planet.png';
 import Galaxy from '../../assets/space-set/png/008-galaxy.png';
+import Saturn from '../../assets/space-set/png/023-saturn.png';
 
-import Sun from '../../assets/imgs/sun.png';
+// import Sun from '../../assets/imgs/sun.png';
 import Mars from '../../assets/imgs/mars1.png';
-import Rocket from '../../assets/imgs/rocket.png';
-import Finish from '../../assets/imgs/finish.png';
+// import Rocket from '../../assets/imgs/rocket.png';
+// import Finish from '../../assets/imgs/finish.png';
 
 import { get_websites, get_website_with_url } from '../../utils/db_methods';
 import './VisCanvas.css';
 
 
-let events = {
 
-}
 
 // The Options object defines the configuration of your 
 // Network Graph.
@@ -39,7 +38,7 @@ let options = {
     },
     start: {
       shape: 'image',
-      image: Bang
+      image: Saturn
     },
     end: {
       shape: 'image',
@@ -72,9 +71,9 @@ export async function generateGraph() {
     nodes.push({
       id: website.website_id,
       label: website.url,
-      group: groups[Math.floor(Math.random()*groups.length)]
+      group: groups[Math.floor(Math.random() * groups.length)]
     });
-    
+
     for (let to_website of website.to_websites) {
       let to_website_url = await get_website_with_url(to_website);
       console.log(website)
@@ -102,8 +101,31 @@ class VisCanvas extends React.Component {
       style: {},
       flag: false,
       network: null
-    }
+    };
+    this.handleHover = this.handleHover.bind(this)
+    this.events = {
+      hoverNode: this.handleHover
+    };
+
   }
+
+  handleHover(event) {
+    let clicked_node;
+    for (let node of this.state.graph['nodes']) {
+      if (node.id == event.node) {
+        clicked_node = node;
+        break;
+      }
+    }
+
+    console.log(this.getNetwork());
+    // console.log(clicked_node);
+  }
+
+  getNetwork = data => {
+    this.setState({ network: data });
+    return data;
+  };
 
   componentDidMount() {
     console.log("App Component Mounting...")
@@ -119,6 +141,7 @@ class VisCanvas extends React.Component {
 
   render() {
     console.log("Rendering Viscanvas...");
+    console.log(this.state.network);
     // console.log(this.state.graph)
 
     if (!this.state.flag) {
@@ -131,7 +154,8 @@ class VisCanvas extends React.Component {
           <Graph
             graph={this.state.graph}
             options={options}
-            events={events}
+            events={this.events}
+            getNetwork={this.getNetwork}
           />
           <Grid container spacing={2}>
             <Grid item sm={4}>
