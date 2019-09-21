@@ -1,10 +1,10 @@
 // Can't use ES6 due to compatibility issues :( 
 
-chrome.history.onVisited.addListener(async function(history) {
+chrome.history.onVisited.addListener(async function (history) {
 
   console.log(history)
   // first, get user
-  chrome.storage.local.get({ user: {} }, function(data) {
+  chrome.storage.local.get({ user: {} }, function (data) {
     console.log(data);
     let user_obj = data.user;
 
@@ -14,13 +14,13 @@ chrome.history.onVisited.addListener(async function(history) {
       user_obj.lastVisited = history.lastVisitTime;
       user_obj.title = history.title;
 
-      chrome.storage.local.set({ user: user_obj }, function(result) {
+      chrome.storage.local.set({ user: user_obj }, function (result) {
         console.log(result);
         // if no user, no website store; create it
-  
+
         // add website to website list
         let website_list = [];
-  
+
         console.log('init case');
         console.log(website_list);
         let new_website = {
@@ -31,7 +31,7 @@ chrome.history.onVisited.addListener(async function(history) {
           froms: []
         };
         website_list.push(new_website);
-  
+
         chrome.storage.local.set({ websites: website_list });
       });
 
@@ -44,7 +44,7 @@ chrome.history.onVisited.addListener(async function(history) {
         return;
       }
       // websites HAS to exist
-      chrome.storage.local.get({ websites: [] }, function(result) {
+      chrome.storage.local.get({ websites: [] }, function (result) {
         let website_list = result.websites;
         let to_flag = 0, from_flag = 1;
         console.log(website_list);
@@ -101,7 +101,7 @@ chrome.history.onVisited.addListener(async function(history) {
           website_list.push(new_website);
         }
 
-          
+
         chrome.storage.local.set({ websites: website_list });
       });
 
@@ -112,20 +112,19 @@ chrome.history.onVisited.addListener(async function(history) {
       chrome.storage.local.set({ user: user_obj });
     }
   });
-}); 
+});
 
-chrome.tabs.onActivated.addListener(function(tab_obj) {
-  chrome.tabs.get(tab_obj.tabId, function(tab){
-    
-    chrome.storage.local.get({ user: {} }, function(data) {
+chrome.tabs.onActivated.addListener(function (tab_obj) {
+  chrome.tabs.get(tab_obj.tabId, function (tab) {
+    chrome.storage.local.get({ user: {} }, function (data) {
       console.log(data);
       let user_obj = data.user;
-  
+
       // if first time, set active website
       if (user_obj === {}) {
         user_obj.active_website = tab.url;
         chrome.storage.local.set({ user: user_obj });
-  
+
       } else {
         // update active website
         user_obj.active_website = tab.url;
@@ -134,3 +133,66 @@ chrome.tabs.onActivated.addListener(function(tab_obj) {
     });
   })
 });
+
+chrome.windows.onCreated.addListener(function (window) {
+  // if it's not a standard window, ignore
+  if (window.id === -1) return;
+  chrome.storage.local.get({ user: {} }, function (data) {
+    let user_obj = data.user;
+    let rabbithole_id = create_id();
+
+    // if first time, create rabbithole map
+    if (user_obj === {} || user_obj.rabbitholes === undefined) user_obj.rabbitholes = [];
+
+    // update active website
+    user_obj.rabbitholes.push({
+      window_id: window.id,
+      rabbithole: rabbithole_id
+    });
+
+    // set active rabbithole
+    user_obj.active_rabbithole = rabbithole_id;
+
+    chrome.storage.local.set({ user: user_obj });
+  });
+});
+
+chrome.windows.onFocusChanged.addListener(function (window_id) {
+  // if it's not a standard window, ignore
+  if (window_id === -1) return;
+  chrome.storage.local.get({ user: {} }, function (data) {
+    console.log(window_id);
+    console.log(data.user);
+    let user_obj = data.user;
+    let rabbithole_id = '';
+
+    // if first time, create rabbithole map
+    if (user_obj === {} || user_obj.rabbitholes === undefined) {
+      user_obj.rabbitholes = [];
+      console.log('no user obj on focus change');
+    }
+
+    // find the rabbithole ID
+    for (let i = 0; i < user_obj.rabbitholes.length; i++) {
+      if (user_obj.rabbitholes[i].window_id === window_id) {
+        rabbithole_id = user_obj.rabbitholes[i].rabbithole;
+      }
+    }
+    if (rabbithole_id === '') {
+      console.log('rabbithole_id not found');
+      rabbithole_id = create_id();
+      // update active website
+      user_obj.rabbitholes.push({
+        window_id: window_id,
+        rabbithole: rabbithole_id
+      });
+    }
+    console.log('rab id: ' + rabbithole_id);
+    user_obj.active_rabbithole = rabbithole_id;
+    chrome.storage.local.set({ user: user_obj });
+  });
+});
+
+function create_id() {
+  return Math.random().toString(36).substr(2, 10);
+};

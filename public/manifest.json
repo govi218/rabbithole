@@ -16,8 +16,7 @@
     "storage",
     "unlimitedStorage",
     "tabs",
-    "history",
-    "topSites"
+    "history"
   ],
   "background": {
     "scripts": ["background.js"],
