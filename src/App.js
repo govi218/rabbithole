@@ -16,6 +16,8 @@ class App extends React.Component {
       graph: {},
       flag: false
     }
+
+    // Initialize 
   }
 
   render() {

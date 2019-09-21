@@ -2,72 +2,28 @@
 
 import React from 'react';
 import Graph from 'vis-react';
-import { makeStyles } from '@material-ui/core/styles';
-import DetailCard from '../DetailCard/DetailCard'
-import Sun from '../../assets/imgs/sun.png';
-import './VisCanvas.css'
 import { Grid } from '@material-ui/core';
-import { get_websites, get_website_with_url } from '../../utils/db_methods'
 
-// let graph = {
-//   nodes: [
-//     { id: "A", label: 'Node 1' },
-//     { id: "B", label: 'Node 2' },
-//     { id: 3, label: 'Node 3' },
-//     { id: 4, label: 'Node 4' },
-//     { id: 5, label: 'Node 5' }
-//   ],
-//   edges: [{ from: "A", to: "B" }, { from: "A", to: 3 }, { from: "B", to: 4 }, { from: "B", to: 5 }]
-// };
+import DetailCard from '../DetailCard/DetailCard';
+
+import Bang from '../../assets/space-set/png/001-big-bang.png';
+import Colony from '../../assets/space-set/png/002-colony.png';
+import Constellation from '../../assets/space-set/png/003-constellation.png';
+import Planet from '../../assets/space-set/png/007-planet.png';
+import Galaxy from '../../assets/space-set/png/008-galaxy.png';
+
+import Sun from '../../assets/imgs/sun.png';
+import Mars from '../../assets/imgs/mars1.png';
+import Rocket from '../../assets/imgs/rocket.png';
+import Finish from '../../assets/imgs/finish.png';
+
+import { get_websites, get_website_with_url } from '../../utils/db_methods';
+import './VisCanvas.css';
+
 
 let events = {
 
 }
-//   beforeDrawing: (ctx) => {
-//     ctx.save();
-//     ctx.setTransform(1, 0, 0, 1, 0, 0);
-//     ctx.fillStyle = '#222';
-//     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-//     ctx.restore();
-//   },
-//   click: (ctx) => {
-//     // when a node is clicked; should contain website info
-//     // react card stuff goes here
-
-//     console.log(ctx.nodes);
-
-//     // if(ctx.nodes[0] !== undefined) {
-//     //   let node_data_html = '';
-//     //   let elementPos = nodes.map((x) => {return x.id}).indexOf(ctx.nodes[0]);
-
-//     //   let last_visit = new Date(nodes[elementPos]["lastVisitTime"]);
-
-//     //   let date = last_visit.getDate();
-//     //   let month = last_visit.getMonth();
-//     //   let year = last_visit.getFullYear();
-
-//     //   // Hours part from the timestamp
-//     //   let hours = last_visit.getHours();
-//     //   // Minutes part from the timestamp
-//     //   let minutes = "0" + last_visit.getMinutes();
-//     //   // Seconds part from the timestamp
-//     //   let seconds = "0" + last_visit.getSeconds();
-
-//     //   // Will display time in 10:30:23 format
-//     //   let formattedTime = date + '/' + month + '/' + year + ', ' + hours + ':' + minutes.substr(-2) + ':' + seconds.substr(-2);
-
-//     //   network.focus(nodes[elementPos], {scale: 2});
-
-//     //   // node_data_html += '<p>ID: ' + nodes[elementPos]["id"] + '</p>';
-//     //   node_data_html += '<p>Last Visited: ' + formattedTime + '</p>'; 
-//     //   node_data_html += '<p>Title: ' + nodes[elementPos]["title"] + '</p>';
-//     //   node_data_html += '<p>URL: <a href=\"' + nodes[elementPos]["url"] + '\" target=\"_blank\">' + nodes[elementPos]["url"] + '</a></p>';
-
-//     //   document.getElementById(details).innerHTML = node_data_html; 
-//     // }
-//   }
-// };
-
 
 // The Options object defines the configuration of your 
 // Network Graph.
@@ -75,19 +31,19 @@ let options = {
   groups: {
     queries: {
       shape: 'image',
-      image: Sun,
+      image: Galaxy
     },
     resources: {
       shape: 'image',
-      image: '../../assets/imgs/mars1.png'
+      image: Planet,
     },
     start: {
       shape: 'image',
-      image: '../../assets/imgs/rocket.png'
+      image: Bang
     },
     end: {
       shape: 'image',
-      image: '../../assets/imgs/finish.png'
+      image: Mars
     }
   },
   interaction: {
@@ -111,10 +67,12 @@ export async function generateGraph() {
 
   // incredibly inefficient
   for (let website of websites) {
+    const groups = ['queries', 'resources', 'start', 'end'];
+
     nodes.push({
       id: website.website_id,
       label: website.url,
-      group: 'resources'
+      group: groups[Math.floor(Math.random()*groups.length)]
     });
     
     for (let to_website of website.to_websites) {
@@ -130,10 +88,9 @@ export async function generateGraph() {
     }
 
   }
-  
   graph['nodes'] = nodes;
   graph['edges'] = edges;
-  console.log(graph)
+
   return graph;
 }
 
@@ -152,12 +109,11 @@ class VisCanvas extends React.Component {
     console.log("App Component Mounting...")
     generateGraph().then((grph) => {
       this.setState({ graph: grph, flag: true });
-      console.log("Graph State initialized...")
-      console.log(this.state.graph.edges[1]);
+      console.log("Graph State initialized...");
     })
       .catch(err => {
-        console.log(err)
         this.setState({ graph: err })
+        console.log(err)
       });
   }
 
@@ -170,7 +126,6 @@ class VisCanvas extends React.Component {
         <h2> Loading... </h2>
       )
     } else {
-
       return (
         <div className='canvas'>
           <Graph

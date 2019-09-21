@@ -2,7 +2,6 @@
 
 import db from './db';
 import { create_id } from './lib';
-import { async } from 'q';
 
 export async function init_user() {
   // check if ID exists
@@ -121,6 +120,9 @@ export function update_websites(websites) {
   });
 }
 
+/**
+ * @returns 
+ */
 export async function get_websites() {
   let websites = await db.websites.toArray();
   return websites;
