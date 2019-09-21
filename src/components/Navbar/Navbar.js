@@ -39,13 +39,13 @@ export default function Navbar() {
           <Button color="inherit">Projects</Button>
         </Toolbar>
       </AppBar>
-      <Input
+      {/* <Input
         defaultValue="Add a website you want to stop tracking."
         className={classes.input}
         inputProps={{
           'aria-label': 'description',
         }}
-      />
+      /> */}
     </div>
   );
 }

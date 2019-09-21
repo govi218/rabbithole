@@ -21,9 +21,6 @@ import Mars from '../../assets/imgs/mars1.png';
 import { get_websites, get_website_with_url } from '../../utils/db_methods';
 import './VisCanvas.css';
 
-
-
-
 // The Options object defines the configuration of your 
 // Network Graph.
 let options = {
@@ -68,9 +65,11 @@ export async function generateGraph() {
   for (let website of websites) {
     const groups = ['queries', 'resources', 'start', 'end'];
 
+    console.log(website.title)
     nodes.push({
       id: website.website_id,
-      label: website.url,
+      title: website.title,
+      url: website.url,
       group: groups[Math.floor(Math.random() * groups.length)]
     });
 
@@ -87,6 +86,7 @@ export async function generateGraph() {
     }
 
   }
+
   graph['nodes'] = nodes;
   graph['edges'] = edges;
 
@@ -100,26 +100,24 @@ class VisCanvas extends React.Component {
       graph: {},
       style: {},
       flag: false,
+      hoverNode: {title: 'N/A', url: 'N/A'},
       network: null
     };
     this.handleHover = this.handleHover.bind(this)
     this.events = {
       hoverNode: this.handleHover
     };
-
+    
   }
 
   handleHover(event) {
-    let clicked_node;
     for (let node of this.state.graph['nodes']) {
       if (node.id == event.node) {
-        clicked_node = node;
+        this.setState({hoverNode: node});
+        console.log(node.title)
         break;
       }
     }
-
-    console.log(this.getNetwork());
-    // console.log(clicked_node);
   }
 
   getNetwork = data => {
@@ -141,7 +139,6 @@ class VisCanvas extends React.Component {
 
   render() {
     console.log("Rendering Viscanvas...");
-    console.log(this.state.network);
     // console.log(this.state.graph)
 
     if (!this.state.flag) {
@@ -159,10 +156,7 @@ class VisCanvas extends React.Component {
           />
           <Grid container spacing={2}>
             <Grid item sm={4}>
-              <DetailCard />
-            </Grid>
-            <Grid item sm={4}>
-              <DetailCard />
+              <DetailCard title={this.state.hoverNode.title} url={this.state.hoverNode.url} />
             </Grid>
           </Grid>
         </div>
