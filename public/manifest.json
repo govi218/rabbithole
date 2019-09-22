@@ -21,5 +21,8 @@
   "background": {
     "scripts": ["background.js"],
     "persistent": false
+  },
+  "chrome_url_overrides" : {
+    "newtab": "projects.html"
   }
 }
