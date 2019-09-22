@@ -23,6 +23,6 @@
     "persistent": false
   },
   "chrome_url_overrides" : {
-    "newtab": "projects.html"
+    "newtab": "index.html"
   }
 }
