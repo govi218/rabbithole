@@ -18,7 +18,7 @@ import Mars from '../../assets/imgs/mars1.png';
 // import Rocket from '../../assets/imgs/rocket.png';
 // import Finish from '../../assets/imgs/finish.png';
 
-import { get_websites, get_website_with_url } from '../../utils/db_methods';
+import { get_websites, get_website_with_url, get_active_rabbithole } from '../../utils/db_methods';
 import './VisCanvas.css';
 
 // The Options object defines the configuration of your 
@@ -54,8 +54,12 @@ let options = {
  */
 export async function generateGraph() {
 
-  // INITIAL PROTOTYPE, this needs to query rabbitholes!!
-  let websites = await get_websites();
+
+  let active_rabbithole = await get_active_rabbithole();
+
+  console.log(active_rabbithole)
+  let websites = active_rabbithole.websites;
+
   let
     graph = {},
     nodes = [],
