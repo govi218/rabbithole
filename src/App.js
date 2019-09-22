@@ -4,6 +4,7 @@ import React from 'react';
 import './App.css';
 import { get_websites, get_website_with_url } from './utils/db_methods'
 
+import ProjectsView from './components/ProjectsView/ProjectsView'
 import Navbar from './components/Navbar/Navbar';
 import VisCanvas from './components/VisCanvas/VisCanvas';
 
@@ -34,7 +35,8 @@ class App extends React.Component {
     return (
       <div className="App">
         <Navbar />
-        <VisCanvas />
+        {/* <VisCanvas /> */}
+        <ProjectsView />
       </div>
     );
 
