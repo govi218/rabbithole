@@ -4,15 +4,18 @@ import Grid from '@material-ui/core/Grid';
 import Card from '@material-ui/core/Card';
 import { CardContent } from '@material-ui/core';
 import Typography from '@material-ui/core/Typography';
+import CardHeader from '@material-ui/core/CardHeader';
 
+import './ProjectsView.css'
 const useStyles = makeStyles(theme => ({
   root: {
     flexGrow: 1,
-    padding: 20,
-    alignContent: 'center'
+    padding: 20
   },
   card: {
     minWidth: 225,
+    position: 'relative',
+    backgroundColor: 'grey'
   },
   control: {
     padding: theme.spacing(2),
@@ -38,13 +41,18 @@ export default function ProjectsView() {
           {[0, 1, 2, 3, 4].map(value => (
             <Grid key={value} item>
               <Card className={classes.card}>
-                <CardContent>
+                <CardContent className={classes.hi}>
                   <Typography className={classes.title} color="textPrimary">
                     Title
                   </Typography>
                   <Typography className={classes.title} color="textSecondary">
                     Date Created
                   </Typography>
+                  <div class="cont">
+                    Active 
+                    <span class="dot"></span>
+                  </div>
+
                 </CardContent>
               </Card>
             </Grid>
