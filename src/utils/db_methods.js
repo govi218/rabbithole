@@ -94,6 +94,10 @@ export async function update_last_opened(timestamp) {
     });
 }
 
+export function update_rabbitholes() {
+  
+}
+
 export function update_websites(websites) {
 
   // no new websites

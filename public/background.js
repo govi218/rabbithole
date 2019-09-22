@@ -2,11 +2,12 @@
 
 chrome.history.onVisited.addListener(async function (history) {
 
-  console.log(history)
+  // Ignore browser pages. Might need to handle the new tab page separately.
+  if (history.url.indexOf('chrome://') > -1 || history.url.indexOf('brave://') > -1) return;
   // first, get user
   chrome.storage.local.get({ user: {} }, function (data) {
-    console.log(data);
     let user_obj = data.user;
+    console.log(user_obj);
 
     // if first time, set active website
     if (user_obj === {}) {
@@ -15,14 +16,11 @@ chrome.history.onVisited.addListener(async function (history) {
       user_obj.title = history.title;
 
       chrome.storage.local.set({ user: user_obj }, function (result) {
-        console.log(result);
         // if no user, no website store; create it
 
         // add website to website list
         let website_list = [];
 
-        console.log('init case');
-        console.log(website_list);
         let new_website = {
           url: result.url,
           title: history.title,
@@ -31,8 +29,23 @@ chrome.history.onVisited.addListener(async function (history) {
           froms: []
         };
         website_list.push(new_website);
+        chrome.windows.getCurrent(function (window) {
+          let rabbithole_id = create_id();
 
-        chrome.storage.local.set({ websites: website_list });
+          user_obj.rabbitholes = [];
+
+          // update active website
+          user_obj.rabbitholes.push({
+            window_id: window.id,
+            rabbithole: rabbithole_id,
+            website_list: website_list
+          });
+
+          // set active rabbithole
+          user_obj.active_rabbithole = rabbithole_id;
+
+          chrome.storage.local.set({ user: user_obj });
+        });
       });
 
     } else {
@@ -40,14 +53,19 @@ chrome.history.onVisited.addListener(async function (history) {
       let active_website_title = user_obj.active_website_title;
       let active_website_last_visit = user_obj.active_website_last_visit;
 
-      if (active_website === history.url) {
-        return;
-      }
-      // websites HAS to exist
-      chrome.storage.local.get({ websites: [] }, function (result) {
-        let website_list = result.websites;
+      // no loops
+      if (active_website === history.url) return;
+
+      chrome.windows.getCurrent(function (window) {
+        // this shouldn't be empty
+        let current_rabbithole_idx = -1;
+
+        if (user_obj.rabbitholes === undefined) user_obj.rabbitholes = [];
+        
+        current_rabbithole_idx = get_rabbithole_with_window_id(user_obj.rabbitholes, window.id);
+
+        let website_list = user_obj.rabbitholes[current_rabbithole_idx].website_list;
         let to_flag = 0, from_flag = 1;
-        console.log(website_list);
 
         for (let i = 0; i < website_list.length; i++) {
           if (website_list[i].url === active_website) {
@@ -101,21 +119,23 @@ chrome.history.onVisited.addListener(async function (history) {
           website_list.push(new_website);
         }
 
+        // replace website list in rabbithole
+        user_obj.rabbitholes[current_rabbithole_idx].website_list = website_list;
 
-        chrome.storage.local.set({ websites: website_list });
+        // update active website
+        user_obj.active_website = history.url;
+        user_obj.active_website_title = history.title;
+        user_obj.active_website_last_visit = history.lastVisitTime;
+        chrome.storage.local.set({ user: user_obj });
       });
-
-      // update active website
-      user_obj.active_website = history.url;
-      user_obj.active_website_title = history.title;
-      user_obj.active_website_last_visit = history.lastVisitTime;
-      chrome.storage.local.set({ user: user_obj });
     }
   });
 });
 
 chrome.tabs.onActivated.addListener(function (tab_obj) {
   chrome.tabs.get(tab_obj.tabId, function (tab) {
+    // Ignore browser pages. Might need to handle the new tab page separately.
+    // if (tab.url.indexOf('chrome://') > -1 || history.url.indexOf('brave://') > -1) return;
     chrome.storage.local.get({ user: {} }, function (data) {
       console.log(data);
       let user_obj = data.user;
@@ -170,11 +190,8 @@ chrome.windows.onFocusChanged.addListener(function (window_id) {
     }
 
     // find the rabbithole ID
-    for (let i = 0; i < user_obj.rabbitholes.length; i++) {
-      if (user_obj.rabbitholes[i].window_id === window_id) {
-        rabbithole_id = user_obj.rabbitholes[i].rabbithole;
-      }
-    }
+    rabbithole_id = user_obj.rabbitholes[get_rabbithole_with_window_id(user_obj.rabbitholes, window_id)].rabbithole;
+
     if (rabbithole_id === '') {
       rabbithole_id = create_id();
       // update active website
@@ -183,6 +200,8 @@ chrome.windows.onFocusChanged.addListener(function (window_id) {
         rabbithole: rabbithole_id
       });
     }
+
+    // set active rabbithole
     user_obj.active_rabbithole = rabbithole_id;
     chrome.storage.local.set({ user: user_obj });
   });
@@ -191,3 +210,9 @@ chrome.windows.onFocusChanged.addListener(function (window_id) {
 function create_id() {
   return Math.random().toString(36).substr(2, 10);
 };
+
+function get_rabbithole_with_window_id(rabbitholes, id) {
+  for (let i = 0; i < rabbitholes.length; i++) {
+    if (rabbitholes[i].window_id === id) return i;
+  }
+}
