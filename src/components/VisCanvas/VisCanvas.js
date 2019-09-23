@@ -54,9 +54,9 @@ let options = {
  */
 export async function generateGraph() {
 
-
+  console.log('hmm');
   let active_rabbithole = await get_active_rabbithole();
-
+  console.log('hmmm')
   console.log(active_rabbithole)
   let websites = active_rabbithole.websites;
 
@@ -104,20 +104,20 @@ class VisCanvas extends React.Component {
       graph: {},
       style: {},
       flag: false,
-      hoverNode: {title: 'N/A', url: 'N/A'},
+      hoverNode: { title: 'N/A', url: 'N/A' },
       network: null
     };
     this.handleHover = this.handleHover.bind(this)
     this.events = {
       hoverNode: this.handleHover
     };
-    
+
   }
 
   handleHover(event) {
     for (let node of this.state.graph['nodes']) {
       if (node.id == event.node) {
-        this.setState({hoverNode: node});
+        this.setState({ hoverNode: node });
         console.log(node.title)
         break;
       }
@@ -131,10 +131,11 @@ class VisCanvas extends React.Component {
 
   componentDidMount() {
     console.log("App Component Mounting...")
-    generateGraph().then((grph) => {
-      this.setState({ graph: grph, flag: true });
-      console.log("Graph State initialized...");
-    })
+    generateGraph()
+      .then((graph) => {
+        this.setState({ graph: graph, flag: true });
+        console.log("Graph State initialized...");
+      })
       .catch(err => {
         this.setState({ graph: err })
         console.log(err)
