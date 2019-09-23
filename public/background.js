@@ -30,7 +30,9 @@
 /**
  * Listener for browser window focus changes. This is always the first event 
  * to be triggered (as far as Rabbitholes are concerned).
- * 
+ * For e.g. when a user switches between Chrome windows or a user installs Rabbithole 
+ * and performs an action on chrome (even if they have just one window open AND they 
+ * perform another event);
  */
 chrome.windows.onFocusChanged.addListener(function (window_id) {
 
@@ -55,32 +57,38 @@ chrome.windows.onFocusChanged.addListener(function (window_id) {
     // if there's no rabbithole associated with the current window, create one
     if (current_rabbithole_idx === -1) {
       rabbithole_id = create_id();
-      
+
       // update bindings and create a new rabbithole
       user_obj.bindings.push({
         window_id: window_id,
         rabbithole_id: rabbithole_id
       });
-      // get the active tab on this window (because tab change event isn't auto-trigerred)
-      chrome.tabs.getCurrent(function(tab) {
-        let website_list = [];
-        website_list.push({
-          url: tab.url,
-          title: tab.title,
-          last_visited: Date.now()
-        });
-        user_obj.rabbitholes.push({ 
-          rabbithole_id: rabbithole_id,
-          website_list: website_list
-        });
-      });
     } else {
       rabbithole_id = user_obj.rabbitholes[current_rabbithole_idx].rabbithole_id;
-
-      // set active rabbithole
-      user_obj.active_rabbithole = rabbithole_id;
-      chrome.storage.local.set({ user: user_obj });
     }
+
+    // get the active tab on this window (because tab change event isn't auto-trigerred)
+    chrome.tabs.getCurrent(function (tab) {
+      let now = Date.now();
+      let website_list = [];
+      website_list.push({
+        url: tab.url,
+        title: tab.title,
+        last_visited: now
+      });
+
+      // update rabbithole
+      user_obj.rabbitholes.push({
+        rabbithole_id: rabbithole_id,
+        website_list: website_list
+      });
+
+      // update user state
+      user_obj.active_rabbithole = rabbithole_id;
+      user_obj.active_website = tab.url;
+      user_obj.active_website_title = tab.title;
+      user_obj.active_website_last_visit = now;
+    });
   });
 });
 
