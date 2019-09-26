@@ -1,12 +1,9 @@
 import React from 'react';
-import { makeStyles } from '@material-ui/core/styles';
 import Grid from '@material-ui/core/Grid';
-import Card from '@material-ui/core/Card';
-import { CardContent } from '@material-ui/core';
-import Typography from '@material-ui/core/Typography';
-import CardHeader from '@material-ui/core/CardHeader';
+import ProjectCard from '../ProjectCard/ProjectCard';
+import { makeStyles } from '@material-ui/core/styles';
 
-import './ProjectsView.css'
+
 const useStyles = makeStyles(theme => ({
   root: {
     flexGrow: 1,
@@ -29,7 +26,6 @@ export default function ProjectsView() {
   const [spacing, setSpacing] = React.useState(2);
   const classes = useStyles();
 
-
   function handleChange(event) {
     setSpacing(Number(event.target.value));
   }
@@ -40,21 +36,7 @@ export default function ProjectsView() {
         <Grid container spacing={spacing}>
           {[0, 1, 2, 3, 4].map(value => (
             <Grid key={value} item>
-              <Card className={classes.card}>
-                <CardContent className={classes.hi}>
-                  <Typography className={classes.title} color="textPrimary">
-                    Title
-                  </Typography>
-                  <Typography className={classes.title} color="textSecondary">
-                    Date Created
-                  </Typography>
-                  <div class="cont">
-                    Active 
-                    <span class="dot"></span>
-                  </div>
-
-                </CardContent>
-              </Card>
+              <ProjectCard active={value==0}/>
             </Grid>
           ))}
         </Grid>
