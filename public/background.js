@@ -3,7 +3,7 @@
  * 
  * It looks like this:
  * {
- *   active_rabbithole: <RABBITHOLE_ID>,
+ *   active_rabbithole_id: <RABBITHOLE_ID>,
  *   active_website: <ACTIVE_WEBSITE_URL>,
  *   active_website_last_visit: <TIMESTAMP>,
  *   active_website_title: <ACTIVE_WEBSITE_TITLE>,
@@ -29,12 +29,21 @@
 
 /**
  * Listener for browser window focus changes. This is always the first event 
- * to be triggered (as far as Rabbitholes are concerned).
+ * to be triggered (as far as Rabbitholes are concerned). This event also handles
+ * browser window creation events.
  * For e.g. when a user switches between Chrome windows or a user installs Rabbithole 
  * and performs an action on chrome (even if they have just one window open AND they 
  * perform another event);
+ * 
+ * Checks if the window has an existing Rabbithole bound to it, if not creates one
+ * and binds it. Regardless of there being an existing binding, it will update all
+ * the user's active info to this window.
+ * 
+ * Will do nothing if the active rabbithole matches the window's rabbithole.
  */
 chrome.windows.onFocusChanged.addListener(function (window_id) {
+
+  console.log('Window focus change');
 
   // if it's not a standard window, ignore
   if (window_id === -1) return;
@@ -52,7 +61,9 @@ chrome.windows.onFocusChanged.addListener(function (window_id) {
     }
 
     // find the rabbithole ID
-    let current_rabbithole_idx = get_rabbithole_with_window_id(user_obj.rabbitholes, window_id);
+    let current_rabbithole_idx = get_rabbithole_with_window_id(user_obj, window_id);
+    console.log(current_rabbithole_idx);
+    let created_flag = 0;
 
     // if there's no rabbithole associated with the current window, create one
     if (current_rabbithole_idx === -1) {
@@ -60,262 +71,174 @@ chrome.windows.onFocusChanged.addListener(function (window_id) {
 
       // update bindings and create a new rabbithole
       user_obj.bindings.push({
-        window_id: window_id,
+        window: window_id,
         rabbithole_id: rabbithole_id
       });
+
+      created_flag = 1;
+    } else if (current_rabbithole_idx === -2) {
+      // rabbithole was flushed by IndexedDB, repopulate
+      for (let i = 0; i < user_obj.bindings.length; i++) {
+        if (user_obj.bindings[i].window === window_id) rabbithole_id = user_obj.bindings[i].rabbithole_id;
+      }
+      created_flag = 1;
     } else {
       rabbithole_id = user_obj.rabbitholes[current_rabbithole_idx].rabbithole_id;
+      if (rabbithole_id === user_obj.active_rabbithole_id) return;
     }
 
     // get the active tab on this window (because tab change event isn't auto-trigerred)
-    chrome.tabs.getCurrent(function (tab) {
+    /// n.b. only this query consistently returns url for some reason
+    chrome.tabs.query({ active: true }, function (tabs) {
+      // find the active tab for this window
+      let tab;
+      for (let i = 0; i < tabs.length; i++) {
+        if (tabs[i].windowId === window_id) tab = tabs[i];
+      }
+      /// could query history here, but this should server the purpose
       let now = Date.now();
       let website_list = [];
-      website_list.push({
-        url: tab.url,
-        title: tab.title,
-        last_visited: now
-      });
+      if (created_flag === 1) {
+        website_list.push({
+          url: tab.url,
+          title: tab.title,
+          last_visited: now
+        });
 
-      // update rabbithole
-      user_obj.rabbitholes.push({
-        rabbithole_id: rabbithole_id,
-        website_list: website_list
-      });
+        // update rabbithole
+        user_obj.rabbitholes.push({
+          rabbithole_id: rabbithole_id,
+          website_list: website_list
+        });
+      }
 
       // update user state
-      user_obj.active_rabbithole = rabbithole_id;
+      user_obj.active_rabbithole_id = rabbithole_id;
       user_obj.active_website = tab.url;
       user_obj.active_website_title = tab.title;
       user_obj.active_website_last_visit = now;
+
+      chrome.storage.local.set({ user: user_obj });
     });
   });
 });
 
+/**
+ * Listener for tab changes. Can assume that state exists when this is called,
+ * and that there is a rabbithole for the window it currently is in.
+ * 
+ * Updates the user's active info with the contents of this tab. If the current
+ * active website is different from the tab contents, updates the current rabbithole.
+ */
+chrome.tabs.onActivated.addListener(function (tab_obj) {
+  /// This call works more reliably than chrome.tabs.get
+  chrome.tabs.query({ active: true }, function (tabs) {
+    // find the active tab for this window
+    let tab;
+    for (let i = 0; i < tabs.length; i++) {
+      if (tabs[i].windowId === tab_obj.windowId) tab = tabs[i];
+    }
+
+    chrome.storage.local.get({ user: {} }, function (data) {
+      let user_obj = data.user;
+
+      let rabbithole_idx = -1;
+      let website_idx = -1;
+
+      // get the active rabbithole
+      for (let i = 0; i < user_obj.rabbitholes.length; i++) {
+        if (user_obj.rabbitholes[i].rabbithole_id === user_obj.active_rabbithole_id) rabbithole_idx = i;
+      }
+
+      // update the last active website's tos
+      for (let i = 0; i < user_obj.rabbitholes[rabbithole_idx].website_list.length; i++) {
+        // find active website in the current rabbithole
+        if (user_obj.rabbitholes[rabbithole_idx].website_list[i].url === user_obj.active_website) {
+          // if it's somehow the same URL, abort
+          if (user_obj.rabbitholes[rabbithole_idx].website_list[i].url === tab.url) return;
+          if (user_obj.rabbitholes[rabbithole_idx].website_list[i].tos === undefined)
+            user_obj.rabbitholes[rabbithole_idx].website_list[i].tos = [];
+          user_obj.rabbitholes[rabbithole_idx].website_list[i].tos.push(tab.url);
+        } else if (user_obj.rabbitholes[rabbithole_idx].website_list[i].url === history.url) {
+          website_idx = i;
+        }
+      }
+
+      if (website_idx === -1)
+        // update website list with this tab
+        user_obj.rabbitholes[rabbithole_idx].website_list.push({
+          url: history.url,
+          title: history.title,
+          last_visited: history.lastVisitTime
+        });
+
+      // update user state
+      user_obj.active_website = tab.url;
+      user_obj.active_website_title = tab.title;
+      user_obj.active_website_last_visit = Date.now();
+
+      chrome.storage.local.set({ user: user_obj });
+    });
+  });
+});
 
 /**
- * Listener for new history events. Should update the current rabbithole.
- * Has fallbacks for creating rabbitholes/rabbithole-browser window bindings
+ * Listener for new history events. Can assume that state exists when this is called,
+ * and that there is a rabbithole for the window it currently is in.
+ * 
+ * Updates the user's active info with the contents of this tab, and updates the 
+ * current rabbithole.
  */
 chrome.history.onVisited.addListener(async function (history) {
-
-  // Ignore browser pages. Might need to handle the new tab page separately.
-  let url = history.url;
-  if (url.indexOf('chrome://') > -1 || url.indexOf('brave://') > -1) return;
-
-  console.log(history); // does this have url?
+  console.log('history update');
 
   // first, get user
   chrome.storage.local.get({ user: {} }, function (data) {
-    console.log('hist added');
     let user_obj = data.user;
+
+    let rabbithole_idx = -1;
+    let website_idx = -1; // history.url's website record if it already exists 
+
+    console.log('before');
     console.log(user_obj);
 
-    // if first time, set active website, last visited, title
-    if (user_obj === {}) {
-      console.log('user first time')
-      console.log(user_obj);
-      user_obj.active_website = history.url;
-      user_obj.lastVisited = history.lastVisitTime;
-      user_obj.title = history.title;
-
-      chrome.storage.local.set({ user: user_obj }, function (result) {
-        // if no user, no website store; create it
-
-        // add website to website list
-        let website_list = [];
-
-        let new_website = {
-          url: result.url,
-          title: history.title,
-          last_visited: history.lastVisitTime,
-          tos: [],
-          froms: []
-        };
-        website_list.push(new_website);
-        chrome.windows.getCurrent(function (window) {
-          let rabbithole_id = create_id();
-
-          user_obj.rabbitholes = [];
-
-          // update active website
-          user_obj.rabbitholes.push({
-            window_id: window.id,
-            rabbithole: rabbithole_id,
-            website_list: website_list
-          });
-
-          // set active rabbithole
-          user_obj.active_rabbithole = rabbithole_id;
-
-          chrome.storage.local.set({ user: user_obj });
-        });
-      });
-
-    } else {
-      let active_website = user_obj.active_website;
-      let active_website_title = user_obj.active_website_title;
-      let active_website_last_visit = user_obj.active_website_last_visit;
-
-      // no loops
-      if (active_website === history.url) return;
-
-      // load bindings, or create them if none exist
-      chrome.windows.getCurrent(function (window) {
-
-        if (user_obj.rabbitholes === undefined) user_obj.rabbitholes = [];
-
-        let current_rabbithole_idx = get_rabbithole_with_window_id(user_obj.rabbitholes, window.id);
-
-        if (current_rabbithole_idx === -1) {
-
-          if (user_obj.bindings === [] || user_obj.bindings === undefined) {
-            let rabbithole_id = create_id();
-
-            user_obj.rabbitholes = [];
-            user_obj.bindings = [];
-
-            // update active website
-            user_obj.rabbitholes.push({
-              window_id: window.id,
-              rabbithole: rabbithole_id
-            });
-
-            user_obj.bindings.push({
-              window_id: window.id,
-              rabbithole: rabbithole_id
-            });
-
-            // set active rabbithole
-            user_obj.active_rabbithole = rabbithole_id;
-            current_rabbithole_idx = user_obj.rabbitholes.length - 1;
-          } else {
-            if (user_obj.rabbitholes === undefined) user_obj.rabbitholes = [];
-            bindings.forEach(binding => {
-              user_obj.rabbitholes.push({
-                window_id: binding.window_id,
-                rabbithole: binding.rabbithole_id
-              });
-            });
-          }
-        }
-
-        let website_list = user_obj.rabbitholes[current_rabbithole_idx].website_list;
-        if (website_list === undefined) website_list = [];
-
-        let to_flag = 0, from_flag = 1;
-
-        for (let i = 0; i < website_list.length; i++) {
-          if (website_list[i].url === active_website) {
-            let tos = [];
-
-            // update old active website tos
-            if (website_list[i].tos === undefined) {
-              tos.push(history.url);
-              website_list[i].tos = tos;
-            } else {
-              website_list[i].tos.push(history.url);
-            }
-            to_flag += 1;
-          } else if (website_list[i].url === history.url) {
-            let froms = [];
-
-            // update old active website tos
-            if (website_list[i].tos === undefined) {
-              froms.push(history.url);
-              website_list[i].froms = froms;
-            } else {
-              website_list[i].froms.push(history.url);
-            }
-            from_flag += 1;
-          }
-        }
-
-        if (to_flag === 0) {
-          let tos = [];
-          tos.push(history.url);
-          let new_website = {
-            url: active_website,
-            title: active_website_title,
-            last_visited: active_website_last_visit,
-            tos: tos,
-            froms: []
-          };
-          website_list.push(new_website);
-        }
-
-        if (from_flag === 0) {
-          let froms = [];
-          froms.push(active_website);
-          let new_website = {
-            url: history.url,
-            title: history.title,
-            last_visited: history.lastVisitTime,
-            tos: [],
-            froms: froms
-          };
-          website_list.push(new_website);
-        }
-
-        // replace website list in rabbithole
-        user_obj.rabbitholes[current_rabbithole_idx].website_list = website_list;
-
-        // update active website
-        user_obj.active_website = history.url;
-        user_obj.active_website_title = history.title;
-        user_obj.active_website_last_visit = history.lastVisitTime;
-        chrome.storage.local.set({ user: user_obj });
-      });
+    // get the active rabbithole
+    for (let i = 0; i < user_obj.rabbitholes.length; i++) {
+      if (user_obj.rabbitholes[i].rabbithole_id === user_obj.active_rabbithole_id) rabbithole_idx = i;
     }
-  });
-});
 
-chrome.tabs.onActivated.addListener(function (tab_obj) {
-  chrome.tabs.get(tab_obj.tabId, function (tab) {
-    // Ignore browser pages. Might need to handle the new tab page separately.
-    let url = tab.url;
-    if (url.indexOf('chrome://') > -1 || url.indexOf('brave://') > -1) return;
-    chrome.storage.local.get({ user: {} }, function (data) {
-      console.log('tab activate');
-      let user_obj = data.user;
-
-      // if first time, set active website
-      if (user_obj === {}) {
-        user_obj.active_website = tab.url;
-        chrome.storage.local.set({ user: user_obj });
-
-      } else {
-        // update active website
-        user_obj.active_website = tab.url;
-        chrome.storage.local.set({ user: user_obj });
+    // update the last active website's tos
+    for (let i = 0; i < user_obj.rabbitholes[rabbithole_idx].website_list.length; i++) {
+      // find active website in the current rabbithole
+      if (user_obj.rabbitholes[rabbithole_idx].website_list[i].url === user_obj.active_website) {
+        // if it's somehow the same URL, abort
+        if (user_obj.rabbitholes[rabbithole_idx].website_list[i].url === history.url) return;
+        if (user_obj.rabbitholes[rabbithole_idx].website_list[i].tos === undefined)
+          user_obj.rabbitholes[rabbithole_idx].website_list[i].tos = [];
+        user_obj.rabbitholes[rabbithole_idx].website_list[i].tos.push(history.url);
+      } else if (user_obj.rabbitholes[rabbithole_idx].website_list[i].url === history.url) {
+        website_idx = i;
       }
-    });
-  })
-});
+    }
 
-chrome.windows.onCreated.addListener(function (window) {
-  // if it's not a standard window, ignore
-  if (window.id === -1) return;
-  chrome.storage.local.get({ user: {} }, function (data) {
-    console.log('window created');
-    let user_obj = data.user;
-    let rabbithole_id = create_id();
+    if (website_idx === -1)
+      // update website list with this tab
+      user_obj.rabbitholes[rabbithole_idx].website_list.push({
+        url: history.url,
+        title: history.title,
+        last_visited: history.lastVisitTime
+      });
 
-    // if first time, create rabbithole map
-    if (user_obj === {} || user_obj.rabbitholes === undefined) user_obj.rabbitholes = [];
-
-    // update active website
-    user_obj.rabbitholes.push({
-      window_id: window.id,
-      rabbithole: rabbithole_id
-    });
-
-    // set active rabbithole
-    user_obj.active_rabbithole = rabbithole_id;
-
+    // update user state
+    user_obj.active_website = history.url;
+    user_obj.active_website_title = history.title;
+    user_obj.active_website_last_visit = history.lastVisitTime;
+    console.log('after');
+    console.log(user_obj);
     chrome.storage.local.set({ user: user_obj });
   });
 });
+
 
 /* Pure functions */
 
@@ -323,9 +246,14 @@ function create_id() {
   return Math.random().toString(36).substr(2, 10);
 };
 
-function get_rabbithole_with_window_id(bindings, id) {
-  for (let i = 0; i < bindings.length; i++) {
-    if (bindings[i].window === id) return i;
+function get_rabbithole_with_window_id(user_obj, id) {
+  let rabbithole_id = '';
+  for (let i = 0; i < user_obj.bindings.length; i++) {
+    if (user_obj.bindings[i].window === id) rabbithole_id = user_obj.bindings[i].rabbithole_id;
   }
-  return -1;
+  if (rabbithole_id === '') return -1;
+  for (let k = 0; k < user_obj.rabbitholes.length; k++) {
+    if (user_obj.rabbitholes[k].rabbithole_id === rabbithole_id) return k;
+  }
+  return -2;
 }
