@@ -93,20 +93,27 @@ export function update_rabbitholes(rabbitholes) {
   // no new rabbitholes
   if (rabbitholes === [] || rabbitholes === undefined) return;
 
+  console.log(rabbitholes);
+  // update them in IndexedDB
   rabbitholes.forEach(async rabbithole => {
+    // if the rabbithole has no changes, continue looping
     if (rabbithole.website_list === undefined) return;
-    get_rabbithole_with_id(rabbithole.rabbithole)
+
+    // get the rabbithole from DB
+    get_rabbithole_with_id(rabbithole.rabbithole_id)
       .then(async (db_rabbithole) => {
+        // if it has no website list, create it
         if (db_rabbithole.websites === undefined) db_rabbithole.websites = [];
-        console.log(rabbithole.website_list);
         console.log(db_rabbithole);
+        
+        // if the rabbithole ID is defined
         if (db_rabbithole.websites === [] && db_rabbithole.rabbithole_id !== undefined) {
           console.log('1');
           db_rabbithole.websites = rabbithole.website_list;
         } else if (db_rabbithole.rabbithole_id === undefined) {
           console.log('2');
           await db.rabbitholes.put({
-            rabbithole_id: rabbithole.rabbithole,
+            rabbithole_id: rabbithole.rabbithole_id,
             websites: rabbithole.website_list
           });
         } else {
@@ -115,7 +122,6 @@ export function update_rabbitholes(rabbitholes) {
             rabbithole.website_list.forEach(w2 => {
               if (w2.website_id === w.website_id) {
                 w.to_websites.concat(w2.tos);
-                w.from_websites.concat(w2.froms);
               }
             });
           });
@@ -123,9 +129,10 @@ export function update_rabbitholes(rabbitholes) {
         console.log(db_rabbithole);
       })
       .catch(async (err) => {
-        console.log(err)
+        console.log(err);
+        console.log('4');
         await db.rabbitholes.put({
-          rabbithole_id: rabbithole.rabbithole,
+          rabbithole_id: rabbithole.rabbithole_id,
           websites: rabbithole.website_list
         });
       });
