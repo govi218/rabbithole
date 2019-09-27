@@ -31,7 +31,8 @@ export default function ProjectsView() {
   }
 
   return (
-    <Grid container justify="center" className={classes.root} spacing={10}>
+    <div>
+<Grid container justify="center" className={classes.root} spacing={10}>
       <Grid item xs={12}>
         <Grid container spacing={spacing}>
           {[0, 1, 2, 3, 4].map(value => (
@@ -42,5 +43,9 @@ export default function ProjectsView() {
         </Grid>
       </Grid>
     </Grid>
+    <span> Add Project </span>
+    <span> Go Back </span>
+    </div>
+    
   );
 }

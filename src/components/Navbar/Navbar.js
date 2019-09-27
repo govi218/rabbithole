@@ -35,9 +35,8 @@ export default function Navbar() {
         <Toolbar>
           <img src={Logo} />
           <span className={classes.buttons}>
-          <Button color="inherit">My Rabbitholes</Button>
+            <Button color="inherit">My Rabbitholes</Button>
           </span>
-          
         </Toolbar>
       </AppBar>
     </div>
