@@ -35,8 +35,8 @@ class App extends React.Component {
     return (
       <div className="App">
         <Navbar />
-        {/* <VisCanvas /> */}
-        <ProjectsView />
+        <VisCanvas />
+        {/* <ProjectsView /> */}
       </div>
     );
 

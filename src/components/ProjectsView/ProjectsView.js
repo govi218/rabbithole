@@ -26,10 +26,6 @@ export default function ProjectsView() {
   const [spacing, setSpacing] = React.useState(2);
   const classes = useStyles();
 
-  function handleChange(event) {
-    setSpacing(Number(event.target.value));
-  }
-
   return (
     <div>
 <Grid container justify="center" className={classes.root} spacing={10}>
