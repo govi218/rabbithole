@@ -62,7 +62,6 @@ chrome.windows.onFocusChanged.addListener(function (window_id) {
 
     // find the rabbithole ID
     let current_rabbithole_idx = get_rabbithole_with_window_id(user_obj, window_id);
-    console.log(current_rabbithole_idx);
     let created_flag = 0;
 
     // if there's no rabbithole associated with the current window, create one
@@ -131,6 +130,7 @@ chrome.windows.onFocusChanged.addListener(function (window_id) {
  * active website is different from the tab contents, updates the current rabbithole.
  */
 chrome.tabs.onActivated.addListener(function (tab_obj) {
+  console.log('tab change');
   /// This call works more reliably than chrome.tabs.get
   chrome.tabs.query({ active: true }, function (tabs) {
     // find the active tab for this window
@@ -149,6 +149,8 @@ chrome.tabs.onActivated.addListener(function (tab_obj) {
       for (let i = 0; i < user_obj.rabbitholes.length; i++) {
         if (user_obj.rabbitholes[i].rabbithole_id === user_obj.active_rabbithole_id) rabbithole_idx = i;
       }
+
+      if (user_obj.rabbitholes[rabbithole_idx].website_list === undefined) user_obj.rabbitholes[rabbithole_idx].website_list = [];
 
       // update the last active website's tos
       for (let i = 0; i < user_obj.rabbitholes[rabbithole_idx].website_list.length; i++) {
@@ -199,13 +201,12 @@ chrome.history.onVisited.addListener(async function (history) {
     let rabbithole_idx = -1;
     let website_idx = -1; // history.url's website record if it already exists 
 
-    console.log('before');
-    console.log(user_obj);
-
     // get the active rabbithole
     for (let i = 0; i < user_obj.rabbitholes.length; i++) {
       if (user_obj.rabbitholes[i].rabbithole_id === user_obj.active_rabbithole_id) rabbithole_idx = i;
     }
+
+    if (user_obj.rabbitholes[rabbithole_idx].website_list === undefined) user_obj.rabbitholes[rabbithole_idx].website_list = [];
 
     // update the last active website's tos
     for (let i = 0; i < user_obj.rabbitholes[rabbithole_idx].website_list.length; i++) {
@@ -233,8 +234,6 @@ chrome.history.onVisited.addListener(async function (history) {
     user_obj.active_website = history.url;
     user_obj.active_website_title = history.title;
     user_obj.active_website_last_visit = history.lastVisitTime;
-    console.log('after');
-    console.log(user_obj);
     chrome.storage.local.set({ user: user_obj });
   });
 });

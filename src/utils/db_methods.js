@@ -64,6 +64,7 @@ export async function update_active_website(website) {
 export async function update_active_rabbithole(rabbithole) {
   get_user()
     .then(async (user) => {
+      console.log(rabbithole);
       let id = user[0].user_id;
       await db.user.update(id, { active_rabbithole: rabbithole });
     })
@@ -104,13 +105,15 @@ export function update_rabbitholes(rabbitholes) {
       .then(async (db_rabbithole) => {
         // if it has no website list, create it
         if (db_rabbithole.websites === undefined) db_rabbithole.websites = [];
+        console.log('before db update');
         console.log(db_rabbithole);
         
         // if the rabbithole ID is defined
-        if (db_rabbithole.websites === [] && db_rabbithole.rabbithole_id !== undefined) {
+        if (db_rabbithole[0].websites === [] && db_rabbithole[0].rabbithole_id !== undefined) {
           console.log('1');
           db_rabbithole.websites = rabbithole.website_list;
-        } else if (db_rabbithole.rabbithole_id === undefined) {
+        } else if (db_rabbithole[0].rabbithole_id === undefined) {
+
           console.log('2');
           await db.rabbitholes.put({
             rabbithole_id: rabbithole.rabbithole_id,
@@ -118,17 +121,21 @@ export function update_rabbitholes(rabbitholes) {
           });
         } else {
           console.log('3');
-          db_rabbithole.websites = db_rabbithole.websites.map(w => {
+          db_rabbithole[0].websites = db_rabbithole[0].websites.map(w1 => {
             rabbithole.website_list.forEach(w2 => {
-              if (w2.website_id === w.website_id) {
-                w.to_websites.concat(w2.tos);
+              if (w2.website_id === w1.website_id) {
+                console.log(w1);
+                console.log(w2);
+                w1.tos.concat(w2.tos);
               }
             });
           });
         }
+        console.log('after db update');
         console.log(db_rabbithole);
       })
       .catch(async (err) => {
+        /// null rabbitholes are caught in then, need to verify with tests
         console.log(err);
         console.log('4');
         await db.rabbitholes.put({
@@ -183,7 +190,10 @@ export async function get_websites() {
  */
 export async function get_active_rabbithole() {
   let user = await get_user();
-  let active_rabbithole = await get_rabbithole_with_id(user.active_rabbithole);
+  console.log(user);
+  if (user.length === 0) return {};
+  let active_rabbithole = await get_rabbithole_with_id(user[0].active_rabbithole);
+  console.log(active_rabbithole);
   return active_rabbithole;
 }
 

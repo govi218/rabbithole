@@ -13,12 +13,10 @@ import Planet from '../../assets/space-set/png/007-planet.png';
 import Galaxy from '../../assets/space-set/png/008-galaxy.png';
 import Saturn from '../../assets/space-set/png/023-saturn.png';
 
-// import Sun from '../../assets/imgs/sun.png';
 import Mars from '../../assets/imgs/mars1.png';
-// import Rocket from '../../assets/imgs/rocket.png';
-// import Finish from '../../assets/imgs/finish.png';
 
-import { get_websites, get_website_with_url, get_active_rabbithole } from '../../utils/db_methods';
+import { get_active_rabbithole } from '../../utils/db_methods';
+import { get_website_with_url } from '../../utils/lib';
 import './VisCanvas.css';
 
 // The Options object defines the configuration of your 
@@ -54,22 +52,20 @@ let options = {
  */
 export async function generateGraph() {
 
-  console.log('hmm');
+  console.log('?>?>?>');
   let active_rabbithole = await get_active_rabbithole();
-  console.log('hmmm')
-  console.log(active_rabbithole)
-  let websites = active_rabbithole.websites;
+  if (active_rabbithole === {}) return {};
+  console.log(active_rabbithole);
+  let websites = active_rabbithole[0].websites;
 
   let
     graph = {},
     nodes = [],
     edges = [];
 
-  // incredibly inefficient
   for (let website of websites) {
     const groups = ['queries', 'resources', 'start', 'end'];
 
-    console.log(website.title)
     nodes.push({
       id: website.website_id,
       title: website.title,
@@ -77,9 +73,11 @@ export async function generateGraph() {
       group: groups[Math.floor(Math.random() * groups.length)]
     });
 
-    for (let to_website of website.to_websites) {
-      let to_website_url = await get_website_with_url(to_website);
-      console.log(website)
+    if (website.tos === undefined) continue;
+
+    for (let to_website of website.tos) {
+      let to_website_url = get_website_with_url(websites, to_website);
+      
       if (to_website_url[0] === undefined) continue;
 
       let edge = {
@@ -88,7 +86,6 @@ export async function generateGraph() {
       };
       edges.push(edge);
     }
-
   }
 
   graph['nodes'] = nodes;
@@ -104,6 +101,7 @@ class VisCanvas extends React.Component {
       graph: {},
       style: {},
       flag: false,
+      firstTime: true,
       hoverNode: { title: 'N/A', url: 'N/A' },
       network: null
     };
@@ -131,6 +129,8 @@ class VisCanvas extends React.Component {
 
   componentDidMount() {
     console.log("App Component Mounting...")
+    console.log(this.state);
+    if (!this.state.firstTime) return;
     generateGraph()
       .then((graph) => {
         this.setState({ graph: graph, flag: true });
