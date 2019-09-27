@@ -13,11 +13,9 @@ const useStyles = makeStyles(theme => ({
         backgroundColor: 'grey'
     },
     control: {
-        padding: theme.spacing(2),
+        padding: theme.spacing(2)
     },
 }));
-
-
 
 function ProjectCard(props) {
     const classes = useStyles();
@@ -33,8 +31,7 @@ function ProjectCard(props) {
                   </Typography>
 
                     <div class="cont">
-                        Active
-                    <span class="dot"></span>
+                        Active <span class="dot"></span>
                     </div>
                 </CardContent>
             </Card>

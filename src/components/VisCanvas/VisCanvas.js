@@ -21,8 +21,7 @@ import Mars from '../../assets/imgs/mars1.png';
 import { get_websites, get_website_with_url } from '../../utils/db_methods';
 import './VisCanvas.css';
 
-// The Options object defines the configuration of your 
-// Network Graph.
+// Defines style and visual options for a visjs network.
 let options = {
   groups: {
     queries: {
@@ -49,8 +48,16 @@ let options = {
   }
 };
 
-/** Asynchronously generate a vis graph, from
- *  search history.
+/** 
+ *  Generates a visjs graph from the current users search history.
+ * 
+ *  TODO: In order to facilitate 'lazy loading', we can either
+ *  cap out the # of websites allowed per rabbithole, or periodically 
+ *  load more.
+ *  
+ *  TODO #2: We also need to find a way to only get websites from a
+ *  particular project.
+ *  
  */
 export async function generateGraph() {
 
@@ -65,7 +72,6 @@ export async function generateGraph() {
   for (let website of websites) {
     const groups = ['queries', 'resources', 'start', 'end'];
 
-    console.log(website.title)
     nodes.push({
       id: website.website_id,
       title: website.title,
@@ -75,13 +81,14 @@ export async function generateGraph() {
 
     for (let to_website of website.to_websites) {
       let to_website_url = await get_website_with_url(to_website);
-      console.log(website)
+
       if (to_website_url[0] === undefined) continue;
 
       let edge = {
         from: website.website_id,
         to: to_website_url[0].website_id
       };
+
       edges.push(edge);
     }
 
@@ -100,20 +107,20 @@ class VisCanvas extends React.Component {
       graph: {},
       style: {},
       flag: false,
-      hoverNode: {title: 'N/A', url: 'N/A'},
+      hoverNode: { title: 'N/A', url: 'N/A' },
       network: null
     };
     this.handleHover = this.handleHover.bind(this)
     this.events = {
       hoverNode: this.handleHover
     };
-    
+
   }
 
   handleHover(event) {
     for (let node of this.state.graph['nodes']) {
       if (node.id == event.node) {
-        this.setState({hoverNode: node});
+        this.setState({ hoverNode: node });
         console.log(node.title)
         break;
       }

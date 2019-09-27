@@ -11,20 +11,19 @@ import Logo from '../../assets/imgs/logo.png';
 const useStyles = makeStyles(theme => ({
   root: {
     background: '#363946',
-    flexGrow: 2,
+    flexGrow: 1,
   },
   bar: {
     background:'black'
   },
-  input: {
-    margin: theme.spacing(2),
-    width: '90%'
+  buttons: {
+    marginLeft: "auto"
   },
   icon: {
     margin: theme.spacing(4),
     fontSize: 32,
+    flexGrow: 1
   },
-
 }));
 
 export default function Navbar() {
@@ -35,17 +34,12 @@ export default function Navbar() {
       <AppBar className={classes.bar} position="static">
         <Toolbar>
           <img src={Logo} />
-          <Button color="inherit">Searches</Button>
-          <Button color="inherit">Projects</Button>
+          <span className={classes.buttons}>
+          <Button color="inherit">My Rabbitholes</Button>
+          </span>
+          
         </Toolbar>
       </AppBar>
-      {/* <Input
-        defaultValue="Add a website you want to stop tracking."
-        className={classes.input}
-        inputProps={{
-          'aria-label': 'description',
-        }}
-      /> */}
     </div>
   );
 }
