@@ -29,10 +29,11 @@ class App extends React.Component {
       } else {
         console.log('not first time');
         self.setState({ first_time: false });
-        // sync
-        update_rabbitholes(result.user.rabbitholes);
-        update_active_rabbithole(result.user.active_rabbithole_id);
       }
+
+      // sync
+      update_rabbitholes(result.user.rabbitholes);
+      update_active_rabbithole(result.user.active_rabbithole_id);
 
       // flush storage (while retaining bindings!!)
       let updated_user = result.user;

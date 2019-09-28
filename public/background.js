@@ -150,6 +150,9 @@ chrome.tabs.onActivated.addListener(function (tab_obj) {
         if (user_obj.rabbitholes[i].rabbithole_id === user_obj.active_rabbithole_id) rabbithole_idx = i;
       }
 
+      /// weird edge case, when tab event is triggered before window
+      if(user_obj.rabbitholes[rabbithole_idx] === undefined) return;
+      
       if (user_obj.rabbitholes[rabbithole_idx].website_list === undefined) user_obj.rabbitholes[rabbithole_idx].website_list = [];
 
       // update the last active website's tos
