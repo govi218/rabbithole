@@ -54,7 +54,7 @@ export async function generateGraph() {
 
   console.log('?>?>?>');
   let active_rabbithole = await get_active_rabbithole();
-  if (active_rabbithole === {}) return {};
+  if (active_rabbithole.length === 0) return {};
   console.log(active_rabbithole);
   let websites = active_rabbithole[0].websites;
 
@@ -77,7 +77,7 @@ export async function generateGraph() {
 
     for (let to_website of website.tos) {
       let to_website_url = get_website_with_url(websites, to_website);
-      
+
       if (to_website_url[0] === undefined) continue;
 
       let edge = {
@@ -101,7 +101,6 @@ class VisCanvas extends React.Component {
       graph: {},
       style: {},
       flag: false,
-      firstTime: true,
       hoverNode: { title: 'N/A', url: 'N/A' },
       network: null
     };
@@ -130,14 +129,13 @@ class VisCanvas extends React.Component {
   componentDidMount() {
     console.log("App Component Mounting...")
     console.log(this.state);
-    if (!this.state.firstTime) return;
     generateGraph()
       .then((graph) => {
         this.setState({ graph: graph, flag: true });
         console.log("Graph State initialized...");
       })
       .catch(err => {
-        this.setState({ graph: err })
+        this.setState({ graph: {} })
         console.log(err)
       });
   }
@@ -151,6 +149,15 @@ class VisCanvas extends React.Component {
         <h2> Loading... </h2>
       )
     } else {
+
+      if (this.state.graph.nodes === undefined) {
+        console.log('fuckery');
+        return (
+          <h2> Go on a rabbithole and check back! </h2>
+        )
+      }
+      console.log('fuckery2');
+      console.log(this.state.graph)
       return (
         <div className='canvas'>
           <Graph

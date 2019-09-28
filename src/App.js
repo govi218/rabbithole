@@ -38,11 +38,17 @@ class App extends React.Component {
       let updated_user = result.user;
       updated_user.rabbitholes = [];
       chrome.storage.local.set({ user: updated_user });
+      console.log(self);
+      self.setState({ flag: true });
     });
   }
 
   render() {
-
+    if (!this.state.flag) {
+      return (
+        <h2> Loading... </h2>
+      )
+    }
     console.log('????');
     return (
       <div className="App">
