@@ -52,10 +52,8 @@ let options = {
  */
 export async function generateGraph() {
 
-  console.log('?>?>?>');
   let active_rabbithole = await get_active_rabbithole();
   if (active_rabbithole.length === 0) return {};
-  console.log(active_rabbithole);
   let websites = active_rabbithole[0].website_list;
 
   let
@@ -67,7 +65,7 @@ export async function generateGraph() {
     const groups = ['queries', 'resources', 'start', 'end'];
 
     nodes.push({
-      id: website.website_id,
+      id: website.url,
       title: website.title,
       url: website.url,
       group: groups[Math.floor(Math.random() * groups.length)]
@@ -75,14 +73,18 @@ export async function generateGraph() {
 
     if (website.tos === undefined) continue;
 
-    for (let to_website of website.tos) {
-      let to_website_url = get_website_with_url(websites, to_website);
+    console.log(website.tos);
+    for (let to_website_url of website.tos) {
+      console.log(to_website);
+      let to_website = get_website_with_url(websites, to_website_url);
 
-      if (to_website_url[0] === undefined) continue;
+      if (to_website === undefined) continue;
 
+      console.log(to_website)
+      console.log('////????////???')
       let edge = {
-        from: website.website_id,
-        to: to_website_url[0].website_id
+        from: website.url,
+        to: to_website.url
       };
       edges.push(edge);
     }
@@ -115,7 +117,6 @@ class VisCanvas extends React.Component {
     for (let node of this.state.graph['nodes']) {
       if (node.id == event.node) {
         this.setState({ hoverNode: node });
-        console.log(node.title)
         break;
       }
     }

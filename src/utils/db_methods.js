@@ -133,67 +133,6 @@ export async function update_rabbitholes(rabbitholes) {
   }
 }
 
-// export function update_rabbitholes(rabbitholes) {
-
-//   // no new rabbitholes
-//   if (rabbitholes === [] || rabbitholes === undefined) return;
-
-//   console.log(rabbitholes);
-//   // update them in IndexedDB
-//   rabbitholes.forEach(async rabbithole => {
-//     // if the rabbithole has no changes, continue looping
-//     if (rabbithole.website_list === undefined) return;
-
-//     // get the rabbithole from DB
-//     get_rabbithole_with_id(rabbithole.rabbithole_id)
-//       .then(async (db_rabbithole) => {
-//         // if it has no website list, create it
-//         if (db_rabbithole.websites === undefined) db_rabbithole.websites = [];
-//         console.log('before db update');
-//         console.log(db_rabbithole);
-
-//         // if the rabbithole ID is defined
-//         if (db_rabbithole[0].websites === [] && db_rabbithole[0].rabbithole_id !== undefined) {
-//           console.log('1');
-//           db_rabbithole.websites = rabbithole.website_list;
-//         } else if (db_rabbithole[0].rabbithole_id === undefined) {
-
-//           console.log('2');
-//           await db.rabbitholes.put({
-//             rabbithole_id: rabbithole.rabbithole_id,
-//             websites: rabbithole.website_list
-//           });
-//         } else {
-//           console.log('3');
-//           db_rabbithole[0].websites = db_rabbithole[0].websites.map(w1 => {
-//             rabbithole.website_list.forEach(w2 => {
-//               if (w2.url === w1.url) {
-//                 console.log(w1);
-//                 console.log(w2);
-//                 w1.tos.concat(w2.tos);
-//               }
-//             });
-//           });
-//           await db.rabbitholes.put({
-//             rabbithole_id: rabbithole.rabbithole_id,
-//             websites: rabbithole.website_list
-//           });
-//         }
-//         console.log('after db update');
-//         console.log(db_rabbithole);
-//       })
-//       .catch(async (err) => {
-//         /// null rabbitholes are caught in then, need to verify with tests
-//         console.log(err);
-//         console.log('4');
-//         await db.rabbitholes.put({
-//           rabbithole_id: rabbithole.rabbithole_id,
-//           websites: rabbithole.website_list
-//         });
-//       });
-//   })
-// }
-
 export function update_websites(websites) {
 
   // no new websites
