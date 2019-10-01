@@ -83,68 +83,116 @@ export async function update_active_tab(website) {
 export async function update_last_opened(timestamp) {
   get_user()
     .then(async (user) => {
-      console.log(user);
       let id = user[0].user_id;
       await db.user.update(id, { last_opened: timestamp })
     });
 }
 
-export function update_rabbitholes(rabbitholes) {
-
+export async function update_rabbitholes(rabbitholes) {
   // no new rabbitholes
   if (rabbitholes === [] || rabbitholes === undefined) return;
 
-  console.log(rabbitholes);
-  // update them in IndexedDB
-  rabbitholes.forEach(async rabbithole => {
-    // if the rabbithole has no changes, continue looping
-    if (rabbithole.website_list === undefined) return;
+  for (let i = 0; i < rabbitholes.length; i++) {
+    // case 1: no new changes, do nothing
+    if (rabbitholes[i].website_list === undefined) continue;
 
-    // get the rabbithole from DB
-    get_rabbithole_with_id(rabbithole.rabbithole_id)
-      .then(async (db_rabbithole) => {
-        // if it has no website list, create it
-        if (db_rabbithole.websites === undefined) db_rabbithole.websites = [];
-        console.log('before db update');
-        console.log(db_rabbithole);
-        
-        // if the rabbithole ID is defined
-        if (db_rabbithole[0].websites === [] && db_rabbithole[0].rabbithole_id !== undefined) {
-          console.log('1');
-          db_rabbithole.websites = rabbithole.website_list;
-        } else if (db_rabbithole[0].rabbithole_id === undefined) {
+    // query indexedDB for rabbithole
+    let db_rabbithole = await get_rabbithole_with_id(rabbitholes[i].rabbithole_id);
 
-          console.log('2');
-          await db.rabbitholes.put({
-            rabbithole_id: rabbithole.rabbithole_id,
-            websites: rabbithole.website_list
-          });
-        } else {
-          console.log('3');
-          db_rabbithole[0].websites = db_rabbithole[0].websites.map(w1 => {
-            rabbithole.website_list.forEach(w2 => {
-              if (w2.website_id === w1.website_id) {
-                console.log(w1);
-                console.log(w2);
-                w1.tos.concat(w2.tos);
-              }
-            });
-          });
-        }
-        console.log('after db update');
-        console.log(db_rabbithole);
-      })
-      .catch(async (err) => {
-        /// null rabbitholes are caught in then, need to verify with tests
-        console.log(err);
-        console.log('4');
-        await db.rabbitholes.put({
-          rabbithole_id: rabbithole.rabbithole_id,
-          websites: rabbithole.website_list
-        });
+    // case 2: no rabbithole in DB, create it
+    if (db_rabbithole[0] === {} || db_rabbithole[0] === undefined) {
+      await db.rabbitholes.put({
+        rabbithole_id: rabbitholes[i].rabbithole_id,
+        website_list: rabbitholes[i].website_list
       });
-  })
+    } else {
+      // case 3: rabbithole exists and has websites
+
+      /// failsafe, this needs to be tested
+      if (db_rabbithole[0].website_list !== [] || db_rabbithole[0].website_list !== undefined) {
+        for (let k = 0; k < rabbitholes[i].website_list.length; k++) {
+          let found = false;
+          for (let j = 0; j < db_rabbithole[0].website_list.length; j++) {
+            // if it's the same website, combine their tos
+            if (db_rabbithole[0].website_list[j].url === rabbitholes[i].website_list[k].url) {
+              found = true;
+              if (db_rabbithole[0].website_list[j].tos === undefined) db_rabbithole[0].website_list[j].tos = [];
+              /// this needs to be deduped in a smart way
+              db_rabbithole[0].website_list[j].tos.concat(rabbitholes[i].website_list[k].tos);
+            }
+          }
+          // if the website wasn't found in the existing list, create it
+          if (!found) db_rabbithole[0].website_list.push(rabbitholes[i].website_list[k]);
+        }
+        // add the updated website list
+        await db.rabbitholes.put(db_rabbithole[0]);
+      } else {
+        console.log('no website list found for website already in DB!');
+      }
+    }
+  }
 }
+
+// export function update_rabbitholes(rabbitholes) {
+
+//   // no new rabbitholes
+//   if (rabbitholes === [] || rabbitholes === undefined) return;
+
+//   console.log(rabbitholes);
+//   // update them in IndexedDB
+//   rabbitholes.forEach(async rabbithole => {
+//     // if the rabbithole has no changes, continue looping
+//     if (rabbithole.website_list === undefined) return;
+
+//     // get the rabbithole from DB
+//     get_rabbithole_with_id(rabbithole.rabbithole_id)
+//       .then(async (db_rabbithole) => {
+//         // if it has no website list, create it
+//         if (db_rabbithole.websites === undefined) db_rabbithole.websites = [];
+//         console.log('before db update');
+//         console.log(db_rabbithole);
+
+//         // if the rabbithole ID is defined
+//         if (db_rabbithole[0].websites === [] && db_rabbithole[0].rabbithole_id !== undefined) {
+//           console.log('1');
+//           db_rabbithole.websites = rabbithole.website_list;
+//         } else if (db_rabbithole[0].rabbithole_id === undefined) {
+
+//           console.log('2');
+//           await db.rabbitholes.put({
+//             rabbithole_id: rabbithole.rabbithole_id,
+//             websites: rabbithole.website_list
+//           });
+//         } else {
+//           console.log('3');
+//           db_rabbithole[0].websites = db_rabbithole[0].websites.map(w1 => {
+//             rabbithole.website_list.forEach(w2 => {
+//               if (w2.url === w1.url) {
+//                 console.log(w1);
+//                 console.log(w2);
+//                 w1.tos.concat(w2.tos);
+//               }
+//             });
+//           });
+//           await db.rabbitholes.put({
+//             rabbithole_id: rabbithole.rabbithole_id,
+//             websites: rabbithole.website_list
+//           });
+//         }
+//         console.log('after db update');
+//         console.log(db_rabbithole);
+//       })
+//       .catch(async (err) => {
+//         /// null rabbitholes are caught in then, need to verify with tests
+//         console.log(err);
+//         console.log('4');
+//         await db.rabbitholes.put({
+//           rabbithole_id: rabbithole.rabbithole_id,
+//           websites: rabbithole.website_list
+//         });
+//       });
+//   })
+// }
 
 export function update_websites(websites) {
 

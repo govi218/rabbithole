@@ -56,7 +56,7 @@ export async function generateGraph() {
   let active_rabbithole = await get_active_rabbithole();
   if (active_rabbithole.length === 0) return {};
   console.log(active_rabbithole);
-  let websites = active_rabbithole[0].websites;
+  let websites = active_rabbithole[0].website_list;
 
   let
     graph = {},

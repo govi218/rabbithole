@@ -55,7 +55,7 @@ chrome.windows.onFocusChanged.addListener(function (window_id) {
     let rabbithole_id = '';
 
     // if first time, create rabbitholes and bindings
-    if (user_obj === {} || user_obj.rabbitholes === undefined) {
+    if (user_obj === {} || user_obj.rabbitholes === undefined || user_obj.active_rabbithole_id === undefined) {
       user_obj.rabbitholes = [];
       user_obj.bindings = [];
     }
@@ -145,14 +145,17 @@ chrome.tabs.onActivated.addListener(function (tab_obj) {
       let rabbithole_idx = -1;
       let website_idx = -1;
 
+      /// weird edge case, when tab event is triggered before window
+      if (user_obj.rabbitholes === undefined) return;
+
       // get the active rabbithole
       for (let i = 0; i < user_obj.rabbitholes.length; i++) {
         if (user_obj.rabbitholes[i].rabbithole_id === user_obj.active_rabbithole_id) rabbithole_idx = i;
       }
 
       /// weird edge case, when tab event is triggered before window
-      if(user_obj.rabbitholes[rabbithole_idx] === undefined) return;
-      
+      if (user_obj.rabbitholes[rabbithole_idx] === undefined) return;
+
       if (user_obj.rabbitholes[rabbithole_idx].website_list === undefined) user_obj.rabbitholes[rabbithole_idx].website_list = [];
 
       // update the last active website's tos
@@ -204,10 +207,16 @@ chrome.history.onVisited.addListener(async function (history) {
     let rabbithole_idx = -1;
     let website_idx = -1; // history.url's website record if it already exists 
 
+    /// weird edge case, when tab event is triggered before window
+    if (user_obj.rabbitholes === undefined) return;
+
     // get the active rabbithole
     for (let i = 0; i < user_obj.rabbitholes.length; i++) {
       if (user_obj.rabbitholes[i].rabbithole_id === user_obj.active_rabbithole_id) rabbithole_idx = i;
     }
+
+    /// weird edge case, when tab event is triggered before window
+    if (user_obj.rabbitholes[rabbithole_idx] === undefined) return;
 
     if (user_obj.rabbitholes[rabbithole_idx].website_list === undefined) user_obj.rabbitholes[rabbithole_idx].website_list = [];
 
