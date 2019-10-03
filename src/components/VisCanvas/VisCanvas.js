@@ -19,8 +19,7 @@ import { get_active_rabbithole } from '../../utils/db_methods';
 import { get_website_with_url } from '../../utils/lib';
 import './VisCanvas.css';
 
-// The Options object defines the configuration of your 
-// Network Graph.
+// Defines style and visual options for a visjs network.
 let options = {
   groups: {
     queries: {
@@ -47,8 +46,16 @@ let options = {
   }
 };
 
-/** Asynchronously generate a vis graph, from
- *  search history.
+/** 
+ *  Generates a visjs graph from the current users search history.
+ * 
+ *  TODO: In order to facilitate 'lazy loading', we can either
+ *  cap out the # of websites allowed per rabbithole, or periodically 
+ *  load more.
+ *  
+ *  TODO #2: We also need to find a way to only get websites from a
+ *  particular project.
+ *  
  */
 export async function generateGraph() {
 
@@ -86,6 +93,7 @@ export async function generateGraph() {
         from: website.url,
         to: to_website.url
       };
+
       edges.push(edge);
     }
   }

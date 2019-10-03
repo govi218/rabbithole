@@ -164,9 +164,6 @@ export function update_websites(websites) {
   });
 }
 
-/**
- * @returns 
- */
 export async function get_websites() {
   let websites = await db.websites.toArray();
   return websites;
