@@ -17,7 +17,8 @@
  *       url: <WEBSITE_URL>,
  *       title: <WEBSITE_TITLE>,
  *       last_visited: <TIMESTAMP>,
- *       tos: <LIST_OF_URLS>
+ *       tos: <LIST_OF_URLS>,
+ *       notes: <LIST_OF_NOTES>
  *     }, ...]
  *   }, ...]
  * }
@@ -26,6 +27,13 @@
  * ref: https://stackoverflow.com/questions/15050861/best-way-to-prevent-race-condition-in-multiple-chrome-storage-api-calls
  */
 
+
+// create context menu for note-taking
+chrome.contextMenus.create({
+  id: create_id(),
+  title: "Save as a highlight",
+  contexts: ["selection"],  // ContextType
+});
 
 /**
  * Listener for browser window focus changes. This is always the first event 
@@ -250,6 +258,37 @@ chrome.history.onVisited.addListener(async function (history) {
   });
 });
 
+chrome.contextMenus.onClicked.addListener(function (selection) {
+  console.log('Selection: ');
+  console.log(selection);
+  // first, get user
+  chrome.storage.local.get({ user: {} }, function (data) {
+    let user_obj = data.user;
+    let rabbithole_idx = -1;
+
+    /// weird edge case, when tab event is triggered before window
+    if (user_obj.rabbitholes === undefined) return;
+
+    // get the active rabbithole
+    for (let i = 0; i < user_obj.rabbitholes.length; i++) {
+      if (user_obj.rabbitholes[i].rabbithole_id === user_obj.active_rabbithole_id) rabbithole_idx = i;
+    }
+
+    /// weird edge case, when tab event is triggered before window
+    if (user_obj.rabbitholes[rabbithole_idx] === undefined) return;
+
+    if (user_obj.rabbitholes[rabbithole_idx].website_list === undefined) return;
+
+    for (let i = 0; i < user_obj.rabbitholes[rabbithole_idx].website_list.length; i++) {
+      if (user_obj.rabbitholes[rabbithole_idx].website_list[i].url === user_obj.active_website) {
+        if (user_obj.rabbitholes[rabbithole_idx].website_list[i].notes === undefined)
+          user_obj.rabbitholes[rabbithole_idx].website_list[i].notes = []
+        user_obj.rabbitholes[rabbithole_idx].website_list[i].notes.push(selection.selectionText);
+      }
+    }
+    chrome.storage.local.set({ user: user_obj });
+  });
+});
 
 /* Pure functions */
 

@@ -16,7 +16,8 @@
     "storage",
     "unlimitedStorage",
     "tabs",
-    "history"
+    "history",
+    "contextMenus"
   ],
   "background": {
     "scripts": ["background.js"],

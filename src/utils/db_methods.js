@@ -1,23 +1,37 @@
 /*global chrome*/
 
+// instantiate IndexedDB
 import db from './db';
 import { create_id } from './lib';
 
+/**
+ * Read/Write operation
+ * 
+ * Queries DB for user, if not creates a new user.
+ * n.b. This is wrapped in a Promise because it needs to block
+ *      execution in App.js lest the rendering continues before
+ *      this is done.
+ */
 export async function init_user() {
+  // returns a promise to guarantee it will send something
   return new Promise(resolve => {
     // check if ID exists
     get_user()
       .then((user) => {
+        // if the user exists, update last opened and resolve
         if (user[0].user_id !== '') {
-          update_last_opened(Date.now()); // don't really care if this is async
+          update_last_opened(Date.now()); /// don't really care if this is async
+          // resolve with 0 to indicate not first time
           resolve(0);
           return;
         } else {
+          /// not sure if Dexie will return an undefined user obj
           console.log('???'); // need to check if this gets triggered with tests
         }
       })
       // user doesn't exist
       .catch(async (err) => {
+        // instantiate user
         let id = create_id();
         await db.user.put({
           user_id: id,
@@ -27,57 +41,56 @@ export async function init_user() {
           active_website: '',
           last_opened: Date.now()
         });
+        // resolve with 0 to indicate first time
         resolve(1);
       });
   });
 }
 
+/**
+ * Read operation
+ * 
+ * Returns the user in an array (can be accessed by user[0], Dexie quirk).
+ */
 export async function get_user() {
   let user = await db.user.toArray();
   return user;
 }
 
+/**
+ * Read operation
+ * 
+ * Gets the website object for a given URL
+ * @param {string} url URL of website to retrieve
+ */
 export async function get_website_with_url(url) {
   let website = await db.websites.where('url').equals(url).toArray();
   return website;
 }
-
-export async function get_website_with_id(id) {
-  let website = await db.websites.where('website_id').equals(id).toArray();
-  return website;
-}
-
+/**
+ * Read operation
+ * 
+ * Gets the Rabbithole object for a given rabbithole_id
+ * @param {string} id ID of the Rabbithole to retrieve 
+ */
 export async function get_rabbithole_with_id(id) {
   let rabbithole = await db.rabbitholes.where('rabbithole_id').equals(id).toArray();
   return rabbithole;
 }
 
-export async function update_active_website(website) {
+/**
+ * Update operation
+ * 
+ * Updates the current active website.
+ * @param {Object} rabbithole_id rabbithole_id of the current active website
+ */
+export async function update_active_rabbithole(rabbithole_id) {
   get_user()
     .then(async (user) => {
       let id = user[0].user_id;
-      console.log(website);
-      await db.user.update(id, { active_website: website })
-    });
-}
-
-export async function update_active_rabbithole(rabbithole) {
-  get_user()
-    .then(async (user) => {
-      console.log(rabbithole);
-      let id = user[0].user_id;
-      await db.user.update(id, { active_rabbithole: rabbithole });
+      await db.user.update(id, { active_rabbithole: rabbithole_id });
     })
     .catch(err => console.log(err));
-}
-
-export async function update_active_tab(website) {
-  get_user()
-    .then(async (user) => {
-      let id = user[0].user_id;
-      console.log(website);
-      await db.user.update(id, { active_tab: website })
-    });
 }
 
 export async function update_last_opened(timestamp) {
