@@ -60,6 +60,20 @@ export async function get_user() {
 /**
  * Read operation
  * 
+ * Returns the user in an array (can be accessed by active-rabbithole[0], Dexie quirk).
+ */
+export async function get_active_rabbithole() {
+  let user = await get_user();
+  console.log(user);
+  if (user.length === 0) return {};
+  let active_rabbithole = await get_rabbithole_with_id(user[0].active_rabbithole);
+  console.log(active_rabbithole);
+  return active_rabbithole;
+}
+
+/**
+ * Read operation
+ * 
  * Gets the website object for a given URL
  * @param {string} url URL of website to retrieve
  */
@@ -67,6 +81,7 @@ export async function get_website_with_url(url) {
   let website = await db.websites.where('url').equals(url).toArray();
   return website;
 }
+
 /**
  * Read operation
  * 
@@ -76,6 +91,15 @@ export async function get_website_with_url(url) {
 export async function get_rabbithole_with_id(id) {
   let rabbithole = await db.rabbitholes.where('rabbithole_id').equals(id).toArray();
   return rabbithole;
+}
+
+/**
+ * Read operation
+ * 
+ * Gets the all rabbitholes from the db.
+ */
+export async function get_all_rabbitholes() {
+  return;
 }
 
 /**
@@ -93,6 +117,12 @@ export async function update_active_rabbithole(rabbithole_id) {
     .catch(err => console.log(err));
 }
 
+/**
+ * Update operation
+ * 
+ * Updates the last time the website was opened.
+ * @param {Object} timestamp timestamp of the most recent open
+ */
 export async function update_last_opened(timestamp) {
   get_user()
     .then(async (user) => {
@@ -101,6 +131,15 @@ export async function update_last_opened(timestamp) {
     });
 }
 
+/**
+ * Update operation
+ * 
+ * Updates the state of Rabbitholes in the IndexedDB with data collected
+ * in chrome.storage from the background page.
+ * 
+ * @param {Array} rabbitholes JSONArray of rabbitholes. The data format
+ *   is as described in background.js
+ */
 export async function update_rabbitholes(rabbitholes) {
   // no new rabbitholes
   if (rabbitholes === [] || rabbitholes === undefined) return;
@@ -146,54 +185,15 @@ export async function update_rabbitholes(rabbitholes) {
   }
 }
 
-export function update_websites(websites) {
-
-  // no new websites
-  if (websites === []) return;
-
-  websites.forEach(website => {
-    get_website_with_url(website.url)
-      .then(async db_website => {
-        if (db_website.website_id !== '') {
-          db_website.to_websites.concat(website.tos);
-          db_website.from_websites.concat(website.froms);
-          await db.websites.update(db_website.website_id, db_website);
-          return;
-        } else {
-          console.log('???'); // need to check if this gets triggered with tests
-        }
-      })
-      // website doesn't exist
-      .catch(async (err) => {
-        await db.websites.put({
-          website_id: create_id(),
-          url: website.url,
-          title: website.title,
-          last_visited: website.last_visited,
-          to_websites: website.tos,
-          from_websites: website.froms
-        });
-      })
-  });
-}
-
-export async function get_websites() {
-  let websites = await db.websites.toArray();
-  return websites;
-}
-
 /**
- * @returns 
+ * Join operation
+ * 
+ * Merges two rabbitholes into one and stores it into the IndexedDB.
+ * Originals are deleted. (NOT TESTED)
+ * 
+ * @param {Object} rabbithole1_id rabbithole_id of first rabbithole
+ * @param {Object} rabbithole2_id rabbithole_id of second rabbithole
  */
-export async function get_active_rabbithole() {
-  let user = await get_user();
-  console.log(user);
-  if (user.length === 0) return {};
-  let active_rabbithole = await get_rabbithole_with_id(user[0].active_rabbithole);
-  console.log(active_rabbithole);
-  return active_rabbithole;
-}
-
 export async function merge_rabbitholes(rabbithole1_id, rabbithole2_id) {
   get_rabbithole_with_id(rabbithole1_id)
     .then(rabbithole1 => {
