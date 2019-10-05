@@ -99,7 +99,8 @@ export async function get_rabbithole_with_id(id) {
  * Gets the all rabbitholes from the db.
  */
 export async function get_all_rabbitholes() {
-  return;
+  let rabbitholes = await db.rabbitholes.toArray();
+  return rabbitholes;
 }
 
 /**

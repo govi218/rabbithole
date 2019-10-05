@@ -5,6 +5,7 @@ import './App.css';
 
 import Navbar from './components/Navbar/Navbar';
 import VisCanvas from './components/VisCanvas/VisCanvas';
+import SessionsView from './components/SessionsView/SessionsView';
 
 import { init_user, update_rabbitholes, update_active_rabbithole } from './utils/db_methods';
 
@@ -12,7 +13,6 @@ class App extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      graph: {},
       flag: false
     }
   }
@@ -50,8 +50,8 @@ class App extends React.Component {
     return (
       <div className="App">
         <Navbar />
-        <VisCanvas />
-        {/* <ProjectsView /> */}
+        {/* <VisCanvas /> */}
+        <SessionsView />
       </div>
     );
 
