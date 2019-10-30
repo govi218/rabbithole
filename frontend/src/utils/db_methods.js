@@ -219,3 +219,12 @@ export async function merge_rabbitholes(rabbithole1_id, rabbithole2_id) {
         .catch(err => console.log(err));
     })
 }
+
+/**
+ * Exports Rabbitholes to a csv on the client side.
+ */
+export function rabbitholes_to_json() {
+  get_all_rabbitholes().then(
+    (rh) => console.log(JSON.stringify(rh[0]))
+  );
+}

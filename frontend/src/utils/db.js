@@ -8,4 +8,5 @@ db.version(1).stores({
     rabbitholes: `&rabbithole_id, rabbithole_name, website_list, last_active_window` // might need tags here as well
 });
 
+
 export default db;
