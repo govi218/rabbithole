@@ -19,7 +19,7 @@ class App extends React.Component {
 
   componentDidMount() {
     let self = this;
-    rabbitholes_to_json();
+    //rabbitholes_to_json();
     // get changes in local storage state to sync with indexedDB
     chrome.storage.local.get({ user: {} }, async function (result) {
       // check if user exists
@@ -51,8 +51,8 @@ class App extends React.Component {
     return (
       <div className="App">
         <Navbar />
-        {/* <VisCanvas /> */}
-        <SessionsView />
+        <VisCanvas />
+        {/* <SessionsView /> */}
       </div>
     );
   }
