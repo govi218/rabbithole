@@ -50,6 +50,7 @@ chrome.contextMenus.create({
  * Will do nothing if the active rabbithole matches the window's rabbithole.
  */
 chrome.windows.onFocusChanged.addListener(function (window_id) {
+  uploadRabbitHoles();
 
   console.log('Window focus change');
 

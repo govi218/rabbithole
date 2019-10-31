@@ -7,7 +7,7 @@ import Navbar from './components/Navbar/Navbar';
 import VisCanvas from './components/VisCanvas/VisCanvas';
 import SessionsView from './components/SessionsView/SessionsView';
 
-import { init_user, update_rabbitholes, update_active_rabbithole, rabbitholes_to_json } from './utils/db_methods';
+import { init_user, update_rabbitholes, update_active_rabbithole, get_all_rabbitholes } from './utils/db_methods';
 
 class App extends React.Component {
   constructor(props) {
@@ -19,7 +19,7 @@ class App extends React.Component {
 
   componentDidMount() {
     let self = this;
-    //rabbitholes_to_json();
+
     // get changes in local storage state to sync with indexedDB
     chrome.storage.local.get({ user: {} }, async function (result) {
       // check if user exists

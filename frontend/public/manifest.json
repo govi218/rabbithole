@@ -13,6 +13,7 @@
     "default_popup": "index.html"
   },
   "permissions": [
+    "http://localhost:8080/*",
     "storage",
     "unlimitedStorage",
     "tabs",

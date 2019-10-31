@@ -160,13 +160,13 @@ class VisCanvas extends React.Component {
     } else {
 
       if (this.state.graph.nodes === undefined) {
-        console.log('fuckery');
+        // console.log('fuckery');
         return (
           <h2> Go on a rabbithole and check back! </h2>
         )
       }
-      console.log('fuckery2');
-      console.log(this.state.graph)
+      // console.log('fuckery2');
+      // console.log(this.state.graph)
       return (
         <div className='canvas'>
           <Graph
