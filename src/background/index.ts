@@ -1,6 +1,6 @@
 import { MessageRequest, Logger } from "../utils";
 import { WebsiteStore } from "../storage/db";
-import type { Burrow, Website, Trail } from "../utils/types";
+import type { Burrow } from "../utils/types";
 import { getSession } from "../atproto/client";
 import { syncBurrowToCollection } from "../atproto/cosmik";
 import { storeWebsites } from "../utils/browser";
@@ -9,17 +9,34 @@ import {
   importTabGroupsFromBrowser,
 } from "../utils/import";
 
+type Handler = (
+  request: any,
+  sender: chrome.runtime.MessageSender,
+) => Promise<any>;
+
+function handle(
+  sendResponse: (response?: any) => void,
+  fn: Handler,
+  request: any,
+  sender: chrome.runtime.MessageSender,
+) {
+  fn(request, sender)
+    .then((res) => sendResponse(res))
+    .catch((err) => {
+      Logger.error("Handler failed", err);
+      sendResponse({ error: err?.message || "Unknown error" });
+    });
+}
+
 chrome.runtime.onInstalled.addListener(async () => {
   WebsiteStore.init(indexedDB);
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (!("type" in request)) {
-    sendResponse({
-      error: "request type required",
-    });
     // arcane incantation required for async `sendResponse`s to work
     // https://developer.chrome.com/docs/extensions/mv3/messaging/#simple
+    sendResponse({ error: "request type required" });
     return true;
   }
 
@@ -32,727 +49,598 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   const db = new WebsiteStore(indexedDB);
 
-  const handleError = (err: any) => {
-    Logger.error(`${requestName} failed`, err);
-    sendResponse({ error: err.message || "Unknown error" });
+  const handlers: Partial<Record<MessageRequest, Handler>> = {
+    [MessageRequest.SAVE_TAB]: async (_req, _sender) => {
+      const tabs = await chrome.tabs.query({
+        active: true,
+        lastFocusedWindow: true,
+      });
+
+      const sites = await storeWebsites(tabs, db);
+      if (sites.length > 0) {
+        const activeBurrow = await db.getActiveBurrow();
+        if (activeBurrow) {
+          await db.saveWebsitesToBurrow(sites);
+        }
+
+        // Also add to active rabbithole meta
+        const activeRabbithole = await db.getActiveRabbithole();
+        if (activeRabbithole) {
+          const urls = sites.map((s) => s.url);
+          await db.addWebsitesToRabbitholeMeta(activeRabbithole.id, urls);
+        }
+      }
+
+      return { success: true };
+    },
+
+    [MessageRequest.GET_ALL_ITEMS]: async () => db.getAllWebsites(),
+
+    [MessageRequest.GET_SETTINGS]: async () => db.getSettings(),
+
+    [MessageRequest.UPDATE_SETTINGS]: async (req) => {
+      if (!("settings" in req)) {
+        throw new Error("settings required");
+      }
+      return db.updateSettings(req.settings);
+    },
+
+    [MessageRequest.GET_ALL_BURROWS]: async () => db.getAllBurrows(),
+
+    [MessageRequest.GET_BURROW_WEBSITES]: async (req) => {
+      if (!("burrowId" in req)) {
+        throw new Error("burrowId required");
+      }
+      return db.getAllWebsitesForBurrow(req.burrowId);
+    },
+
+    [MessageRequest.GET_RABBITHOLE_WEBSITES]: async (req) => {
+      if (!("rabbitholeId" in req)) {
+        throw new Error("rabbitholeId required");
+      }
+      return db.getAllWebsitesForRabbithole(req.rabbitholeId);
+    },
+
+    [MessageRequest.CREATE_NEW_BURROW]: async (req) => {
+      if (!("newBurrowName" in req)) {
+        throw new Error("newBurrowName required");
+      }
+      return db.createNewActiveBurrow(req.newBurrowName);
+    },
+
+    [MessageRequest.CHANGE_ACTIVE_BURROW]: async (req) => {
+      if (!("burrowId" in req)) {
+        throw new Error("burrowId required");
+      }
+      const parentRabbithole = await db.fetchRabbitholeForBurrow(req.burrowId);
+      await db.changeActiveRabbithole(parentRabbithole.id);
+      await db.changeActiveBurrow(req.burrowId);
+      await db.changeActiveTrail(null);
+    },
+
+    [MessageRequest.GET_ACTIVE_BURROW]: async () => db.getActiveBurrow(),
+
+    [MessageRequest.GET_BURROW]: async (req) => {
+      if (!("burrowId" in req)) {
+        throw new Error("burrowId required");
+      }
+      return db.getBurrow(req.burrowId);
+    },
+
+    [MessageRequest.SAVE_WINDOW_TO_NEW_BURROW]: async (req, sender) => {
+      if (!sender.tab?.windowId) {
+        throw new Error("sender tab windowId required");
+      }
+      if (!("newBurrowName" in req)) {
+        throw new Error("burrowName required");
+      }
+
+      const tabs = await chrome.tabs.query({ windowId: sender.tab.windowId });
+      const sites = await storeWebsites(tabs, db);
+      const urls = sites.map((s) => s.url);
+
+      const burrow = await db.createNewActiveBurrow(req.newBurrowName, urls);
+
+      const activeRabbithole = await db.getActiveRabbithole();
+      if (activeRabbithole) {
+        await db.addWebsitesToRabbitholeMeta(activeRabbithole.id, urls);
+      }
+
+      return burrow;
+    },
+
+    [MessageRequest.SAVE_WINDOW_TO_ACTIVE_BURROW]: async () => {
+      const window = await chrome.windows.getCurrent();
+      const tabs = await chrome.tabs.query({ windowId: window.id });
+      const sites = await storeWebsites(tabs, db);
+
+      if (sites.length > 0) {
+        await db.saveWebsitesToBurrow(sites);
+
+        // make sure to sync with rabbithole meta
+        const activeBurrow = await db.getActiveBurrow();
+        if (activeBurrow) {
+          const rabbithole = await db.fetchRabbitholeForBurrow(activeBurrow.id);
+          const urls = sites.map((s) => s.url);
+          await db.addWebsitesToRabbitholeMeta(rabbithole.id, urls);
+        }
+      }
+
+      return { success: true };
+    },
+
+    [MessageRequest.SAVE_WINDOW_TO_RABBITHOLE]: async (req) => {
+      if (!("rabbitholeId" in req)) {
+        throw new Error("rabbitholeId required");
+      }
+
+      const window = await chrome.windows.getCurrent();
+      const tabs = await chrome.tabs.query({ windowId: window.id });
+      const sites = await storeWebsites(tabs, db);
+      const urls = sites.map((s) => s.url);
+
+      await db.addWebsitesToRabbitholeMeta(req.rabbitholeId, urls);
+      return { success: true };
+    },
+
+    [MessageRequest.UPDATE_RABBITHOLE_PINNED_WEBSITES]: async (
+      _req,
+      sender,
+    ) => {
+      if (!sender.tab?.windowId) {
+        throw new Error("sender tab windowId required");
+      }
+
+      const tabs = await chrome.tabs.query({ windowId: sender.tab.windowId });
+      const sites = await storeWebsites(tabs, db);
+      const urls = sites.map((s) => s.url);
+
+      const activeRabbithole = await db.getActiveRabbithole();
+      if (activeRabbithole) {
+        await db.updateRabbitholeActiveTabs(activeRabbithole.id, urls);
+        await db.addWebsitesToRabbitholeMeta(activeRabbithole.id, urls);
+      }
+
+      return { success: true };
+    },
+
+    [MessageRequest.RENAME_BURROW]: async (req) => {
+      if (!("newName" in req) || !("burrowId" in req)) {
+        throw new Error("burrowId and newName required");
+      }
+      return db.renameBurrow(req.burrowId, req.newName);
+    },
+
+    [MessageRequest.DELETE_BURROW]: async (req) => {
+      if (!("rabbitholeId" in req) || !("burrowId" in req)) {
+        throw new Error("rabbitholeId and burrowId required");
+      }
+      await db.deleteBurrowFromRabbithole(req.rabbitholeId, req.burrowId);
+      await db.deleteBurrow(req.burrowId);
+      const activeBurrow = await db.getActiveBurrow();
+      if (activeBurrow?.id === req.burrowId) {
+        await db.changeActiveBurrow(null);
+      }
+    },
+
+    [MessageRequest.DELETE_WEBSITE]: async (req) => {
+      if (!("url" in req) || !("burrowId" in req)) {
+        throw new Error("burrowId and url required");
+      }
+      await db.deleteWebsiteFromBurrow(req.burrowId, req.url);
+      return { success: true };
+    },
+
+    [MessageRequest.PUBLISH_BURROW]: async (req) => {
+      if (!("burrowId" in req) || !("uri" in req) || !("timestamp" in req)) {
+        throw new Error("burrowId, uri, and timestamp required");
+      }
+      await db.updateBurrowSembleInfo(req.burrowId, req.uri, req.timestamp);
+      return { success: true };
+    },
+
+    [MessageRequest.GET_ACTIVE_RABBITHOLE]: async () =>
+      db.getActiveRabbithole(),
+
+    [MessageRequest.GET_ALL_RABBITHOLES]: async () => db.getAllRabbitholes(),
+
+    [MessageRequest.FETCH_RABBITHOLE_FOR_BURROW]: async (req) => {
+      if (!("burrowId" in req)) {
+        throw new Error("burrowId required");
+      }
+      return db.fetchRabbitholeForBurrow(req.burrowId);
+    },
+
+    [MessageRequest.CHANGE_ACTIVE_RABBITHOLE]: async (req) => {
+      const rabbitholeId = "rabbitholeId" in req ? req.rabbitholeId : null;
+      // TODO: does perf here ever measurably affect UX?
+      await db.changeActiveRabbithole(rabbitholeId);
+      await db.changeActiveBurrow(null);
+      await db.changeActiveTrail(null);
+      return { success: true };
+    },
+
+    [MessageRequest.CREATE_NEW_RABBITHOLE]: async (req) => {
+      if (!("title" in req)) {
+        throw new Error("title required");
+      }
+      return db.createNewActiveRabbithole(req.title, req.description);
+    },
+
+    [MessageRequest.UPDATE_RABBITHOLE]: async (req) => {
+      if (!("rabbitholeId" in req)) {
+        throw new Error("rabbitholeId required");
+      }
+      return db.updateRabbithole(req.rabbitholeId, req.title, req.description);
+    },
+
+    [MessageRequest.DELETE_RABBITHOLE]: async (req) => {
+      if (!("rabbitholeId" in req)) {
+        throw new Error("rabbitholeId required");
+      }
+      const rabbithole = await db.getRabbithole(req.rabbitholeId);
+      await Promise.all([
+        ...(rabbithole?.burrows || []).map((b) => db.deleteBurrow(b)),
+        ...(rabbithole?.trails || []).map((t) => db.deleteTrail(t)),
+      ]);
+      await db.deleteRabbithole(req.rabbitholeId);
+
+      const activeRabbithole = await db.getActiveRabbithole();
+      if (activeRabbithole?.id === req.rabbitholeId) {
+        await db.changeActiveRabbithole(null);
+        await db.changeActiveBurrow(null);
+        await db.changeActiveTrail(null);
+      }
+    },
+
+    [MessageRequest.ADD_BURROWS_TO_RABBITHOLE]: async (req) => {
+      if (!("rabbitholeId" in req) || !("burrowIds" in req)) {
+        throw new Error("rabbitholeId and burrowIds required");
+      }
+      return db.addBurrowsToRabbithole(req.rabbitholeId, req.burrowIds);
+    },
+
+    [MessageRequest.CREATE_NEW_BURROW_IN_RABBITHOLE]: async (req) => {
+      if (!("burrowName" in req)) {
+        throw new Error("burrowName required");
+      }
+      return db.createNewBurrowInActiveRabbithole(
+        req.burrowName,
+        req.websites ?? [],
+      );
+    },
+
+    [MessageRequest.ADD_WEBSITES_TO_RABBITHOLE_META]: async (req) => {
+      if (!("rabbitholeId" in req) || !("urls" in req)) {
+        throw new Error("rabbitholeId and urls required");
+      }
+      return db.addWebsitesToRabbitholeMeta(req.rabbitholeId, req.urls);
+    },
+
+    [MessageRequest.DELETE_WEBSITE_FROM_RABBITHOLE_META]: async (req) => {
+      if (!("rabbitholeId" in req) || !("url" in req)) {
+        throw new Error("rabbitholeId and url required");
+      }
+      return db.deleteWebsiteFromRabbitholeMeta(req.rabbitholeId, req.url);
+    },
+
+    [MessageRequest.UPDATE_WEBSITE]: async (req) => {
+      if (!("url" in req)) {
+        throw new Error("url required");
+      }
+      return db.updateWebsite(req.url, req.name, req.description);
+    },
+
+    [MessageRequest.SYNC_BURROW]: async (req) => {
+      if (!("burrowId" in req)) {
+        throw new Error("burrowId required");
+      }
+
+      const burrow = await db.getBurrow(req.burrowId);
+      if (!burrow.sembleCollectionUri) {
+        throw new Error("Burrow is not published");
+      }
+
+      const websites = await db.getAllWebsitesForBurrow(req.burrowId);
+      const session = await getSession();
+      if (!session) {
+        throw new Error("Not logged in");
+      }
+
+      await syncBurrowToCollection(
+        session.did,
+        burrow.sembleCollectionUri,
+        websites,
+      );
+
+      // Update last sync time
+      const timestamp = Date.now();
+      await db.updateBurrowSembleInfo(
+        burrow.id,
+        burrow.sembleCollectionUri,
+        timestamp,
+      );
+
+      return { success: true, timestamp };
+    },
+
+    [MessageRequest.REMOVE_FROM_ACTIVE_TABS]: async (req) => {
+      if (!("url" in req)) {
+        throw new Error("url required");
+      }
+
+      const activeRabbithole = await db.getActiveRabbithole();
+      if (!activeRabbithole) {
+        throw new Error("No active rabbithole found");
+      }
+
+      await db.removeWebsiteFromRabbitholeActiveTabs(
+        activeRabbithole.id,
+        req.url,
+      );
+      return { success: true };
+    },
+
+    [MessageRequest.GET_TRAIL]: async (req) => {
+      if (!("trailId" in req)) {
+        throw new Error("trailId required");
+      }
+      return db.getTrail(req.trailId);
+    },
+
+    [MessageRequest.GET_ACTIVE_TRAIL]: async () => db.getActiveTrail(),
+
+    [MessageRequest.CHANGE_ACTIVE_TRAIL]: async (req) => {
+      if (!("trailId" in req)) {
+        throw new Error("trailId required");
+      }
+      await db.changeActiveBurrow(null);
+      await db.changeActiveTrail(req.trailId);
+    },
+
+    [MessageRequest.CREATE_TRAIL]: async (req) => {
+      if (
+        !("rabbitholeId" in req) ||
+        !("name" in req) ||
+        !("websites" in req)
+      ) {
+        throw new Error("rabbitholeId, name, and websites required");
+      }
+      await db.changeActiveBurrow(null);
+      return db.createNewActiveTrail(req.rabbitholeId, req.name, req.websites);
+    },
+
+    [MessageRequest.UPDATE_TRAIL]: async (req) => {
+      if (!("trailId" in req) || !("updates" in req)) {
+        throw new Error("trailId and updates required");
+      }
+      return db.updateTrail(req.trailId, req.updates);
+    },
+
+    [MessageRequest.DELETE_TRAIL]: async (req) => {
+      if (!("rabbitholeId" in req) || !("trailId" in req)) {
+        throw new Error("rabbitholeId and trailId required");
+      }
+      await db.deleteTrailFromRabbithole(req.rabbitholeId, req.trailId);
+      await db.deleteTrail(req.trailId);
+      const activeTrail = await db.getActiveTrail();
+      if (activeTrail?.id === req.trailId) {
+        await db.changeActiveTrail(null);
+      }
+    },
+
+    [MessageRequest.START_TRAIL_WALK]: async (req) => {
+      if (!("trailId" in req)) {
+        throw new Error("trailId required");
+      }
+      return db.startTrailWalk(req.trailId);
+    },
+
+    [MessageRequest.ADVANCE_TRAIL_WALK]: async (req) => {
+      if (!("trailId" in req) || !("websiteUrl" in req)) {
+        throw new Error("trailId and websiteUrl required");
+      }
+      return db.advanceTrailWalk(req.trailId, req.websiteUrl);
+    },
+
+    [MessageRequest.COMPLETE_TRAIL_WALK]: async (req) => {
+      if (!("trailId" in req)) {
+        throw new Error("trailId required");
+      }
+      await db.completeTrailWalk(req.trailId);
+    },
+
+    [MessageRequest.ABANDON_TRAIL_WALK]: async (req) => {
+      if (!("trailId" in req)) {
+        throw new Error("trailId required");
+      }
+      await db.abandonTrailWalk(req.trailId);
+    },
+
+    [MessageRequest.GET_TRAIL_WALK_STATE]: async (req) => {
+      if (!("trailId" in req)) {
+        throw new Error("trailId required");
+      }
+      const trail = await db.getTrail(req.trailId);
+      const walk = await db.getTrailWalk(req.trailId);
+      const websites = trail
+        ? await db.getAllWebsitesForRabbithole(trail.rabbitholeId)
+        : [];
+      return { trail, walk, websites };
+    },
   };
 
-  // ugly callback/.then syntax because of listener function quirks
-  // see https://stackoverflow.com/questions/70353944/chrome-runtime-onmessage-returns-undefined-even-when-value-is-known-for-asynch
-  switch (request.type) {
-    case MessageRequest.SAVE_TAB:
-      chrome.tabs.query(
-        { active: true, lastFocusedWindow: true },
-        async (tabs) => {
-          try {
-            const sites = await storeWebsites(tabs, db);
-            if (sites.length > 0) {
-              const activeBurrow = await db.getActiveBurrow();
-              if (activeBurrow) {
-                await db.saveWebsitesToBurrow(sites);
-              }
-
-              // Also add to active rabbithole meta
-              const activeRabbithole = await db.getActiveRabbithole();
-              if (activeRabbithole) {
-                const urls = sites.map((s) => s.url);
-                await db.addWebsitesToRabbitholeMeta(activeRabbithole.id, urls);
-              }
-            }
-            sendResponse({ success: true });
-          } catch (e) {
-            handleError(e);
-          }
-        },
-      );
-      break;
-
-    case MessageRequest.GET_ALL_ITEMS:
-      db.getAllWebsites()
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.GET_SETTINGS:
-      db.getSettings()
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.UPDATE_SETTINGS:
-      if (!("settings" in request)) {
-        sendResponse({
-          error: "settings required",
-        });
-        break;
-      }
-      db.updateSettings(request.settings)
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.GET_ALL_BURROWS:
-      db.getAllBurrows()
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.GET_BURROW_WEBSITES:
-      if (!("burrowId" in request)) {
-        sendResponse({
-          error: "burrowId required",
-        });
-        break;
-      }
-      db.getAllWebsitesForBurrow(request.burrowId)
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.GET_RABBITHOLE_WEBSITES:
-      if (!("rabbitholeId" in request)) {
-        sendResponse({ error: "rabbitholeId required" });
-        break;
-      }
-      db.getAllWebsitesForRabbithole(request.rabbitholeId)
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.CREATE_NEW_BURROW:
-      if (!("newBurrowName" in request)) {
-        sendResponse({
-          error: "newBurrowName required",
-        });
-        break;
-      }
-      db.createNewActiveBurrow(request.newBurrowName)
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.CHANGE_ACTIVE_BURROW:
-      (async () => {
-        try {
-          const burrowId = "burrowId" in request ? request.burrowId : null;
-          await db.changeActiveBurrow(burrowId);
-
-          // If selecting a burrow, also set its parent rabbithole as active
-          if (burrowId) {
-            const parentRabbithole =
-              await db.fetchRabbitholeForBurrow(burrowId);
-            await db.changeActiveRabbithole(parentRabbithole.id);
-          }
-
-          sendResponse({ success: true });
-        } catch (err) {
-          handleError(err);
+  if (request.type === "OPEN_TABS") {
+    handle(
+      sendResponse,
+      async (req) => {
+        if (!("urls" in req)) {
+          throw new Error("urls required");
         }
-      })();
-      break;
-
-    case MessageRequest.GET_ACTIVE_BURROW:
-      db.getActiveBurrow()
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.GET_BURROW:
-      if (!("burrowId" in request)) {
-        sendResponse({
-          error: "burrowId required",
+        req.urls.forEach((url: string) => {
+          chrome.tabs.create({ url });
         });
-        break;
-      }
-      db.getBurrow(request.burrowId)
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
+        return { success: true };
+      },
+      request,
+      sender,
+    );
+    return true;
+  }
 
-    case MessageRequest.SAVE_WINDOW_TO_NEW_BURROW:
-      chrome.tabs
-        .query({ windowId: sender.tab.windowId })
-        .then(async (tabs) => {
-          try {
-            if (!("newBurrowName" in request)) {
-              sendResponse({ error: "burrowName required" });
-              return;
+  if (request.type === "IMPORT_DATA") {
+    handle(
+      sendResponse,
+      async (req) => {
+        if (!("burrows" in req && "websites" in req)) {
+          throw new Error("projects required");
+        }
+
+        const burrowsToImport = req.burrows as (Burrow & {
+          savedWebsites?: string[];
+        })[];
+        const websitesToImport = req.websites || [];
+        const rabbitholesToImport = (req.rabbitholes || []) as any[];
+
+        if (websitesToImport.length > 0) {
+          await db.saveWebsites(websitesToImport);
+        }
+
+        const existingBurrows = await db.getAllBurrows();
+        const allWebsites = await db.getAllWebsites();
+
+        // FIXME: how much scale is this required to support?
+        const existingUrls = new Set(allWebsites.map((w) => w.url));
+        const existingBurrowMap = new Map(
+          existingBurrows.map((b) => [b.name, b]),
+        );
+        const oldIdToNewId = new Map<string, string>();
+
+        for (const burrow of burrowsToImport) {
+          const missingWebsites: any[] = [];
+          const websites = burrow.websites ?? burrow.savedWebsites ?? [];
+          if (websites) {
+            for (const url of websites) {
+              if (!existingUrls.has(url)) {
+                missingWebsites.push({
+                  url,
+                  name: url,
+                  savedAt: Date.now(),
+                  faviconUrl: "",
+                  description: "Imported",
+                });
+                existingUrls.add(url);
+              }
             }
-
-            const sites = await storeWebsites(tabs, db);
-            const urls = sites.map((s) => s.url);
-
-            const burrow = await db.createNewActiveBurrow(
-              request.newBurrowName,
-              urls,
-            );
-
-            const activeRabbithole = await db.getActiveRabbithole();
-            if (activeRabbithole) {
-              await db.addWebsitesToRabbitholeMeta(activeRabbithole.id, urls);
-            }
-
-            sendResponse(burrow);
-          } catch (e) {
-            handleError(e);
           }
-        });
-      break;
 
-    case MessageRequest.SAVE_WINDOW_TO_ACTIVE_BURROW:
-      chrome.windows.getCurrent().then((window) => {
-        chrome.tabs.query({ windowId: window.id }).then(async (tabs) => {
-          try {
-            const sites = await storeWebsites(tabs, db);
+          if (missingWebsites.length > 0) {
+            await db.saveWebsites(missingWebsites);
+          }
 
-            if (sites.length > 0) {
-              await db.saveWebsitesToBurrow(sites);
+          let burrowName = burrow.name;
+          const existingBurrow = existingBurrowMap.get(burrowName);
 
-              // make sure to sync with rabbithole meta
-              const activeBurrow = await db.getActiveBurrow();
-              if (activeBurrow) {
-                const rabbithole = await db.fetchRabbitholeForBurrow(
-                  activeBurrow.id,
-                );
-                const urls = sites.map((s) => s.url);
-                await db.addWebsitesToRabbitholeMeta(rabbithole.id, urls);
+          if (existingBurrow) {
+            // Check consistency
+            const existingWebsites = new Set(existingBurrow.websites);
+            const newWebsites = new Set(websites);
+
+            let isConsistent = existingWebsites.size === newWebsites.size;
+            if (isConsistent) {
+              for (const w of newWebsites) {
+                if (!existingWebsites.has(w)) {
+                  isConsistent = false;
+                  break;
+                }
               }
             }
 
-            sendResponse({ success: true });
-          } catch (e) {
-            handleError(e);
-          }
-        });
-      });
-      break;
-
-    case MessageRequest.SAVE_WINDOW_TO_RABBITHOLE:
-      if (!("rabbitholeId" in request)) {
-        sendResponse({ error: "rabbitholeId required" });
-        break;
-      }
-      chrome.windows.getCurrent().then((window) => {
-        chrome.tabs.query({ windowId: window.id }).then(async (tabs) => {
-          try {
-            const sites = await storeWebsites(tabs, db);
-            const urls = sites.map((s) => s.url);
-            await db.addWebsitesToRabbitholeMeta(request.rabbitholeId, urls);
-            sendResponse({ success: true });
-          } catch (e) {
-            handleError(e);
-          }
-        });
-      });
-      break;
-
-    case MessageRequest.UPDATE_RABBITHOLE_PINNED_WEBSITES:
-      chrome.tabs
-        .query({ windowId: sender.tab.windowId })
-        .then(async (tabs) => {
-          try {
-            const sites = await storeWebsites(tabs, db);
-            const urls = sites.map((s) => s.url);
-
-            const activeRabbithole = await db.getActiveRabbithole();
-            if (activeRabbithole) {
-              await db.updateRabbitholeActiveTabs(activeRabbithole.id, urls);
-              await db.addWebsitesToRabbitholeMeta(activeRabbithole.id, urls);
+            if (isConsistent) {
+              oldIdToNewId.set(burrow.id, existingBurrow.id);
+              continue;
+            } else {
+              let counter = 1;
+              while (existingBurrowMap.has(burrowName)) {
+                burrowName = `${burrow.name} (${counter})`;
+                counter++;
+              }
             }
-
-            sendResponse({ success: true });
-          } catch (e) {
-            handleError(e);
           }
-        });
-      break;
 
-    case MessageRequest.RENAME_BURROW:
-      if (!("newName" in request) || !("burrowId" in request)) {
-        sendResponse({
-          error: "burrowId and newName required",
-        });
-        break;
-      }
-      db.renameBurrow(request.burrowId, request.newName)
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.DELETE_BURROW:
-      if (!("rabbitholeId" in request) || !("burrowId" in request)) {
-        sendResponse({ error: "rabbitholeId and burrowId required" });
-        break;
-      }
-      db.deleteBurrowFromRabbithole(request.rabbitholeId, request.burrowId)
-        .then(() => db.deleteBurrow(request.burrowId))
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-
-      break;
-
-    case MessageRequest.DELETE_WEBSITE:
-      if (!("url" in request) || !("burrowId" in request)) {
-        sendResponse({
-          error: "burrowId and url required",
-        });
-        break;
-      }
-      db.deleteWebsiteFromBurrow(request.burrowId, request.url)
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.PUBLISH_BURROW:
-      if (
-        !("burrowId" in request) ||
-        !("uri" in request) ||
-        !("timestamp" in request)
-      ) {
-        sendResponse({
-          error: "burrowId, uri, and timestamp required",
-        });
-        break;
-      }
-      db.updateBurrowSembleInfo(
-        request.burrowId,
-        request.uri,
-        request.timestamp,
-      )
-        .then(() => sendResponse({ success: true }))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.GET_ACTIVE_RABBITHOLE:
-      db.getActiveRabbithole()
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.GET_ALL_RABBITHOLES:
-      db.getAllRabbitholes()
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.FETCH_RABBITHOLE_FOR_BURROW:
-      if (!("burrowId" in request)) {
-        sendResponse({ error: "burrowId required" });
-        break;
-      }
-      db.fetchRabbitholeForBurrow(request.burrowId)
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.CHANGE_ACTIVE_RABBITHOLE:
-      (async () => {
-        try {
-          const rabbitholeId =
-            "rabbitholeId" in request ? request.rabbitholeId : null;
-          await db.changeActiveRabbithole(rabbitholeId);
-          // Always unset active burrow when switching rabbitholes
-          await db.changeActiveBurrow(null);
-          await db.changeActiveTrail(null);
-          sendResponse({ success: true });
-        } catch (err) {
-          handleError(err);
-        }
-      })();
-      break;
-
-    case MessageRequest.CREATE_NEW_RABBITHOLE:
-      if (!("title" in request)) {
-        sendResponse({
-          error: "title required",
-        });
-        break;
-      }
-      db.createNewActiveRabbithole(request.title, request.description)
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.UPDATE_RABBITHOLE:
-      if (!("rabbitholeId" in request)) {
-        sendResponse({
-          error: "rabbitholeId required",
-        });
-        break;
-      }
-      db.updateRabbithole(
-        request.rabbitholeId,
-        request.title,
-        request.description,
-      )
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.DELETE_RABBITHOLE:
-      if (!("rabbitholeId" in request)) {
-        sendResponse({
-          error: "rabbitholeId required",
-        });
-        break;
-      }
-      db.deleteRabbithole(request.rabbitholeId)
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.ADD_BURROWS_TO_RABBITHOLE:
-      if (!("rabbitholeId" in request) || !("burrowIds" in request)) {
-        sendResponse({
-          error: "rabbitholeId and burrowIds required",
-        });
-        break;
-      }
-      db.addBurrowsToRabbithole(request.rabbitholeId, request.burrowIds)
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.CREATE_NEW_BURROW_IN_RABBITHOLE:
-      if (!("burrowName" in request)) {
-        sendResponse({
-          error: "burrowName required",
-        });
-        break;
-      }
-      db.createNewBurrowInActiveRabbithole(
-        request.burrowName,
-        request.websites || [],
-      )
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.ADD_WEBSITES_TO_RABBITHOLE_META:
-      if (!("rabbitholeId" in request) || !("urls" in request)) {
-        sendResponse({
-          error: "rabbitholeId and urls required",
-        });
-        break;
-      }
-      db.addWebsitesToRabbitholeMeta(request.rabbitholeId, request.urls)
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.DELETE_WEBSITE_FROM_RABBITHOLE_META:
-      if (!("rabbitholeId" in request) || !("url" in request)) {
-        sendResponse({
-          error: "rabbitholeId and url required",
-        });
-        break;
-      }
-      db.deleteWebsiteFromRabbitholeMeta(request.rabbitholeId, request.url)
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.UPDATE_WEBSITE:
-      if (!("url" in request)) {
-        sendResponse({ error: "url required" });
-        break;
-      }
-      db.updateWebsite(request.url, request.name, request.description)
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.SYNC_BURROW:
-      if (!("burrowId" in request)) {
-        sendResponse({ error: "burrowId required" });
-        break;
-      }
-      (async () => {
-        try {
-          const burrow = await db.getBurrow(request.burrowId);
-          if (!burrow.sembleCollectionUri) {
-            throw new Error("Burrow is not published");
-          }
-          const websites = await db.getAllWebsitesForBurrow(request.burrowId);
-          const session = await getSession();
-          if (!session) throw new Error("Not logged in");
-
-          await syncBurrowToCollection(
-            session.did,
-            burrow.sembleCollectionUri,
+          const newBurrow = await db.createNewActiveBurrow(
+            burrowName,
             websites,
           );
+          oldIdToNewId.set(burrow.id, newBurrow.id);
 
-          // Update last sync time
-          const timestamp = Date.now();
-          await db.updateBurrowSembleInfo(
-            burrow.id,
-            burrow.sembleCollectionUri,
-            timestamp,
+          existingBurrowMap.set(burrowName, {
+            id: newBurrow.id,
+            createdAt: Date.now(),
+            name: burrowName,
+            websites: websites,
+          } as any);
+        }
+
+        // Import Rabbitholes
+        const existingRabbitholes = await db.getAllRabbitholes();
+        const existingRabbitholeMap = new Map(
+          existingRabbitholes.map((r) => [r.title, r]),
+        );
+
+        for (const rh of rabbitholesToImport) {
+          if (existingRabbitholeMap.has(rh.title)) {
+            continue;
+          }
+
+          const newRh = await db.createNewActiveRabbithole(
+            rh.title,
+            rh.description,
           );
+          const newBurrowIds = (rh.burrows || [])
+            .map((oldId: string) => oldIdToNewId.get(oldId))
+            .filter((id: string | undefined) => id !== undefined);
 
-          sendResponse({ success: true, timestamp });
-        } catch (err) {
-          handleError(err);
+          if (newBurrowIds.length > 0) {
+            await db.addBurrowsToRabbithole(newRh.id, newBurrowIds);
+          }
         }
-      })();
-      break;
 
-    case "OPEN_TABS":
-      if (!("urls" in request)) {
-        sendResponse({ error: "urls required" });
-        break;
-      }
-      request.urls.forEach((url) => {
-        chrome.tabs.create({ url });
-      });
-      sendResponse({ success: true });
-      break;
+        return { success: true };
+      },
+      request,
+      sender,
+    );
+    return true;
+  }
 
-    case MessageRequest.REMOVE_FROM_ACTIVE_TABS:
-      if (!("url" in request)) {
-        sendResponse({ error: "url required" });
-        break;
-      }
-      (async () => {
-        try {
-          const activeRabbithole = await db.getActiveRabbithole();
-          if (activeRabbithole) {
-            await db.removeWebsiteFromRabbitholeActiveTabs(
-              activeRabbithole.id,
-              request.url,
-            );
-            sendResponse({ success: true });
-          } else {
-            sendResponse({ error: "No active rabbithole found" });
-          }
-        } catch (e) {
-          handleError(e);
+  if (request.type === "IMPORT_BROWSER_DATA") {
+    handle(
+      sendResponse,
+      async (req) => {
+        const { importBookmarks, importTabGroups } = req as any;
+
+        if (importBookmarks) {
+          await importBookmarksFromBrowser(db);
         }
-      })();
-      break;
 
-    case "IMPORT_DATA":
-      if (!("burrows" in request && "websites" in request)) {
-        sendResponse({ error: "projects required" });
-        break;
-      }
-      const burrowsToImport = request.burrows as (Burrow & {
-        savedWebsites?: string[];
-      })[];
-      const websitesToImport = request.websites || [];
-      const rabbitholesToImport = (request.rabbitholes || []) as any[];
-
-      (async () => {
-        try {
-          if (websitesToImport.length > 0) {
-            await db.saveWebsites(websitesToImport);
-          }
-
-          const existingBurrows = await db.getAllBurrows();
-          const allWebsites = await db.getAllWebsites();
-
-          // FIXME: how much scale is this required to support?
-          const existingUrls = new Set(allWebsites.map((w) => w.url));
-          const existingBurrowMap = new Map(
-            existingBurrows.map((b) => [b.name, b]),
-          );
-          const oldIdToNewId = new Map<string, string>();
-
-          for (const burrow of burrowsToImport) {
-            const missingWebsites = [];
-            const websites = burrow.websites ?? burrow.savedWebsites ?? [];
-            if (websites) {
-              for (const url of websites) {
-                if (!existingUrls.has(url)) {
-                  missingWebsites.push({
-                    url,
-                    name: url,
-                    savedAt: Date.now(),
-                    faviconUrl: "",
-                    description: "Imported",
-                  });
-                  existingUrls.add(url);
-                }
-              }
-            }
-
-            if (missingWebsites.length > 0) {
-              await db.saveWebsites(missingWebsites);
-            }
-
-            let burrowName = burrow.name;
-            const existingBurrow = existingBurrowMap.get(burrowName);
-
-            if (existingBurrow) {
-              // Check consistency
-              const existingWebsites = new Set(existingBurrow.websites);
-              const newWebsites = new Set(websites);
-
-              let isConsistent = existingWebsites.size === newWebsites.size;
-              if (isConsistent) {
-                for (const w of newWebsites) {
-                  if (!existingWebsites.has(w)) {
-                    isConsistent = false;
-                    break;
-                  }
-                }
-              }
-
-              if (isConsistent) {
-                oldIdToNewId.set(burrow.id, existingBurrow.id);
-                continue;
-              } else {
-                let counter = 1;
-                while (existingBurrowMap.has(burrowName)) {
-                  burrowName = `${burrow.name} (${counter})`;
-                  counter++;
-                }
-              }
-            }
-
-            const newBurrow = await db.createNewActiveBurrow(
-              burrowName,
-              websites,
-            );
-            oldIdToNewId.set(burrow.id, newBurrow.id);
-
-            existingBurrowMap.set(burrowName, {
-              id: newBurrow.id,
-              createdAt: Date.now(),
-              name: burrowName,
-              websites: websites,
-            });
-          }
-
-          // Import Rabbitholes
-          const existingRabbitholes = await db.getAllRabbitholes();
-          const existingRabbitholeMap = new Map(
-            existingRabbitholes.map((r) => [r.title, r]),
-          );
-
-          for (const rh of rabbitholesToImport) {
-            if (existingRabbitholeMap.has(rh.title)) {
-              continue;
-            }
-
-            const newRh = await db.createNewActiveRabbithole(
-              rh.title,
-              rh.description,
-            );
-            const newBurrowIds = (rh.burrows || [])
-              .map((oldId) => oldIdToNewId.get(oldId))
-              .filter((id) => id !== undefined);
-
-            if (newBurrowIds.length > 0) {
-              await db.addBurrowsToRabbithole(newRh.id, newBurrowIds);
-            }
-          }
-
-          sendResponse({ success: true });
-        } catch (err) {
-          handleError(err);
+        if (importTabGroups) {
+          await importTabGroupsFromBrowser(db);
         }
-      })();
-      break;
 
-    case "IMPORT_BROWSER_DATA":
-      (async () => {
-        try {
-          const { importBookmarks, importTabGroups } = request as any;
+        return { success: true };
+      },
+      request,
+      sender,
+    );
+    return true;
+  }
 
-          if (importBookmarks) {
-            await importBookmarksFromBrowser(db);
-          }
-
-          if (importTabGroups) {
-            await importTabGroupsFromBrowser(db);
-          }
-
-          sendResponse({ success: true });
-        } catch (err) {
-          handleError(err);
-        }
-      })();
-      break;
-
-    case MessageRequest.GET_TRAIL:
-      db.getTrail(request.trailId)
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.GET_ACTIVE_TRAIL:
-      db.getActiveTrail()
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.CHANGE_ACTIVE_TRAIL:
-      db.changeActiveTrail(request.trailId)
-        .then(() => sendResponse({ success: true }))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.CREATE_TRAIL:
-      db.createTrail(request.rabbitholeId, request.name, request.websites)
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.UPDATE_TRAIL:
-      db.updateTrail(request.trailId, request.updates)
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.DELETE_TRAIL:
-      db.deleteTrail(request.rabbitholeId, request.trailId)
-        .then(() => sendResponse({ success: true }))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.START_TRAIL_WALK:
-      db.startTrailWalk(request.trailId)
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.ADVANCE_TRAIL_WALK:
-      db.advanceTrailWalk(request.trailId, request.websiteUrl)
-        .then((res) => sendResponse(res))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.COMPLETE_TRAIL_WALK:
-      db.completeTrailWalk(request.trailId)
-        .then(() => sendResponse({ success: true }))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.ABANDON_TRAIL_WALK:
-      db.abandonTrailWalk(request.trailId)
-        .then(() => sendResponse({ success: true }))
-        .catch(handleError);
-      break;
-
-    case MessageRequest.GET_TRAIL_WALK_STATE:
-      (async () => {
-        try {
-          const trail = await db.getTrail(request.trailId);
-          const walk = await db.getTrailWalk(request.trailId);
-          const websites = trail
-            ? await db.getAllWebsitesForRabbithole(trail.rabbitholeId)
-            : [];
-          sendResponse({ trail, walk, websites });
-        } catch (err) {
-          handleError(err);
-        }
-      })();
-      break;
-
-    default:
-      Logger.warn(`Unknown message type: ${request.type}`);
+  const handler = handlers[request.type];
+  if (handler) {
+    handle(sendResponse, handler, request, sender);
+  } else {
+    Logger.warn(`Unknown message type: ${request.type}`);
   }
 
   // arcane incantation required for async `sendResponse`s to work
