@@ -415,12 +415,33 @@ export class WebsiteStore {
     });
   }
 
+  async getRabbithole(rabbitholeId: string): Promise<Rabbithole | null> {
+    const db = await this.getDb();
+    return new Promise((resolve, reject) => {
+      const rabbitholeRequest = db
+        .transaction(["rabbitholes"], "readwrite")
+        .objectStore("rabbitholes")
+        .get(rabbitholeId);
+
+      rabbitholeRequest.onsuccess = () => {
+        resolve(rabbitholeRequest.result);
+      };
+
+      rabbitholeRequest.onerror = (event) => {
+        const err = (event.target as IDBRequest).error;
+        reject(
+          new Error(`Failed to retrieve rabbithole: ${err?.message || err}`),
+        );
+      };
+    });
+  }
+
   async getActiveRabbithole(): Promise<Rabbithole | null> {
     const db = await this.getDb();
     return new Promise((resolve, reject) => {
       const userRequest = db.transaction(["user"]).objectStore("user").getAll();
 
-      userRequest.onsuccess = (_) => {
+      userRequest.onsuccess = async (_) => {
         const [user] = userRequest.result;
 
         if (!user.currentRabbithole) {
@@ -428,21 +449,10 @@ export class WebsiteStore {
           return;
         }
 
-        const rabbitholeRequest = db
-          .transaction(["rabbitholes"], "readwrite")
-          .objectStore("rabbitholes")
-          .get(user.currentRabbithole);
-
-        rabbitholeRequest.onsuccess = () => {
-          resolve(rabbitholeRequest.result);
-        };
-
-        rabbitholeRequest.onerror = (event) => {
-          const err = (event.target as IDBRequest).error;
-          reject(
-            new Error(`Failed to retrieve rabbithole: ${err?.message || err}`),
-          );
-        };
+        const activeRabbithole = await this.getRabbithole(
+          user.currentRabbithole,
+        );
+        resolve(activeRabbithole);
       };
 
       userRequest.onerror = (event) => {
@@ -452,16 +462,14 @@ export class WebsiteStore {
     });
   }
 
-  async changeActiveRabbithole(rabbitholeId: string | null): Promise<void> {
+  async changeActiveRabbithole(rabbitholeId: string): Promise<void> {
     const db = await this.getDb();
     return new Promise((resolve, reject) => {
       const userRequest = db.transaction(["user"]).objectStore("user").getAll();
 
-      userRequest.onsuccess = async () => {
+      userRequest.onsuccess = () => {
         const [user] = userRequest.result;
         user.currentRabbithole = rabbitholeId;
-        user.currentBurrow = null;
-        user.currentTrail = null;
 
         const userPutRequest = db
           .transaction(["user"], "readwrite")
@@ -479,7 +487,8 @@ export class WebsiteStore {
       };
 
       userRequest.onerror = (event) => {
-        reject(new Error("Failed to retrieve user"));
+        const err = (event.target as IDBRequest).error;
+        reject(new Error(`Failed to retrieve user: ${err?.message || err}`));
       };
     });
   }
@@ -582,7 +591,6 @@ export class WebsiteStore {
 
   async deleteRabbithole(rabbitholeId: string): Promise<void> {
     const db = await this.getDb();
-    const user = await this.getUser();
 
     return new Promise((resolve, reject) => {
       const rabbitholeTx = db.transaction(["rabbitholes"], "readwrite");
@@ -596,43 +604,14 @@ export class WebsiteStore {
           return;
         }
 
-        await Promise.all(
-          rabbithole.burrows.map((id) =>
-            this.deleteBurrow(id).catch((e) =>
-              Logger.error(`Failed to delete burrow`, e),
-            ),
-          ),
-        );
-
-        if (rabbithole.trails) {
-          await Promise.all(
-            rabbithole.trails.map((id) =>
-              this.deleteTrail(rabbitholeId, id).catch((e) =>
-                Logger.error(`Failed to delete trail`, e),
-              ),
-            ),
-          );
-        }
-
         const deleteRabbitholeReq = db
           .transaction(["rabbitholes"], "readwrite")
           .objectStore("rabbitholes")
           .delete(rabbitholeId);
 
         deleteRabbitholeReq.onsuccess = async () => {
-          if (user.currentRabbithole === rabbitholeId) {
-            user.currentRabbithole = null;
-            user.currentBurrow = null;
-            user.currentTrail = null;
-            await new Promise<void>((res, rej) => {
-              const ureq = db
-                .transaction(["user"], "readwrite")
-                .objectStore("user")
-                .put(user);
-              ureq.onsuccess = () => res();
-              ureq.onerror = (e) =>
-                rej(new Error((e.target as IDBRequest).error.message));
-            });
+          for (const trailId of rabbithole.trails || []) {
+            await this.deleteTrail(trailId);
           }
           resolve();
         };
@@ -1013,10 +992,7 @@ export class WebsiteStore {
         .objectStore("burrows")
         .delete(burrowId);
 
-      burrowRequest.onsuccess = async () => {
-        await this.changeActiveBurrow(null);
-        resolve();
-      };
+      burrowRequest.onsuccess = () => resolve();
 
       burrowRequest.onerror = (event) => {
         reject(new Error((event.target as IDBRequest).error.message));
@@ -1197,17 +1173,13 @@ export class WebsiteStore {
       userRequest.onsuccess = async () => {
         const [user] = userRequest.result;
         user.currentBurrow = burrowId;
-        if (burrowId) user.currentTrail = null;
 
         const userPutRequest = db
           .transaction(["user"], "readwrite")
           .objectStore("user")
           .put(user);
 
-        userPutRequest.onsuccess = () => {
-          resolve();
-        };
-
+        userPutRequest.onsuccess = () => resolve();
         userPutRequest.onerror = (event) => {
           const err = (event.target as IDBRequest).error;
           reject(
@@ -1224,7 +1196,7 @@ export class WebsiteStore {
 
   async createNewActiveBurrow(
     burrowName: string,
-    websites?: string[],
+    websites: string[] = [],
   ): Promise<Burrow> {
     const db = await this.getDb();
     const user = await this.getUser();
@@ -1375,7 +1347,6 @@ export class WebsiteStore {
     websites: string[],
   ): Promise<Trail> {
     const db = await this.getDb();
-    const user = await this.getUser();
 
     const trailStops: TrailStop[] = websites.map((url) => ({
       websiteUrl: url,
@@ -1392,10 +1363,9 @@ export class WebsiteStore {
     };
 
     return new Promise((resolve, reject) => {
-      const tx = db.transaction(["trails", "rabbitholes", "user"], "readwrite");
+      const tx = db.transaction(["trails", "rabbitholes"], "readwrite");
       const trailStore = tx.objectStore("trails");
       const rhStore = tx.objectStore("rabbitholes");
-      const userStore = tx.objectStore("user");
 
       trailStore.put(trail);
 
@@ -1406,15 +1376,21 @@ export class WebsiteStore {
           rh.trails = [...(rh.trails || []), trail.id];
           rhStore.put(rh);
         }
-
-        user.currentTrail = trail.id;
-        user.currentBurrow = null;
-        userStore.put(user);
       };
 
       tx.oncomplete = () => resolve(trail);
       tx.onerror = (e) => reject((e.target as IDBRequest).error);
     });
+  }
+
+  async createNewActiveTrail(
+    rabbitholeId: string,
+    name: string,
+    websites: string[],
+  ): Promise<Trail> {
+    const trail = await this.createTrail(rabbitholeId, name, websites);
+    await this.changeActiveTrail(trail.id);
+    return trail;
   }
 
   async getTrail(trailId: string): Promise<Trail> {
@@ -1432,7 +1408,9 @@ export class WebsiteStore {
       const userReq = db.transaction(["user"]).objectStore("user").getAll();
       userReq.onsuccess = () => {
         const [user] = userReq.result;
-        if (!user.currentTrail) return resolve(null);
+        if (!user.currentTrail) {
+          return resolve(null);
+        }
         const trailReq = db
           .transaction(["trails"])
           .objectStore("trails")
@@ -1453,7 +1431,6 @@ export class WebsiteStore {
       userRequest.onsuccess = () => {
         const [user] = userRequest.result;
         user.currentTrail = trailId;
-        if (trailId) user.currentBurrow = null;
         const putReq = db
           .transaction(["user"], "readwrite")
           .objectStore("user")
@@ -1472,7 +1449,9 @@ export class WebsiteStore {
       const req = store.get(trailId);
       req.onsuccess = () => {
         const trail = req.result;
-        if (!trail) return reject(new Error("Trail not found"));
+        if (!trail) {
+          return reject(new Error("Trail not found"));
+        }
         Object.assign(trail, updates);
         store.put(trail);
         tx.oncomplete = () => resolve(trail);
@@ -1480,12 +1459,13 @@ export class WebsiteStore {
     });
   }
 
-  async deleteTrail(rabbitholeId: string, trailId: string): Promise<void> {
+  async deleteTrailFromRabbithole(
+    rabbitholeId: string,
+    trailId: string,
+  ): Promise<void> {
     const db = await this.getDb();
     return new Promise((resolve, reject) => {
-      const tx = db.transaction(["trails", "rabbitholes", "user"], "readwrite");
-      tx.objectStore("trails").delete(trailId);
-
+      const tx = db.transaction(["rabbitholes"], "readwrite");
       const rhStore = tx.objectStore("rabbitholes");
       const rhReq = rhStore.get(rabbitholeId);
       rhReq.onsuccess = () => {
@@ -1494,20 +1474,22 @@ export class WebsiteStore {
           rh.trails = rh.trails.filter((id) => id !== trailId);
           rhStore.put(rh);
         }
+        tx.oncomplete = () => resolve();
+        tx.onerror = (e) => reject((e.target as IDBRequest).error);
       };
+      rhReq.onerror = (e) => reject((e.target as IDBRequest).error);
+    });
+  }
 
-      const userStore = tx.objectStore("user");
-      const userReq = userStore.getAll();
-      userReq.onsuccess = () => {
-        const [user] = userReq.result;
-        if (user.currentTrail === trailId) {
-          user.currentTrail = null;
-          userStore.put(user);
-        }
-      };
-
-      tx.oncomplete = () => resolve();
-      tx.onerror = (e) => reject((e.target as IDBRequest).error);
+  async deleteTrail(trailId: string): Promise<void> {
+    const db = await this.getDb();
+    return new Promise((resolve, reject) => {
+      const req = db
+        .transaction(["trails"], "readwrite")
+        .objectStore("trails")
+        .delete(trailId);
+      req.onsuccess = () => resolve();
+      req.onerror = (e) => reject((e.target as IDBRequest).error);
     });
   }
 
