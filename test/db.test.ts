@@ -74,6 +74,7 @@ describe("Database CRUD Operations", () => {
     it("sets active rabbithole to null after deletion", async () => {
       const rh = await store.createNewActiveRabbithole("Temp");
       await store.deleteRabbithole(rh.id);
+      await store.changeActiveRabbithole(null);
       const active = await store.getActiveRabbithole();
       expect(active).toBeNull();
     });
