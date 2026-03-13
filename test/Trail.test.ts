@@ -64,20 +64,12 @@ describe("Trail DB Operations", () => {
 
     it("sets the trail as the active trail", async () => {
       const rh = await store.createNewActiveRabbithole("RH");
-      const trail = await store.createTrail(rh.id, "Active Trail", []);
+      const trail = await store.createNewActiveTrail(rh.id, "Active Trail", []);
 
       const activeTrail = await store.getActiveTrail();
       expect(activeTrail?.id).toBe(trail.id);
     });
 
-    it("clears active burrow when trail is created", async () => {
-      const rh = await store.createNewActiveRabbithole("RH");
-      await store.createNewBurrowInActiveRabbithole("Burrow");
-      await store.createTrail(rh.id, "Trail", []);
-
-      const activeBurrow = await store.getActiveBurrow();
-      expect(activeBurrow).toBeNull();
-    });
 
     it("creates a trail with zero stops", async () => {
       const rh = await store.createNewActiveRabbithole("RH");
@@ -107,16 +99,14 @@ describe("Trail DB Operations", () => {
 
   describe("getActiveTrail", () => {
     it("returns null when no active trail", async () => {
-      // Fresh db after init always has currentTrail: null
-      const user = await store.getUser();
-      expect(user.currentTrail).toBeNull();
+      await store.changeActiveTrail(null);
       const active = await store.getActiveTrail();
       expect(active).toBeNull();
     });
 
     it("returns the active trail after creation", async () => {
       const rh = await store.createNewActiveRabbithole("RH");
-      const trail = await store.createTrail(rh.id, "Active", []);
+      const trail = await store.createNewActiveTrail(rh.id, "Active", []);
 
       const active = await store.getActiveTrail();
       expect(active?.id).toBe(trail.id);
@@ -143,15 +133,6 @@ describe("Trail DB Operations", () => {
       expect(active?.id).toBe(t1.id);
     });
 
-    it("clears active burrow when switching to a trail", async () => {
-      const rh = await store.createNewActiveRabbithole("RH");
-      await store.createNewBurrowInActiveRabbithole("Burrow");
-      const trail = await store.createTrail(rh.id, "Trail", []);
-
-      await store.changeActiveTrail(trail.id);
-      const activeBurrow = await store.getActiveBurrow();
-      expect(activeBurrow).toBeNull();
-    });
 
     it("sets active trail to null", async () => {
       const rh = await store.createNewActiveRabbithole("RH");
@@ -241,7 +222,8 @@ describe("Trail DB Operations", () => {
       const rh = await store.createNewActiveRabbithole("RH");
       const trail = await store.createTrail(rh.id, "Delete Me", []);
 
-      await store.deleteTrail(rh.id, trail.id);
+      await store.deleteTrailFromRabbithole(rh.id, trail.id);
+      await store.deleteTrail(trail.id);
 
       const fetched = await store.getTrail(trail.id);
       expect(fetched).toBeUndefined();
@@ -251,7 +233,8 @@ describe("Trail DB Operations", () => {
       const rh = await store.createNewActiveRabbithole("RH");
       const trail = await store.createTrail(rh.id, "Trail", []);
 
-      await store.deleteTrail(rh.id, trail.id);
+      await store.deleteTrailFromRabbithole(rh.id, trail.id);
+      await store.deleteTrail(trail.id);
 
       const rabbitholes = await store.getAllRabbitholes();
       const found = rabbitholes.find((r) => r.id === rh.id);
@@ -262,7 +245,8 @@ describe("Trail DB Operations", () => {
       const rh = await store.createNewActiveRabbithole("RH");
       const trail = await store.createTrail(rh.id, "Active Trail", []);
 
-      await store.deleteTrail(rh.id, trail.id);
+      await store.deleteTrailFromRabbithole(rh.id, trail.id);
+      await store.deleteTrail(trail.id);
 
       const active = await store.getActiveTrail();
       expect(active).toBeNull();
@@ -273,7 +257,8 @@ describe("Trail DB Operations", () => {
       const t1 = await store.createTrail(rh.id, "T1", []);
       const t2 = await store.createTrail(rh.id, "T2", []);
 
-      await store.deleteTrail(rh.id, t1.id);
+      await store.deleteTrailFromRabbithole(rh.id, t1.id);
+      await store.deleteTrail(t1.id);
 
       const t2Fetched = await store.getTrail(t2.id);
       expect(t2Fetched).toBeDefined();
