@@ -215,7 +215,7 @@
     on:blur={handleBlur}
     on:input={handleInput}
     on:keydown={handleKeydown}
-    placeholder="Search rabbitholes & burrows"
+    placeholder="Search rabbitholes & burrows, or create a new one"
     radius="md"
     size="sm"
     class="container-selector-input"
