@@ -315,9 +315,7 @@
             </ActionIcon>
           </Tooltip>
           <Tooltip
-            label={showOverlayHelp
-              ? "You can show/hide anytime using popup or settings"
-              : "Hide Overlay"}
+            label={"Hide Overlay (You can show/hide anytime using popup or settings)"}
             opened={showOverlayHelp || undefined}
             withArrow
           >
