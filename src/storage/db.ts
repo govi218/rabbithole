@@ -923,6 +923,26 @@ export class WebsiteStore {
     });
   }
 
+  async addWebsitesToBurrow(burrowId: string, urls: string[]): Promise<void> {
+    const db = await this.getDb();
+    const burrow = await this.getBurrow(burrowId);
+    const existing = new Set(burrow.websites);
+    for (const url of urls) {
+      existing.add(url);
+    }
+    burrow.websites = [...existing];
+
+    return new Promise((resolve, reject) => {
+      const req = db
+        .transaction(["burrows"], "readwrite")
+        .objectStore("burrows")
+        .put(burrow);
+      req.onsuccess = () => resolve();
+      req.onerror = (e) =>
+        reject(new Error((e.target as IDBRequest).error?.message));
+    });
+  }
+
   async getWebsite(url: string): Promise<Website> {
     const db = await this.getDb();
     return new Promise((resolve, reject) => {

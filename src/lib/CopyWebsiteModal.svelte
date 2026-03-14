@@ -10,7 +10,7 @@
   import { Cross2, MagnifyingGlass, Plus } from "radix-icons-svelte";
   import Fuse from "fuse.js";
   import { MessageRequest, Logger } from "../utils";
-  import type { Burrow, Rabbithole, Website } from "src/utils/types";
+  import type { Burrow, Rabbithole } from "src/utils/types";
   import NameInputModal from "src/lib/NameInputModal.svelte";
 
   export let isOpen: boolean = false;
@@ -112,22 +112,11 @@
 
     try {
       if (mode === "burrow") {
-        // Add to existing burrow
-        // We need the full website object to use IMPORT_DATA effectively
-        const allWebsites: Website[] = await chrome.runtime.sendMessage({
-          type: MessageRequest.GET_ALL_ITEMS,
+        await chrome.runtime.sendMessage({
+          type: MessageRequest.ADD_WEBSITES_TO_BURROW,
+          burrowId: targetId,
+          urls: [websiteUrl],
         });
-        const website = allWebsites.find((w) => w.url === websiteUrl);
-
-        if (website) {
-          await chrome.runtime.sendMessage({
-            type: "IMPORT_DATA",
-            burrows: [
-              { id: targetId, name: "ignored", websites: [websiteUrl] },
-            ],
-            websites: [website],
-          });
-        }
       } else {
         // Add to Rabbithole Meta
         await chrome.runtime.sendMessage({
