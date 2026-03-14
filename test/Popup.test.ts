@@ -7,12 +7,14 @@ function makeDefaultSendMessage(overrides: Partial<Record<string, any>> = {}) {
   return vi.fn().mockImplementation(async (req: any) => {
     switch (req.type) {
       case MessageRequest.GET_SETTINGS:
-        return overrides.settings ?? {
-          show: true,
-          alignment: "right",
-          darkMode: false,
-          hasSeenOnboarding: false,
-        };
+        return (
+          overrides.settings ?? {
+            show: true,
+            alignment: "right",
+            darkMode: false,
+            hasSeenOnboarding: false,
+          }
+        );
       case MessageRequest.GET_ALL_BURROWS:
         return overrides.burrows ?? [];
       case MessageRequest.GET_ALL_RABBITHOLES:
@@ -52,10 +54,12 @@ describe("Popup", () => {
     });
 
     const calls: any[] = [];
-    vi.mocked(chrome.runtime.sendMessage).mockImplementation(async (req: any) => {
-      calls.push(req);
-      return {};
-    });
+    vi.mocked(chrome.runtime.sendMessage).mockImplementation(
+      async (req: any) => {
+        calls.push(req);
+        return {};
+      },
+    );
 
     const syncButton = container.querySelector(".link-button") as HTMLElement;
     expect(syncButton).toBeTruthy();
@@ -63,7 +67,9 @@ describe("Popup", () => {
     await fireEvent.click(syncButton);
 
     await waitFor(() => {
-      const syncCall = calls.find((c) => c.type === MessageRequest.SAVE_WINDOW_TO_ACTIVE_BURROW);
+      const syncCall = calls.find(
+        (c) => c.type === MessageRequest.SAVE_WINDOW_TO_ACTIVE_BURROW,
+      );
       expect(syncCall).toBeTruthy();
     });
   });
@@ -71,7 +77,14 @@ describe("Popup", () => {
   it("clicking show/hide overlay on the popup sets user.settings.show to true/false", async () => {
     // Start with show:true (so the button says "Hide Overlay")
     vi.mocked(chrome.runtime.sendMessage).mockImplementation(
-      makeDefaultSendMessage({ settings: { show: true, alignment: "right", darkMode: false, hasSeenOnboarding: false } }),
+      makeDefaultSendMessage({
+        settings: {
+          show: true,
+          alignment: "right",
+          darkMode: false,
+          hasSeenOnboarding: false,
+        },
+      }),
     );
 
     const { container } = render(Popup);
@@ -81,10 +94,12 @@ describe("Popup", () => {
     });
 
     const calls: any[] = [];
-    vi.mocked(chrome.runtime.sendMessage).mockImplementation(async (req: any) => {
-      calls.push(req);
-      return {};
-    });
+    vi.mocked(chrome.runtime.sendMessage).mockImplementation(
+      async (req: any) => {
+        calls.push(req);
+        return {};
+      },
+    );
 
     // Second link-button is the "Hide Overlay" / "Show Overlay" toggle
     const linkButtons = container.querySelectorAll(".link-button");
@@ -95,7 +110,9 @@ describe("Popup", () => {
     await fireEvent.click(toggleButton);
 
     await waitFor(() => {
-      const updateCall = calls.find((c) => c.type === MessageRequest.UPDATE_SETTINGS);
+      const updateCall = calls.find(
+        (c) => c.type === MessageRequest.UPDATE_SETTINGS,
+      );
       expect(updateCall).toBeTruthy();
       expect(updateCall.settings.show).toBe(false);
     });

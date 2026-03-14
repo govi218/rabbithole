@@ -2,7 +2,13 @@
   import { onMount } from "svelte";
   import { Loader } from "@svelteuidev/core";
   import { MessageRequest } from "../utils";
-  import type { Trail, TrailStop, TrailWalk, TrailWalkState, Website } from "../utils/types";
+  import type {
+    Trail,
+    TrailStop,
+    TrailWalk,
+    TrailWalkState,
+    Website,
+  } from "../utils/types";
 
   let trail: Trail | null = null;
   let walk: TrailWalk | null = null;
@@ -100,7 +106,8 @@
       trailId,
       websiteUrl: currentStop.websiteUrl,
     });
-    const nextStop: TrailStop | undefined = trail.stops[walk.visitedStops.length];
+    const nextStop: TrailStop | undefined =
+      trail.stops[walk.visitedStops.length];
     if (nextStop) {
       if (nextStop.note && nextStop.note.trim()) {
         window.location.href = `${window.location.pathname}?trailId=${trailId}&showNote=1`;
@@ -134,12 +141,10 @@
 <div class="trail-page">
   {#if isLoading}
     <div class="center"><Loader size="lg" variant="dots" /></div>
-
   {:else if !trail}
     <div class="center">
       <h2>Trail not found.</h2>
     </div>
-
   {:else if isCompleted}
     <!-- Completion screen — end note shown here as the custom completion message -->
     <div class="completion-screen">
@@ -160,7 +165,9 @@
         <div class="completion-stats">
           <div class="stat-pill">
             <span class="stat-num">{trail.stops.length}</span>
-            <span class="stat-label">stop{trail.stops.length !== 1 ? "s" : ""} visited</span>
+            <span class="stat-label"
+              >stop{trail.stops.length !== 1 ? "s" : ""} visited</span
+            >
           </div>
         </div>
 
@@ -185,7 +192,6 @@
         </div>
       </div>
     </div>
-
   {:else if showNote && currentStop}
     <!-- Between-stop note screen -->
     <div class="note-screen">
@@ -202,7 +208,6 @@
         </button>
       </div>
     </div>
-
   {:else if !walk}
     <!-- Start state -->
     <div class="start-state">
@@ -232,9 +237,9 @@
           <div class="note-text">{trail.endNote}</div>
         </div>
       {/if}
-      <button class="primary-btn large" on:click={startWalk}>Start Trail</button>
+      <button class="primary-btn large" on:click={startWalk}>Start Trail</button
+      >
     </div>
-
   {:else}
     <!-- Walk state -->
     <div class="walk-state">
@@ -258,18 +263,28 @@
           {@const site = getWebsite(currentStop.websiteUrl)}
           <div class="site-card">
             {#if site.openGraphImageUrl}
-              <img src={site.openGraphImageUrl} alt={site.name} class="site-image" />
+              <img
+                src={site.openGraphImageUrl}
+                alt={site.name}
+                class="site-image"
+              />
             {/if}
             <div class="site-info">
               <h2>{site.name}</h2>
               {#if site.description}<p>{site.description}</p>{/if}
-              <a href={site.url} target="_blank" rel="noopener noreferrer">{site.url}</a>
+              <a href={site.url} target="_blank" rel="noopener noreferrer"
+                >{site.url}</a
+              >
             </div>
           </div>
         {:else}
           <div class="site-card">
             <div class="site-info">
-              <a href={currentStop.websiteUrl} target="_blank" rel="noopener noreferrer">
+              <a
+                href={currentStop.websiteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 {currentStop.websiteUrl}
               </a>
             </div>
@@ -299,10 +314,13 @@
 <style>
   :global(body) {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family:
+      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     background: #f8f9fa;
     color: #1a1b1e;
-    transition: background-color 0.2s, color 0.2s;
+    transition:
+      background-color 0.2s,
+      color 0.2s;
   }
 
   :global(body.dark-mode) {
@@ -416,8 +434,14 @@
   }
 
   @keyframes popIn {
-    from { opacity: 0; transform: scale(0.88) translateY(16px); }
-    to   { opacity: 1; transform: scale(1) translateY(0); }
+    from {
+      opacity: 0;
+      transform: scale(0.88) translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
   }
 
   .confetti-row {
@@ -427,9 +451,17 @@
   }
 
   @keyframes bounce {
-    0%   { transform: scale(0.5); opacity: 0; }
-    60%  { transform: scale(1.2); }
-    100% { transform: scale(1); opacity: 1; }
+    0% {
+      transform: scale(0.5);
+      opacity: 0;
+    }
+    60% {
+      transform: scale(1.2);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
   }
 
   .completion-title {
@@ -860,7 +892,9 @@
     font-size: 15px;
     font-weight: 700;
     cursor: pointer;
-    transition: background 0.2s, transform 0.15s;
+    transition:
+      background 0.2s,
+      transform 0.15s;
     font-family: inherit;
   }
 

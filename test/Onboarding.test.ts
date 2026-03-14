@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { WebsiteStore } from "../src/storage/db";
-import { importBookmarksFromBrowser, importTabGroupsFromBrowser } from "../src/utils/import";
+import {
+  importBookmarksFromBrowser,
+  importTabGroupsFromBrowser,
+} from "../src/utils/import";
 
 describe("Onboarding", () => {
   let store: WebsiteStore;

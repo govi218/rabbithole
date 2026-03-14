@@ -78,8 +78,7 @@
           {#if getTrailCount(rabbithole) > 0}
             <span class="stat-divider">•</span>
             <span class="stat"
-              >{getTrailCount(rabbithole)} trail{getTrailCount(rabbithole) !==
-              1
+              >{getTrailCount(rabbithole)} trail{getTrailCount(rabbithole) !== 1
                 ? "s"
                 : ""}</span
             >

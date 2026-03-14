@@ -388,7 +388,9 @@
               <button class="trail-walk-banner" on:click={focusTrailTab}>
                 <span class="trail-walk-icon">🐾</span>
                 <span class="trail-walk-text">
-                  Trail in progress: <strong>{activeTrailWalk.trail?.name}</strong>
+                  Trail in progress: <strong
+                    >{activeTrailWalk.trail?.name}</strong
+                  >
                   — stop {(activeTrailWalk.walk?.visitedStops?.length ?? 0) + 1}
                   of {activeTrailWalk.trail?.stops?.length ?? 0}
                 </span>
@@ -499,7 +501,11 @@
     align-items: center;
     gap: 10px;
     width: 100%;
-    background: linear-gradient(135deg, rgba(17, 133, 254, 0.1), rgba(17, 133, 254, 0.05));
+    background: linear-gradient(
+      135deg,
+      rgba(17, 133, 254, 0.1),
+      rgba(17, 133, 254, 0.05)
+    );
     border: 1px solid rgba(17, 133, 254, 0.25);
     border-radius: 10px;
     padding: 10px 16px;
@@ -511,7 +517,11 @@
   }
 
   .trail-walk-banner:hover {
-    background: linear-gradient(135deg, rgba(17, 133, 254, 0.18), rgba(17, 133, 254, 0.1));
+    background: linear-gradient(
+      135deg,
+      rgba(17, 133, 254, 0.18),
+      rgba(17, 133, 254, 0.1)
+    );
     border-color: rgba(17, 133, 254, 0.45);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(17, 133, 254, 0.15);
@@ -541,12 +551,20 @@
   }
 
   :global(body.dark-mode) .trail-walk-banner {
-    background: linear-gradient(135deg, rgba(77, 171, 247, 0.1), rgba(77, 171, 247, 0.05));
+    background: linear-gradient(
+      135deg,
+      rgba(77, 171, 247, 0.1),
+      rgba(77, 171, 247, 0.05)
+    );
     border-color: rgba(77, 171, 247, 0.25);
   }
 
   :global(body.dark-mode) .trail-walk-banner:hover {
-    background: linear-gradient(135deg, rgba(77, 171, 247, 0.18), rgba(77, 171, 247, 0.1));
+    background: linear-gradient(
+      135deg,
+      rgba(77, 171, 247, 0.18),
+      rgba(77, 171, 247, 0.1)
+    );
     border-color: rgba(77, 171, 247, 0.45);
     box-shadow: 0 4px 12px rgba(77, 171, 247, 0.15);
   }

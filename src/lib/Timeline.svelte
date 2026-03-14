@@ -177,11 +177,10 @@
       }
 
       burrowNameError = null;
-
       dispatch("containerRename", {
         type: "burrow",
         id: activeBurrow.id,
-        name: name,
+        name,
       });
     } else if (activeTrail) {
       const name = activeTrail.name.trim();
@@ -189,23 +188,15 @@
         burrowNameError = "Trail name cannot be empty";
         return;
       }
-
       burrowNameError = null;
-
-      dispatch("containerRename", {
-        type: "trail",
-        id: activeTrail.id,
-        name: name,
-      });
+      dispatch("containerRename", { type: "trail", id: activeTrail.id, name });
     } else if (activeRabbithole) {
       const title = activeRabbithole.title.trim();
       if (title === "") {
         burrowNameError = "Rabbithole name cannot be empty";
         return;
       }
-
       burrowNameError = null;
-
       dispatch("containerRename", {
         type: "rabbithole",
         id: activeRabbithole.id,
@@ -215,9 +206,7 @@
   }
 
   async function deleteWebsite(event: CustomEvent<any>): Promise<void> {
-    dispatch("websiteDelete", {
-      url: event.detail.url,
-    });
+    dispatch("websiteDelete", { url: event.detail.url });
   }
 
   function openAddToBurrowModal(event: CustomEvent<any>): void {
@@ -241,8 +230,6 @@
         name,
         description,
       });
-
-      // Update local state
       const index = websites.findIndex((w) => w.url === url);
       if (index !== -1) {
         websites[index] = { ...websites[index], name, description };
@@ -263,7 +250,6 @@
       includeScore: true,
       threshold: 0.3,
     });
-
     const results = fuse.search(searchQuery);
     searchResults = results.map((res) => res.item);
   }
@@ -318,27 +304,19 @@
 
       if (successCount === 0 && websites.length > 0) {
         alert(
-          `Failed to publish any cards. Last error: ${
-            lastError?.message || "Unknown error"
-          }`,
+          `Failed to publish any cards. Last error: ${lastError?.message || "Unknown error"}`,
         );
       } else {
         const timestamp = Date.now();
-
         const response = await chrome.runtime.sendMessage({
           type: MessageRequest.PUBLISH_BURROW,
           burrowId: activeBurrow.id,
           uri: collectionData.uri,
-          timestamp: timestamp,
+          timestamp,
         });
-
-        if (response && response.error) {
-          throw new Error(response.error);
-        }
-
+        if (response && response.error) throw new Error(response.error);
         activeBurrow.sembleCollectionUri = collectionData.uri;
         activeBurrow.lastSembleSync = timestamp;
-
         alert(
           `Rabbithole published successfully! Created collection and ${successCount} cards.`,
         );
@@ -590,7 +568,9 @@
       });
       openTrailInEditMode = true;
       await selectTrail(
-        await chrome.runtime.sendMessage({ type: MessageRequest.GET_ACTIVE_TRAIL }).then((t) => t?.id),
+        await chrome.runtime
+          .sendMessage({ type: MessageRequest.GET_ACTIVE_TRAIL })
+          .then((t) => t?.id),
       );
     }
     selectionMode = null;
@@ -653,7 +633,6 @@
         Follow your peers' research trails. Surface and discover new
         connections. Built on ATProto so you own your data.
       </p>
-
       <ul style="padding-left: 20px; margin-top: 10px; margin-bottom: 20px;">
         <li style="margin-bottom: 8px;">
           <strong>Curate your research trails.</strong> Collect interesting links,
@@ -669,7 +648,6 @@
           down.
         </li>
       </ul>
-
       <div style="margin-top: 24px; text-align: center;">
         <a
           href="https://semble.so"
@@ -787,9 +765,7 @@
         <div class="sync-indicator">
           <Tooltip
             label={activeBurrow?.lastSembleSync
-              ? `Last synced: ${formatDateTime(
-                  activeBurrow.lastSembleSync,
-                )}. Click to sync.`
+              ? `Last synced: ${formatDateTime(activeBurrow.lastSembleSync)}. Click to sync.`
               : "Click to sync"}
             withArrow
           >
@@ -830,7 +806,9 @@
     {#if isLoading}
       <div class="loading-container">
         <Loader size="md" variant="dots" />
-        <Text size="sm" color="dimmed" style="margin-top: 1rem;">Loading websites...</Text>
+        <Text size="sm" color="dimmed" style="margin-top: 1rem;"
+          >Loading websites...</Text
+        >
       </div>
     {:else if selectionMode}
       <WebsiteSelectGrid
@@ -909,13 +887,19 @@
                     <div class="timeline-item">
                       <div
                         class="timeline-dot"
-                        on:mouseenter={(e) => { updateHoverPosition(e); showTimestamp(getWebsiteTimeMs(site)); }}
+                        on:mouseenter={(e) => {
+                          updateHoverPosition(e);
+                          showTimestamp(getWebsiteTimeMs(site));
+                        }}
                         on:mousemove={updateHoverPosition}
                         on:mouseleave={clearTimestamp}
                       ></div>
                       <div
                         class="timeline-connector"
-                        on:mouseenter={(e) => { updateHoverPosition(e); showTimestamp(getWebsiteTimeMs(site)); }}
+                        on:mouseenter={(e) => {
+                          updateHoverPosition(e);
+                          showTimestamp(getWebsiteTimeMs(site));
+                        }}
                         on:mousemove={updateHoverPosition}
                         on:mouseleave={clearTimestamp}
                       ></div>
@@ -935,7 +919,10 @@
             {/each}
           </div>
           {#if isHoveringTimestamp && hoveredTimestamp}
-            <div class="timeline-tooltip" style="left: {hoverX}px; top: {hoverY}px;">
+            <div
+              class="timeline-tooltip"
+              style="left: {hoverX}px; top: {hoverY}px;"
+            >
               {formatDateTime(hoveredTimestamp)}
             </div>
           {/if}
@@ -1018,7 +1005,6 @@
   :global(body.dark-mode) .breadcrumb-btn {
     color: #909296;
   }
-
   :global(body.dark-mode) .breadcrumb-btn:hover {
     background: rgba(255, 255, 255, 0.1);
     color: #e7e7e7;
@@ -1064,19 +1050,10 @@
   :global(.input-error input) {
     color: #fa5252 !important;
   }
-
   :global(.input-error) {
     border: 1px solid #fa5252 !important;
     border-radius: 4px;
     background-color: rgba(250, 82, 82, 0.1) !important;
-  }
-
-  .trail-action-row {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-    margin-top: 8px;
-    width: 100%;
   }
 
   .timeline-feed {
@@ -1104,7 +1081,6 @@
   .timeline-body {
     width: 100%;
   }
-
   .date-group {
     margin-bottom: 18px;
   }
@@ -1225,42 +1201,33 @@
   :global(body.dark-mode .feed) {
     background-color: transparent;
   }
-
   :global(body.dark-mode .search-bar .mantine-TextInput-input) {
     background-color: #25262b;
     border-color: #373a40;
     color: #c1c2c5;
   }
-
   :global(body.dark-mode .search-bar .mantine-TextInput-input::placeholder) {
     color: #5c5f66;
   }
-
   :global(body.dark-mode .loading-container .mantine-Text-root) {
     color: #c1c2c5;
   }
-
   :global(body.dark-mode) .timeline-line {
     background: rgba(255, 255, 255, 0.14);
   }
-
   :global(body.dark-mode) .timeline-dot {
     background: rgba(255, 255, 255, 0.35);
   }
-
   :global(body.dark-mode) .timeline-connector {
     background: rgba(255, 255, 255, 0.14);
   }
-
   :global(body.dark-mode) .date-header {
     color: rgba(255, 255, 255, 0.55);
   }
-
   :global(body.dark-mode) .timeline-tooltip {
     background: rgba(231, 231, 231, 0.95);
     color: #141517;
   }
-
   :global(body.dark-mode) .timeline-tooltip::after {
     border-right-color: rgba(231, 231, 231, 0.95);
   }
@@ -1269,22 +1236,18 @@
     .timeline-feed {
       grid-template-columns: 11px 1fr;
     }
-
     .timeline-line {
       left: 5px;
     }
-
     .timeline-dot {
       left: -13px;
       top: 13px;
     }
-
     .timeline-connector {
       left: -6px;
       top: 18px;
       width: 60px;
     }
-
     .timeline-card-wrap {
       margin-left: 64px;
     }

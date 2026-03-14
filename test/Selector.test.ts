@@ -52,13 +52,23 @@ describe("Overlay/Popup Selector", () => {
   it("saving a website to a rabbithole adds only that website to meta and doesn't mess with anything else", async () => {
     const rh = await store.createNewActiveRabbithole("Research");
     await store.saveWebsites([
-      { url: "https://existing.com", name: "Existing", savedAt: Date.now(), faviconUrl: "" },
+      {
+        url: "https://existing.com",
+        name: "Existing",
+        savedAt: Date.now(),
+        faviconUrl: "",
+      },
     ]);
     await store.addWebsitesToRabbitholeMeta(rh.id, ["https://existing.com"]);
 
     // Now save a new website
     await store.saveWebsites([
-      { url: "https://new.com", name: "New", savedAt: Date.now(), faviconUrl: "" },
+      {
+        url: "https://new.com",
+        name: "New",
+        savedAt: Date.now(),
+        faviconUrl: "",
+      },
     ]);
     await store.addWebsitesToRabbitholeMeta(rh.id, ["https://new.com"]);
 
@@ -71,7 +81,12 @@ describe("Overlay/Popup Selector", () => {
   it("saving a website to a burrow adds only that website and doesn't mess with existing websites", async () => {
     const rh = await store.createNewActiveRabbithole("Research");
     await store.saveWebsites([
-      { url: "https://old.com", name: "Old", savedAt: Date.now(), faviconUrl: "" },
+      {
+        url: "https://old.com",
+        name: "Old",
+        savedAt: Date.now(),
+        faviconUrl: "",
+      },
     ]);
     const burrow = await store.createNewBurrowInActiveRabbithole("Topic", [
       "https://old.com",
@@ -79,10 +94,20 @@ describe("Overlay/Popup Selector", () => {
 
     // Save new website to burrow
     await store.saveWebsites([
-      { url: "https://new.com", name: "New", savedAt: Date.now(), faviconUrl: "" },
+      {
+        url: "https://new.com",
+        name: "New",
+        savedAt: Date.now(),
+        faviconUrl: "",
+      },
     ]);
     await store.saveWebsitesToBurrow([
-      { url: "https://new.com", name: "New", savedAt: Date.now(), faviconUrl: "" },
+      {
+        url: "https://new.com",
+        name: "New",
+        savedAt: Date.now(),
+        faviconUrl: "",
+      },
     ]);
 
     const updated = await store.getBurrow(burrow.id);
@@ -114,7 +139,8 @@ describe("Overlay/Popup Selector", () => {
   it("creating a new burrow through the selector creates it in the selected rabbithole and sets it as active", async () => {
     const rh = await store.createNewActiveRabbithole("Research");
 
-    const newBurrow = await store.createNewBurrowInActiveRabbithole("New Burrow");
+    const newBurrow =
+      await store.createNewBurrowInActiveRabbithole("New Burrow");
 
     expect(newBurrow.name).toBe("New Burrow");
     expect(newBurrow.websites).toHaveLength(0);

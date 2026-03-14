@@ -22,7 +22,8 @@ describe("Settings", () => {
 
   it("export returns all rabbitholes, burrows, trails, pinned websites, and meta websites", async () => {
     const rh = await store.createNewActiveRabbithole("Export RH");
-    const burrow = await store.createNewBurrowInActiveRabbithole("Export Burrow");
+    const burrow =
+      await store.createNewBurrowInActiveRabbithole("Export Burrow");
     const trail = await store.createTrail(rh.id, "Export Trail", [
       "https://trail-stop.com",
     ]);
@@ -56,9 +57,7 @@ describe("Settings", () => {
         faviconUrl: "",
       },
     ]);
-    await store.updateRabbitholeActiveTabs(rh.id, [
-      "https://meta-site.com",
-    ]);
+    await store.updateRabbitholeActiveTabs(rh.id, ["https://meta-site.com"]);
 
     const rabbitholes = await store.getAllRabbitholes();
     const burrows = await store.getAllBurrows();
