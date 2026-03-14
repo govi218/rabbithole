@@ -13,6 +13,7 @@
   import CollapsibleContainer from "./CollapsibleContainer.svelte";
   import { MessageRequest, Logger } from "../utils";
   import type { Burrow, Rabbithole } from "src/utils/types";
+  import NameInputModal from "src/lib/NameInputModal.svelte";
 
   export let isOpen: boolean = false;
   export let websiteUrl: string = "";
@@ -30,11 +31,21 @@
   let inputRef: HTMLElement;
 
   let wasOpen: boolean = false;
+
+  let showNameModal: boolean = false;
+  let nameModalResolve: ((value: string | null) => void) | null = null;
+
+  function promptName(): Promise<string | null> {
+    showNameModal = true;
+    return new Promise((resolve) => {
+      nameModalResolve = resolve;
+    });
+  }
   // Track open state of rabbitholes in the list
   let openRabbitholes: Record<string, boolean> = {};
 
   afterUpdate(() => {
-    if (isOpen && inputRef) {
+    if (isOpen && !showNameModal && inputRef) {
       const input = inputRef.querySelector("input");
       if (input) input.focus();
     }
@@ -164,7 +175,7 @@
   }
 
   async function createBurrowAndMove(rabbitholeId: string): Promise<void> {
-    const name = prompt("Enter new burrow name:");
+    const name = await promptName();
     if (!name) return;
 
     isMoving = true;
@@ -242,6 +253,14 @@
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
+
+<NameInputModal
+  bind:isOpen={showNameModal}
+  title="New burrow name"
+  placeholder="Burrow name"
+  on:confirm={(e) => { nameModalResolve?.(e.detail); nameModalResolve = null; }}
+  on:cancel={() => { nameModalResolve?.(null); nameModalResolve = null; }}
+/>
 
 {#if isOpen}
   <!-- svelte-ignore a11y-click-events-have-key-events -->

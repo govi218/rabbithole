@@ -20,6 +20,7 @@
   import OrganizeModal from "src/lib/OrganizeModal.svelte";
   import WebsiteSelectGrid from "src/lib/WebsiteSelectGrid.svelte";
   import TrailView from "src/lib/TrailView.svelte";
+  import NameInputModal from "src/lib/NameInputModal.svelte";
   import { ChevronLeft, ListBullet, Grid, Update } from "radix-icons-svelte";
   import { getSession } from "../atproto/client";
   import {
@@ -73,6 +74,23 @@
 
   let showOrganizeModal = false;
   let selectionMode: "Burrow" | "Trail" | null = null;
+
+  let showNameModal: boolean = false;
+  let nameModalTitle: string = "";
+  let nameModalPlaceholder: string = "";
+  let nameModalResolve: ((value: string | null) => void) | null = null;
+
+  function promptName(
+    title: string,
+    placeholder: string,
+  ): Promise<string | null> {
+    nameModalTitle = title;
+    nameModalPlaceholder = placeholder;
+    showNameModal = true;
+    return new Promise((resolve) => {
+      nameModalResolve = resolve;
+    });
+  }
 
   $: gridWebsites =
     searchQuery.length >= 3
@@ -549,7 +567,8 @@
   async function handleSelectionDone(e: CustomEvent<any>) {
     const selectedUrls = e.detail.selectedUrls;
     if (selectionMode === "Burrow") {
-      const name = prompt("Enter burrow name:") || "New Burrow";
+      const name =
+        (await promptName("Burrow name", "New Burrow")) ?? "New Burrow";
       await chrome.runtime.sendMessage({
         type: MessageRequest.CREATE_NEW_BURROW_IN_RABBITHOLE,
         burrowName: name,
@@ -557,7 +576,7 @@
       });
       dispatch("navigateUp");
     } else if (selectionMode === "Trail") {
-      const name = prompt("Enter trail name:") || "New Trail";
+      const name = (await promptName("Trail name", "New Trail")) ?? "New Trail";
       await chrome.runtime.sendMessage({
         type: MessageRequest.CREATE_TRAIL,
         rabbitholeId: activeRabbithole.id,
@@ -659,6 +678,20 @@
     </Button>
   </Group>
 </Modal>
+
+<NameInputModal
+  bind:isOpen={showNameModal}
+  title={nameModalTitle}
+  placeholder={nameModalPlaceholder}
+  on:confirm={(e) => {
+    nameModalResolve?.(e.detail);
+    nameModalResolve = null;
+  }}
+  on:cancel={() => {
+    nameModalResolve?.(null);
+    nameModalResolve = null;
+  }}
+/>
 
 <div class="timeline">
   <div class="header-section">

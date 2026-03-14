@@ -19,6 +19,12 @@
       selectedUrls = [...selectedUrls, url];
     }
   }
+
+  async function selectFromOpenTabs() {
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+    const openUrls = new Set(tabs.map((t) => t.url).filter(Boolean));
+    selectedUrls = websites.map((w) => w.url).filter((u) => openUrls.has(u));
+  }
 </script>
 
 <div class="select-grid-container">
@@ -28,6 +34,9 @@
       <Button variant="subtle" color="gray" on:click={() => dispatch("cancel")}
         >Cancel</Button
       >
+      <Button variant="light" on:click={selectFromOpenTabs}>
+        From open tabs
+      </Button>
       <Button
         on:click={() => dispatch("done", { selectedUrls })}
         disabled={selectedUrls.length === 0}

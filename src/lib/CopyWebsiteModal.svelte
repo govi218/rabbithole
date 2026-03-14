@@ -11,6 +11,7 @@
   import Fuse from "fuse.js";
   import { MessageRequest, Logger } from "../utils";
   import type { Burrow, Rabbithole, Website } from "src/utils/types";
+  import NameInputModal from "src/lib/NameInputModal.svelte";
 
   export let isOpen: boolean = false;
   export let mode: "burrow" | "rabbithole" = "burrow"; // 'burrow' = add to burrow in current RH, 'rabbithole' = add to another RH
@@ -27,8 +28,18 @@
   let inputRef: HTMLElement;
   let wasOpen: boolean = false;
 
+  let showNameModal: boolean = false;
+  let nameModalResolve: ((value: string | null) => void) | null = null;
+
+  function promptName(): Promise<string | null> {
+    showNameModal = true;
+    return new Promise((resolve) => {
+      nameModalResolve = resolve;
+    });
+  }
+
   afterUpdate(() => {
-    if (isOpen && inputRef) {
+    if (isOpen && !showNameModal && inputRef) {
       const input = inputRef.querySelector("input");
       if (input) input.focus();
     }
@@ -135,7 +146,7 @@
   }
 
   async function createBurrowAndAdd(): Promise<void> {
-    const name = prompt("Enter new burrow name:");
+    const name = await promptName();
     if (!name) return;
 
     isProcessing = true;
@@ -191,6 +202,14 @@
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
+
+<NameInputModal
+  bind:isOpen={showNameModal}
+  title="New burrow name"
+  placeholder="Burrow name"
+  on:confirm={(e) => { nameModalResolve?.(e.detail); nameModalResolve = null; }}
+  on:cancel={() => { nameModalResolve?.(null); nameModalResolve = null; }}
+/>
 
 {#if isOpen}
   <!-- svelte-ignore a11y-click-events-have-key-events -->
