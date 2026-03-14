@@ -240,6 +240,10 @@
         burrowId,
         rabbitholeId: activeRabbithole.id,
       });
+      activeBurrow = null;
+      burrowsInActiveRabbithole = burrowsInActiveRabbithole.filter(
+        (b) => b.id !== burrowId,
+      );
       await refreshHomeState();
     }
   }
