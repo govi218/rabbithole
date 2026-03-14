@@ -22,6 +22,10 @@
     // Burrow websites are subsets of the rabbithole websites and should not be double-counted.
     return rabbithole.meta?.length || 0;
   }
+
+  function getTrailCount(rabbithole: Rabbithole): number {
+    return rabbithole.trails?.length || 0;
+  }
 </script>
 
 <div class="grid" class:horizontal>
@@ -71,6 +75,15 @@
               ? "s"
               : ""}</span
           >
+          {#if getTrailCount(rabbithole) > 0}
+            <span class="stat-divider">•</span>
+            <span class="stat"
+              >{getTrailCount(rabbithole)} trail{getTrailCount(rabbithole) !==
+              1
+                ? "s"
+                : ""}</span
+            >
+          {/if}
         </div>
       </div>
     </button>
