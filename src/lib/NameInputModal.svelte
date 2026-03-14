@@ -33,8 +33,14 @@
 
   function handleKeydown(e: KeyboardEvent): void {
     e.stopPropagation();
-    if (e.key === "Enter") { e.preventDefault(); confirm(); }
-    if (e.key === "Escape") { e.preventDefault(); cancel(); }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      confirm();
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      cancel();
+    }
   }
 </script>
 
@@ -42,7 +48,13 @@
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <div class="overlay" on:click={cancel}>
     <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <div class="modal" on:click|stopPropagation on:keydown|stopPropagation on:keyup|stopPropagation on:keypress|stopPropagation>
+    <div
+      class="modal"
+      on:click|stopPropagation
+      on:keydown|stopPropagation
+      on:keyup|stopPropagation
+      on:keypress|stopPropagation
+    >
       <h2 class="title">{title}</h2>
       <input
         use:autoFocus
@@ -54,7 +66,9 @@
       />
       <div class="actions">
         <button class="btn-cancel" on:click={cancel}>Cancel</button>
-        <button class="btn-confirm" on:click={confirm} disabled={!value.trim()}>Confirm</button>
+        <button class="btn-confirm" on:click={confirm} disabled={!value.trim()}
+          >Confirm</button
+        >
       </div>
     </div>
   </div>
@@ -86,8 +100,14 @@
   }
 
   @keyframes popIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to   { opacity: 1; transform: scale(1); }
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   .title {

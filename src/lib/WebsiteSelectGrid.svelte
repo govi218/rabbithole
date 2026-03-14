@@ -25,9 +25,7 @@
     // Use lastFocusedWindow so we get the actual browser window, not the
     // extension popup window. This ensures all real tabs are captured.
     const tabs = await chrome.tabs.query({ lastFocusedWindow: true });
-    const openUrls = tabs
-      .map((t) => t.url)
-      .filter((url) => isValidWebUrl(url));
+    const openUrls = tabs.map((t) => t.url).filter((url) => isValidWebUrl(url));
 
     // Add any open-tab URLs that aren't already in the websites list
     const existingUrls = new Set(websites.map((w) => w.url));

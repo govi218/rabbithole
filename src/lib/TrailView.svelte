@@ -26,19 +26,20 @@
 
   // Keep these exports so Timeline.svelte doesn't break
   export function toggleEdit() {}
-  export function getIsEditing() { return false; }
+  export function getIsEditing() {
+    return false;
+  }
 
   $: startNoteEmpty = !trail.startNote || trail.startNote.trim() === "";
 </script>
 
 <div class="trail-nodes">
   <!-- Start note -->
-  <div
-    class="note-node"
-    class:highlight-required={startNoteEmpty}
-  >
+  <div class="note-node" class:highlight-required={startNoteEmpty}>
     {#if startNoteEmpty}
-      <div class="required-label">✦ Add a starting note to begin your trail</div>
+      <div class="required-label">
+        ✦ Add a starting note to begin your trail
+      </div>
     {/if}
     <textarea
       class="note-input"
@@ -120,9 +121,15 @@
   }
 
   @keyframes pulse-border {
-    0%   { box-shadow: 0 0 0 0 rgba(245, 159, 0, 0.35); }
-    50%  { box-shadow: 0 0 0 6px rgba(245, 159, 0, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(245, 159, 0, 0); }
+    0% {
+      box-shadow: 0 0 0 0 rgba(245, 159, 0, 0.35);
+    }
+    50% {
+      box-shadow: 0 0 0 6px rgba(245, 159, 0, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(245, 159, 0, 0);
+    }
   }
 
   .required-label {

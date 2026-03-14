@@ -22,7 +22,9 @@ vi.mock("../src/atproto/client", () => ({
 }));
 
 vi.mock("src/utils/crypto", () => ({
-  getDpopKey: vi.fn().mockResolvedValue({ publicKey: "mock", privateKey: "mock" }),
+  getDpopKey: vi
+    .fn()
+    .mockResolvedValue({ publicKey: "mock", privateKey: "mock" }),
 }));
 
 describe("Auth", () => {

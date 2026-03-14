@@ -31,10 +31,10 @@ describe("Burrows", () => {
       "https://b.com",
     ]);
 
-    const burrow = await store.createNewBurrowInActiveRabbithole(
-      "My Burrow",
-      ["https://a.com", "https://b.com"],
-    );
+    const burrow = await store.createNewBurrowInActiveRabbithole("My Burrow", [
+      "https://a.com",
+      "https://b.com",
+    ]);
 
     expect(burrow.websites).toContain("https://a.com");
     expect(burrow.websites).toContain("https://b.com");
@@ -45,7 +45,8 @@ describe("Burrows", () => {
 
   it("creating an empty burrow should be possible", async () => {
     await store.createNewActiveRabbithole("Research");
-    const burrow = await store.createNewBurrowInActiveRabbithole("Empty Burrow");
+    const burrow =
+      await store.createNewBurrowInActiveRabbithole("Empty Burrow");
 
     expect(burrow.id).toBeDefined();
     expect(burrow.name).toBe("Empty Burrow");
@@ -138,8 +139,7 @@ describe("Burrows", () => {
 
   it("deleting a burrow removes it from the burrows store and the parent rabbithole's list of burrows", async () => {
     const rh = await store.createNewActiveRabbithole("Research");
-    const burrow =
-      await store.createNewBurrowInActiveRabbithole("Delete Me");
+    const burrow = await store.createNewBurrowInActiveRabbithole("Delete Me");
 
     await store.deleteBurrowFromRabbithole(rh.id, burrow.id);
     await store.deleteBurrow(burrow.id);

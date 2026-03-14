@@ -258,8 +258,14 @@
   bind:isOpen={showNameModal}
   title="New burrow name"
   placeholder="Burrow name"
-  on:confirm={(e) => { nameModalResolve?.(e.detail); nameModalResolve = null; }}
-  on:cancel={() => { nameModalResolve?.(null); nameModalResolve = null; }}
+  on:confirm={(e) => {
+    nameModalResolve?.(e.detail);
+    nameModalResolve = null;
+  }}
+  on:cancel={() => {
+    nameModalResolve?.(null);
+    nameModalResolve = null;
+  }}
 />
 
 {#if isOpen}

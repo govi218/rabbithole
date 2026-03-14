@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { WebsiteStore } from "../src/storage/db";
-import { createCollection, createUrlCard, createCollectionLink, syncBurrowToCollection, deleteCollection } from "../src/atproto/cosmik";
+import {
+  createCollection,
+  createUrlCard,
+  createCollectionLink,
+  syncBurrowToCollection,
+  deleteCollection,
+} from "../src/atproto/cosmik";
 import { getSession } from "../src/atproto/client";
 
 vi.mock("../src/atproto/cosmik", () => ({
@@ -118,8 +124,7 @@ describe("Semble", () => {
   it("on sync click, everything published should be synced with the repo", async () => {
     const session = await getSession();
     await store.createNewActiveRabbithole("RH");
-    const burrow =
-      await store.createNewBurrowInActiveRabbithole("Sync Burrow");
+    const burrow = await store.createNewBurrowInActiveRabbithole("Sync Burrow");
     const uri = "at://did:plc:test/network.cosmik.collection/rkey1";
     await store.updateBurrowSembleInfo(burrow.id, uri, Date.now() - 10000);
 
@@ -145,7 +150,8 @@ describe("Semble", () => {
     // This test is RED — the feature (auto-deleting from Semble on burrow delete) may not be implemented yet.
     const session = await getSession();
     await store.createNewActiveRabbithole("RH");
-    const burrow = await store.createNewBurrowInActiveRabbithole("Published Burrow");
+    const burrow =
+      await store.createNewBurrowInActiveRabbithole("Published Burrow");
     const uri = "at://did:plc:test/network.cosmik.collection/rkey1";
     await store.updateBurrowSembleInfo(burrow.id, uri, Date.now());
 
