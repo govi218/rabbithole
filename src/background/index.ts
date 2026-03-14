@@ -8,6 +8,14 @@ import {
   importBookmarksFromBrowser,
   importTabGroupsFromBrowser,
 } from "../utils/import";
+import {
+  getTrailWalkTabId,
+  setTrailWalkTabId,
+  clearTrailWalkTab,
+  broadcastToTabs,
+  broadcastTrailWalkUpdated,
+  focusOrOpenTrailTab,
+} from "../utils/trails";
 
 type Handler = (
   request: any,
@@ -50,6 +58,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   const db = new WebsiteStore(indexedDB);
 
   const handlers: Partial<Record<MessageRequest, Handler>> = {
+    [MessageRequest.GET_CURRENT_TAB_ID]: async (_req, sender) => {
+      return { tabId: sender.tab?.id ?? null };
+    },
+
+    [MessageRequest.REGISTER_TRAIL_WALK_TAB]: async (req, sender) => {
+      const tabId = req.tabId ?? sender.tab?.id ?? null;
+      if (tabId !== null) {
+        await setTrailWalkTabId(tabId);
+        return { success: true };
+      }
+      return { success: false };
+    },
+
     [MessageRequest.SAVE_TAB]: async (_req, _sender) => {
       const tabs = await chrome.tabs.query({
         active: true,
@@ -459,15 +480,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
       await db.deleteTrailFromRabbithole(req.rabbitholeId, req.trailId);
       await db.deleteTrail(req.trailId);
-      // Always clear the active trail when a trail is deleted to avoid stuck UI.
       await db.changeActiveTrail(null);
+      await clearTrailWalkTab();
+      await broadcastTrailWalkUpdated();
     },
 
-    [MessageRequest.START_TRAIL_WALK]: async (req) => {
+    [MessageRequest.START_TRAIL_WALK]: async (req, sender) => {
       if (!("trailId" in req)) {
         throw new Error("trailId required");
       }
-      return db.startTrailWalk(req.trailId);
+      const walk = await db.startTrailWalk(req.trailId);
+      if (sender.tab?.id) {
+        await setTrailWalkTabId(sender.tab.id);
+      }
+      await broadcastTrailWalkUpdated();
+      return walk;
     },
 
     [MessageRequest.ADVANCE_TRAIL_WALK]: async (req) => {
@@ -477,11 +504,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return db.advanceTrailWalk(req.trailId, req.websiteUrl);
     },
 
+    [MessageRequest.REWIND_TRAIL_WALK]: async (req, sender) => {
+      if (!("trailId" in req)) {
+        throw new Error("trailId required");
+      }
+      const walk = await db.rewindTrailWalk(req.trailId);
+      if (sender.tab?.id) {
+        await setTrailWalkTabId(sender.tab.id);
+      }
+      await broadcastTrailWalkUpdated();
+      return walk;
+    },
+
     [MessageRequest.COMPLETE_TRAIL_WALK]: async (req) => {
       if (!("trailId" in req)) {
         throw new Error("trailId required");
       }
       await db.completeTrailWalk(req.trailId);
+      await clearTrailWalkTab();
+      await broadcastTrailWalkUpdated();
     },
 
     [MessageRequest.ABANDON_TRAIL_WALK]: async (req) => {
@@ -489,6 +530,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         throw new Error("trailId required");
       }
       await db.abandonTrailWalk(req.trailId);
+      await clearTrailWalkTab();
+      await broadcastTrailWalkUpdated();
     },
 
     [MessageRequest.GET_TRAIL_WALK_STATE]: async (req) => {
@@ -502,9 +545,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         : [];
       return { trail, walk, websites };
     },
+
+    [MessageRequest.GET_TRAIL_WALK_TAB]: async () => {
+      return { tabId: await getTrailWalkTabId() };
+    },
+
+    [MessageRequest.FOCUS_TRAIL_TAB]: async (req) => {
+      return focusOrOpenTrailTab("url" in req ? req.url : undefined);
+    },
   };
 
-  if (request.type === "OPEN_TABS") {
+  if (request.type === MessageRequest.OPEN_TABS) {
     handle(
       sendResponse,
       async (req) => {
@@ -522,7 +573,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
-  if (request.type === "IMPORT_DATA") {
+  if (request.type === MessageRequest.IMPORT_DATA) {
     handle(
       sendResponse,
       async (req) => {
@@ -670,7 +721,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
-  const handler = handlers[request.type];
+  const handler = handlers[request.type as MessageRequest];
   if (handler) {
     handle(sendResponse, handler, request, sender);
   } else {

@@ -10,8 +10,10 @@
     Burrow,
     Rabbithole,
     Settings,
-    Website,
     Trail,
+    TrailWalk,
+    TrailWalkState,
+    Website,
   } from "src/utils/types";
 
   let activeBurrow: Burrow | null = null;
@@ -32,6 +34,12 @@
 
   let settings: Settings | null = null;
   let showOnboarding: boolean = false;
+
+  interface ActiveTrailWalkIndicator {
+    trail: Trail;
+    walk: TrailWalk;
+  }
+  let activeTrailWalk: ActiveTrailWalkIndicator | null = null;
 
   // Apply theme immediately from localStorage to prevent flash
   const cachedDarkMode = localStorage.getItem("rabbithole-dark-mode");
@@ -63,11 +71,39 @@
     isLoadingHome = false;
   });
 
-  async function handleOnboardingComplete() {
+  async function refreshTrailWalkIndicator(): Promise<void> {
+    try {
+      const trail: Trail | null = await chrome.runtime.sendMessage({
+        type: MessageRequest.GET_ACTIVE_TRAIL,
+      });
+      if (trail) {
+        const res: TrailWalkState = await chrome.runtime.sendMessage({
+          type: MessageRequest.GET_TRAIL_WALK_STATE,
+          trailId: trail.id,
+        });
+        if (res?.walk && !res.walk.completed) {
+          activeTrailWalk = { trail: res.trail, walk: res.walk };
+          return;
+        }
+      }
+    } catch {}
+    activeTrailWalk = null;
+  }
+
+  async function focusTrailTab(): Promise<void> {
+    if (!activeTrailWalk) return;
+    const firstStopUrl: string | null =
+      activeTrailWalk.trail?.stops?.[0]?.websiteUrl ?? null;
+    await chrome.runtime.sendMessage({
+      type: MessageRequest.FOCUS_TRAIL_TAB,
+      url: firstStopUrl,
+    });
+  }
+
+  async function handleOnboardingComplete(): Promise<void> {
     showOnboarding = false;
 
-    // Fetch latest settings because Onboarding might have changed darkMode
-    const currentSettings = await chrome.runtime.sendMessage({
+    const currentSettings: Settings = await chrome.runtime.sendMessage({
       type: MessageRequest.GET_SETTINGS,
     });
 
@@ -90,7 +126,6 @@
   async function toggleTheme(): Promise<void> {
     isDark = !isDark;
     document.body.classList.toggle("dark-mode", isDark);
-
     localStorage.setItem("rabbithole-dark-mode", String(isDark));
 
     await chrome.runtime.sendMessage({
@@ -116,7 +151,7 @@
         }),
       ]);
     burrowsInActiveRabbithole = await Promise.all(
-      activeRabbithole?.burrows?.map((burrowId) =>
+      activeRabbithole?.burrows?.map((burrowId: string) =>
         chrome.runtime.sendMessage({
           type: MessageRequest.GET_BURROW,
           burrowId,
@@ -126,7 +161,7 @@
     burrowsInActiveRabbithole = burrowsInActiveRabbithole.filter(Boolean);
 
     trailsInActiveRabbithole = await Promise.all(
-      activeRabbithole?.trails?.map((trailId) =>
+      activeRabbithole?.trails?.map((trailId: string) =>
         chrome.runtime.sendMessage({
           type: MessageRequest.GET_TRAIL,
           trailId,
@@ -136,6 +171,7 @@
     trailsInActiveRabbithole = trailsInActiveRabbithole.filter(Boolean);
 
     updateWebsites();
+    await refreshTrailWalkIndicator();
   }
 
   async function updateWebsites(): Promise<void> {
@@ -348,6 +384,18 @@
               </Text>
             </div>
           {:else}
+            {#if activeTrailWalk}
+              <button class="trail-walk-banner" on:click={focusTrailTab}>
+                <span class="trail-walk-icon">🐾</span>
+                <span class="trail-walk-text">
+                  Trail in progress: <strong>{activeTrailWalk.trail?.name}</strong>
+                  — stop {(activeTrailWalk.walk?.visitedStops?.length ?? 0) + 1}
+                  of {activeTrailWalk.trail?.stops?.length ?? 0}
+                </span>
+                <span class="trail-walk-cta">Go to tab →</span>
+              </button>
+            {/if}
+
             <div class="home-header" role="button" tabindex="0">
               {#if !activeRabbithole}
                 <h1 class="home-title">{"Rabbitholes"}</h1>
@@ -417,7 +465,7 @@
     min-height: 100vh;
     background-color: #f8f9fa;
     transition: background-color 0.3s ease;
-    padding-top: 58px; /* Account for fixed navbar */
+    padding-top: 58px;
   }
 
   :global(body.dark-mode) .main-content {
@@ -444,6 +492,75 @@
     background: transparent !important;
     width: auto !important;
     padding: 20px !important;
+  }
+
+  .trail-walk-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    background: linear-gradient(135deg, rgba(17, 133, 254, 0.1), rgba(17, 133, 254, 0.05));
+    border: 1px solid rgba(17, 133, 254, 0.25);
+    border-radius: 10px;
+    padding: 10px 16px;
+    margin-bottom: 20px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+
+  .trail-walk-banner:hover {
+    background: linear-gradient(135deg, rgba(17, 133, 254, 0.18), rgba(17, 133, 254, 0.1));
+    border-color: rgba(17, 133, 254, 0.45);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(17, 133, 254, 0.15);
+  }
+
+  .trail-walk-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .trail-walk-text {
+    flex: 1;
+    font-size: 13px;
+    color: #495057;
+  }
+
+  .trail-walk-text strong {
+    color: #1185fe;
+  }
+
+  .trail-walk-cta {
+    font-size: 12px;
+    font-weight: 700;
+    color: #1185fe;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  :global(body.dark-mode) .trail-walk-banner {
+    background: linear-gradient(135deg, rgba(77, 171, 247, 0.1), rgba(77, 171, 247, 0.05));
+    border-color: rgba(77, 171, 247, 0.25);
+  }
+
+  :global(body.dark-mode) .trail-walk-banner:hover {
+    background: linear-gradient(135deg, rgba(77, 171, 247, 0.18), rgba(77, 171, 247, 0.1));
+    border-color: rgba(77, 171, 247, 0.45);
+    box-shadow: 0 4px 12px rgba(77, 171, 247, 0.15);
+  }
+
+  :global(body.dark-mode) .trail-walk-text {
+    color: #c1c2c5;
+  }
+
+  :global(body.dark-mode) .trail-walk-text strong {
+    color: #4dabf7;
+  }
+
+  :global(body.dark-mode) .trail-walk-cta {
+    color: #4dabf7;
   }
 
   .home-header {
