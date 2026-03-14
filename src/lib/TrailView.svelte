@@ -2,7 +2,6 @@
   import { createEventDispatcher } from "svelte";
   import type { Trail, Website } from "src/utils/types";
   import TimelineCard from "./TimelineCard.svelte";
-  import TrailNoteModal from "./TrailNoteModal.svelte";
 
   export let trail: Trail;
   export let websites: Website[];
@@ -10,51 +9,12 @@
 
   const dispatch = createEventDispatcher();
 
-  let isEditing = initialEditMode;
-  // -1 = startNote, -2 = endNote, 0+ = stop index
-  let editingNoteIndex: number | null = null;
-  let showNoteModal = false;
-
-  $: startNoteEmpty = !trail.startNote || trail.startNote.trim() === "";
-  $: highlightStartNote = isEditing && startNoteEmpty;
-
   function getWebsite(url: string) {
     return websites.find((w) => w.url === url);
   }
 
-  function editNote(index: number) {
-    if (!isEditing) return;
-    editingNoteIndex = index;
-    showNoteModal = true;
-  }
-
-  function getCurrentNoteValue(): string {
-    if (editingNoteIndex === -1) return trail.startNote || "";
-    if (editingNoteIndex === -2) return trail.endNote || "";
-    if (editingNoteIndex !== null) return trail.stops[editingNoteIndex]?.note || "";
-    return "";
-  }
-
-  function saveNote(event: CustomEvent<{ note: string }>) {
-    const newNote = event.detail.note;
-    if (editingNoteIndex === -1) {
-      trail.startNote = newNote;
-    } else if (editingNoteIndex === -2) {
-      trail.endNote = newNote;
-    } else if (editingNoteIndex !== null) {
-      trail.stops[editingNoteIndex].note = newNote;
-    }
-    showNoteModal = false;
-    editingNoteIndex = null;
-  }
-
-  export function toggleEdit() {
-    if (isEditing) {
-      isEditing = false;
-      dispatch("save", { trail });
-    } else {
-      isEditing = true;
-    }
+  function handleNoteBlur() {
+    dispatch("save", { trail });
   }
 
   export function startTrail() {
@@ -64,33 +24,29 @@
     window.open(trailPageUrl, "_blank");
   }
 
-  export function getIsEditing() {
-    return isEditing;
-  }
-</script>
+  // Keep these exports so Timeline.svelte doesn't break
+  export function toggleEdit() {}
+  export function getIsEditing() { return false; }
 
-<TrailNoteModal
-  isOpen={showNoteModal}
-  initialNote={getCurrentNoteValue()}
-  on:save={saveNote}
-  on:close={() => (showNoteModal = false)}
-/>
+  $: startNoteEmpty = !trail.startNote || trail.startNote.trim() === "";
+</script>
 
 <div class="trail-nodes">
   <!-- Start note -->
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
   <div
     class="note-node"
-    class:editing={isEditing}
-    class:highlight-required={highlightStartNote}
-    on:click={() => isEditing && editNote(-1)}
+    class:highlight-required={startNoteEmpty}
   >
-    {#if highlightStartNote}
+    {#if startNoteEmpty}
       <div class="required-label">✦ Add a starting note to begin your trail</div>
     {/if}
-    <div class="note-content">
-      {trail.startNote || (isEditing ? "Click to add a starting note..." : "")}
-    </div>
+    <textarea
+      class="note-input"
+      placeholder="Starting note..."
+      bind:value={trail.startNote}
+      on:blur={handleNoteBlur}
+      rows={2}
+    />
   </div>
 
   {#each trail.stops as stop, i}
@@ -106,30 +62,28 @@
       {/if}
     </div>
     <div class="trail-edge"></div>
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <div
-      class="note-node"
-      class:editing={isEditing}
-      on:click={() => isEditing && editNote(i)}
-    >
-      <div class="note-content">
-        {stop.note || (isEditing ? "Add a note before the next stop..." : "")}
-      </div>
+    <div class="note-node">
+      <textarea
+        class="note-input"
+        placeholder="Add a note before the next stop..."
+        bind:value={stop.note}
+        on:blur={handleNoteBlur}
+        rows={2}
+      />
     </div>
   {/each}
 
-  <!-- End note: shown after all stops, labelled clearly as the completion message -->
+  <!-- End note -->
   <div class="trail-edge"></div>
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <div
-    class="note-node end-note-node"
-    class:editing={isEditing}
-    on:click={() => isEditing && editNote(-2)}
-  >
+  <div class="note-node end-note-node">
     <div class="end-note-label">🏁 Completion message</div>
-    <div class="note-content">
-      {trail.endNote || (isEditing ? "Click to add a completion message..." : "No completion message")}
-    </div>
+    <textarea
+      class="note-input"
+      placeholder="Add a completion message..."
+      bind:value={trail.endNote}
+      on:blur={handleNoteBlur}
+      rows={2}
+    />
   </div>
 </div>
 
@@ -143,34 +97,26 @@
     margin: 0 auto;
     padding-bottom: 64px;
   }
+
   .note-node {
     width: 100%;
     background: #f8f9fa;
     border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 12px;
-    padding: 16px 20px;
-    font-size: 15px;
-    line-height: 1.5;
-    color: #495057;
-    text-align: center;
+    padding: 12px 16px;
     transition: all 0.2s;
   }
-  .note-node.editing {
-    cursor: pointer;
-    border: 1px dashed #1185fe;
-    background: rgba(17, 133, 254, 0.05);
-  }
-  .note-node.editing:hover {
-    background: rgba(17, 133, 254, 0.1);
+
+  .note-node:focus-within {
+    border-color: #1185fe;
+    background: rgba(17, 133, 254, 0.03);
+    box-shadow: 0 0 0 2px rgba(17, 133, 254, 0.1);
   }
 
   .note-node.highlight-required {
     border: 2px dashed #f59f00;
     background: rgba(245, 159, 0, 0.07);
     animation: pulse-border 1.8s ease-in-out infinite;
-  }
-  .note-node.highlight-required:hover {
-    background: rgba(245, 159, 0, 0.14);
   }
 
   @keyframes pulse-border {
@@ -186,23 +132,41 @@
     letter-spacing: 0.02em;
     margin-bottom: 6px;
     text-transform: uppercase;
+    text-align: center;
   }
 
-  /* End note styling — green to signal it's the completion message */
+  .note-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #495057;
+    font-family: inherit;
+    box-sizing: border-box;
+    padding: 0;
+    text-align: center;
+  }
+
+  .note-input::placeholder {
+    color: #adb5bd;
+    text-align: center;
+  }
+
+  /* End note */
   .end-note-node {
     border-style: dashed;
     border-color: rgba(64, 192, 87, 0.4);
     background: rgba(64, 192, 87, 0.04);
   }
 
-  .end-note-node.editing {
+  .end-note-node:focus-within {
     border-color: #40c057;
+    border-style: solid;
     background: rgba(64, 192, 87, 0.07);
-    cursor: pointer;
-  }
-
-  .end-note-node.editing:hover {
-    background: rgba(64, 192, 87, 0.13);
+    box-shadow: 0 0 0 2px rgba(64, 192, 87, 0.12);
   }
 
   .end-note-label {
@@ -212,6 +176,7 @@
     letter-spacing: 0.02em;
     margin-bottom: 6px;
     text-transform: uppercase;
+    text-align: center;
   }
 
   .trail-edge {
@@ -220,9 +185,11 @@
     background: rgba(0, 0, 0, 0.12);
     margin: 8px 0;
   }
+
   .website-node {
     width: 100%;
   }
+
   .missing-site {
     padding: 24px;
     text-align: center;
@@ -232,38 +199,38 @@
     border: 1px solid rgba(224, 49, 49, 0.2);
   }
 
+  /* Dark mode */
   :global(body.dark-mode) .note-node {
     background: #25262b;
     border-color: rgba(255, 255, 255, 0.12);
-    color: #c1c2c5;
   }
-  :global(body.dark-mode) .note-node.editing {
+  :global(body.dark-mode) .note-node:focus-within {
     border-color: #4dabf7;
     background: rgba(77, 171, 247, 0.05);
-  }
-  :global(body.dark-mode) .note-node.editing:hover {
-    background: rgba(77, 171, 247, 0.1);
+    box-shadow: 0 0 0 2px rgba(77, 171, 247, 0.12);
   }
   :global(body.dark-mode) .note-node.highlight-required {
     border-color: #fab005;
     background: rgba(250, 176, 5, 0.07);
   }
-  :global(body.dark-mode) .note-node.highlight-required:hover {
-    background: rgba(250, 176, 5, 0.14);
-  }
   :global(body.dark-mode) .required-label {
     color: #fab005;
+  }
+  :global(body.dark-mode) .note-input {
+    color: #c1c2c5;
+  }
+  :global(body.dark-mode) .note-input::placeholder {
+    color: #5c5f66;
   }
   :global(body.dark-mode) .end-note-node {
     border-color: rgba(64, 192, 87, 0.3);
     background: rgba(64, 192, 87, 0.04);
   }
-  :global(body.dark-mode) .end-note-node.editing {
+  :global(body.dark-mode) .end-note-node:focus-within {
     border-color: #51cf66;
+    border-style: solid;
     background: rgba(81, 207, 102, 0.07);
-  }
-  :global(body.dark-mode) .end-note-node.editing:hover {
-    background: rgba(81, 207, 102, 0.13);
+    box-shadow: 0 0 0 2px rgba(81, 207, 102, 0.12);
   }
   :global(body.dark-mode) .end-note-label {
     color: #51cf66;
