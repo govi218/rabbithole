@@ -35,7 +35,7 @@
         >Cancel</Button
       >
       <Button variant="light" on:click={selectFromOpenTabs}>
-        From open tabs
+        Add open tabs
       </Button>
       <Button
         on:click={() => dispatch("done", { selectedUrls })}
