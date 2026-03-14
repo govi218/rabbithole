@@ -317,6 +317,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return db.addWebsitesToRabbitholeMeta(req.rabbitholeId, req.urls);
     },
 
+    [MessageRequest.ADD_WEBSITES_TO_BURROW]: async (req) => {
+      if (!("burrowId" in req) || !("urls" in req)) {
+        throw new Error("burrowId and urls required");
+      }
+      return db.addWebsitesToBurrow(req.burrowId, req.urls);
+    },
+
     [MessageRequest.DELETE_WEBSITE_FROM_RABBITHOLE_META]: async (req) => {
       if (!("rabbitholeId" in req) || !("url" in req)) {
         throw new Error("rabbitholeId and url required");
