@@ -117,10 +117,6 @@
     }
   });
 
-  $: if (activeTrail) {
-    trailIsEditing = openTrailInEditMode;
-  }
-
   async function updatePinnedWebsites(): Promise<void> {
     isUpdatingPinnedWebsites = true;
     try {
@@ -593,11 +589,8 @@
         websites: selectedUrls,
       });
       openTrailInEditMode = true;
-      trailIsEditing = true;
       await selectTrail(
-        await chrome.runtime.sendMessage({
-          type: MessageRequest.GET_ACTIVE_TRAIL,
-        }).then((t) => t?.id),
+        await chrome.runtime.sendMessage({ type: MessageRequest.GET_ACTIVE_TRAIL }).then((t) => t?.id),
       );
     }
     selectionMode = null;
@@ -614,15 +607,7 @@
       },
     });
     openTrailInEditMode = false;
-    trailIsEditing = false;
     dispatch("refresh");
-  }
-
-  function handleTrailEditToggle() {
-    if (trailViewRef) {
-      trailViewRef.toggleEdit();
-      trailIsEditing = trailViewRef.getIsEditing();
-    }
   }
 
   function handleStartTrail() {
@@ -837,31 +822,15 @@
       on:openSemble={openSemble}
       on:publish={openPublishModal}
       on:deleteContainer={deleteContainer}
+      on:startTrail={handleStartTrail}
     />
-
-    {#if activeTrail}
-      <div class="trail-action-row">
-        <Button size="xs" variant="light" color="blue" on:click={handleStartTrail}>
-          Start Trail
-        </Button>
-        <Button
-          size="xs"
-          variant={trailIsEditing ? "filled" : "light"}
-          on:click={handleTrailEditToggle}
-        >
-          {trailIsEditing ? "Done" : "Edit"}
-        </Button>
-      </div>
-    {/if}
   </div>
 
   <div class="feed">
     {#if isLoading}
       <div class="loading-container">
         <Loader size="md" variant="dots" />
-        <Text size="sm" color="dimmed" style="margin-top: 1rem;"
-          >Loading websites...</Text
-        >
+        <Text size="sm" color="dimmed" style="margin-top: 1rem;">Loading websites...</Text>
       </div>
     {:else if selectionMode}
       <WebsiteSelectGrid
@@ -931,34 +900,25 @@
           <div class="timeline-gutter">
             <div class="timeline-line"></div>
           </div>
-
           <div class="timeline-body">
             {#each groupedWebsites as group (group.key)}
               <div class="date-group">
                 <div class="date-header">{group.label}</div>
-
                 <div class="date-cards">
                   {#each group.items as site (site.url)}
                     <div class="timeline-item">
                       <div
                         class="timeline-dot"
-                        on:mouseenter={(e) => {
-                          updateHoverPosition(e);
-                          showTimestamp(getWebsiteTimeMs(site));
-                        }}
+                        on:mouseenter={(e) => { updateHoverPosition(e); showTimestamp(getWebsiteTimeMs(site)); }}
                         on:mousemove={updateHoverPosition}
                         on:mouseleave={clearTimestamp}
                       ></div>
                       <div
                         class="timeline-connector"
-                        on:mouseenter={(e) => {
-                          updateHoverPosition(e);
-                          showTimestamp(getWebsiteTimeMs(site));
-                        }}
+                        on:mouseenter={(e) => { updateHoverPosition(e); showTimestamp(getWebsiteTimeMs(site)); }}
                         on:mousemove={updateHoverPosition}
                         on:mouseleave={clearTimestamp}
                       ></div>
-
                       <div class="timeline-card-wrap">
                         <TimelineCard
                           website={site}
@@ -974,12 +934,8 @@
               </div>
             {/each}
           </div>
-
           {#if isHoveringTimestamp && hoveredTimestamp}
-            <div
-              class="timeline-tooltip"
-              style="left: {hoverX}px; top: {hoverY}px;"
-            >
+            <div class="timeline-tooltip" style="left: {hoverX}px; top: {hoverY}px;">
               {formatDateTime(hoveredTimestamp)}
             </div>
           {/if}

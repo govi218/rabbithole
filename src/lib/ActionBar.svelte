@@ -9,9 +9,11 @@
     Trash,
     Home,
     Upload,
+    Play,
   } from "radix-icons-svelte";
 
   export let activeBurrowId: string | null = null;
+  export let activeTrailId: string | null = null;
   export let activeRabbitholeId: string | null = null;
   export let sembleUrl: string | null = null;
   export let isSavingWindow: boolean = false;
@@ -47,120 +49,146 @@
 <div class="action-bar-container">
   <div class="action-bar">
     <Group spacing="xs">
-      <!-- Search -->
-      <Tooltip label="Search within list" withArrow transition="fade">
-        <ActionIcon
-          size="lg"
-          radius="md"
-          color="blue"
-          on:click={toggleSearchBar}
-        >
-          <MagnifyingGlass size={18} />
-        </ActionIcon>
-      </Tooltip>
-
-      <div class="action-divider"></div>
-      <!-- Sync Actions -->
-      <Tooltip
-        label={activeBurrowId
-          ? "Sync open tabs with this burrow"
-          : "Sync open tabs with this rabbithole"}
-        withArrow
-        transition="fade"
-      >
-        <ActionIcon
-          size="lg"
-          radius="md"
-          color="blue"
-          on:click={() => dispatch("saveWindow")}
-          loading={isSavingWindow}
-        >
-          <Reload size={18} />
-        </ActionIcon>
-      </Tooltip>
-
-      <div class="action-divider"></div>
-
-      {#if !activeBurrowId && activeRabbitholeId}
-        <Tooltip label="Update pinned websites" withArrow transition="fade">
+      {#if activeTrailId}
+        <!-- Trail mode: just show Start Trail + Delete -->
+        <Tooltip label="Start Trail" withArrow transition="fade">
           <ActionIcon
             size="lg"
             radius="md"
             color="blue"
-            on:click={() => dispatch("updatePinnedWebsites")}
-            loading={isUpdatingPinnedWebsites}
+            on:click={() => dispatch("startTrail")}
           >
-            <Home size={18} />
+            <Play size={18} />
           </ActionIcon>
         </Tooltip>
 
         <div class="action-divider"></div>
-      {/if}
 
-      <!-- Semble Actions -->
-      {#if activeBurrowId}
-        {#if sembleUrl}
-          <Tooltip label="View on Semble" withArrow transition="fade">
+        <Tooltip label="Delete trail" withArrow color="red" transition="fade">
+          <ActionIcon
+            size="lg"
+            radius="md"
+            color="red"
+            on:click={() => dispatch("deleteContainer")}
+            loading={isDeleting}
+          >
+            <Trash size={18} />
+          </ActionIcon>
+        </Tooltip>
+      {:else}
+        <!-- Normal burrow/rabbithole mode -->
+        <Tooltip label="Search within list" withArrow transition="fade">
+          <ActionIcon
+            size="lg"
+            radius="md"
+            color="blue"
+            on:click={toggleSearchBar}
+          >
+            <MagnifyingGlass size={18} />
+          </ActionIcon>
+        </Tooltip>
+
+        <div class="action-divider"></div>
+
+        <Tooltip
+          label={activeBurrowId
+            ? "Sync open tabs with this burrow"
+            : "Sync open tabs with this rabbithole"}
+          withArrow
+          transition="fade"
+        >
+          <ActionIcon
+            size="lg"
+            radius="md"
+            color="blue"
+            on:click={() => dispatch("saveWindow")}
+            loading={isSavingWindow}
+          >
+            <Reload size={18} />
+          </ActionIcon>
+        </Tooltip>
+
+        <div class="action-divider"></div>
+
+        {#if !activeBurrowId && activeRabbitholeId}
+          <Tooltip label="Update pinned websites" withArrow transition="fade">
             <ActionIcon
               size="lg"
               radius="md"
-              color="cyan"
-              on:click={() => dispatch("openSemble")}
+              color="blue"
+              on:click={() => dispatch("updatePinnedWebsites")}
+              loading={isUpdatingPinnedWebsites}
             >
-              <Globe size={18} />
+              <Home size={18} />
             </ActionIcon>
           </Tooltip>
 
           <div class="action-divider"></div>
-
-          <Tooltip label="Update on Semble" withArrow transition="fade">
-            <ActionIcon
-              size="lg"
-              radius="md"
-              color="orange"
-              on:click={() => dispatch("publish")}
-              loading={isPublishing}
-            >
-              <Upload size={18} />
-            </ActionIcon>
-          </Tooltip>
-        {:else}
-          <Tooltip label="Publish to Semble" withArrow transition="fade">
-            <ActionIcon
-              size="lg"
-              radius="md"
-              color="grape"
-              on:click={() => dispatch("publish")}
-              loading={isPublishing}
-            >
-              <Rocket size={18} />
-            </ActionIcon>
-          </Tooltip>
         {/if}
-        <div class="action-divider"></div>
-      {/if}
 
-      <!-- Delete -->
-      <Tooltip
-        label={activeBurrowId ? "Delete burrow" : "Delete rabbithole"}
-        withArrow
-        color="red"
-        transition="fade"
-      >
-        <ActionIcon
-          size="lg"
-          radius="md"
+        {#if activeBurrowId}
+          {#if sembleUrl}
+            <Tooltip label="View on Semble" withArrow transition="fade">
+              <ActionIcon
+                size="lg"
+                radius="md"
+                color="cyan"
+                on:click={() => dispatch("openSemble")}
+              >
+                <Globe size={18} />
+              </ActionIcon>
+            </Tooltip>
+
+            <div class="action-divider"></div>
+
+            <Tooltip label="Update on Semble" withArrow transition="fade">
+              <ActionIcon
+                size="lg"
+                radius="md"
+                color="orange"
+                on:click={() => dispatch("publish")}
+                loading={isPublishing}
+              >
+                <Upload size={18} />
+              </ActionIcon>
+            </Tooltip>
+          {:else}
+            <Tooltip label="Publish to Semble" withArrow transition="fade">
+              <ActionIcon
+                size="lg"
+                radius="md"
+                color="grape"
+                on:click={() => dispatch("publish")}
+                loading={isPublishing}
+              >
+                <Rocket size={18} />
+              </ActionIcon>
+            </Tooltip>
+          {/if}
+          <div class="action-divider"></div>
+        {/if}
+
+        <Tooltip
+          label={activeBurrowId ? "Delete burrow" : "Delete rabbithole"}
+          withArrow
           color="red"
-          on:click={() => dispatch("deleteContainer")}
-          loading={isDeleting}
+          transition="fade"
         >
-          <Trash size={18} />
-        </ActionIcon>
-      </Tooltip>
+          <ActionIcon
+            size="lg"
+            radius="md"
+            color="red"
+            on:click={() => dispatch("deleteContainer")}
+            loading={isDeleting}
+          >
+            <Trash size={18} />
+          </ActionIcon>
+        </Tooltip>
+      {/if}
     </Group>
   </div>
 
-  {#if showSearchBar}
+  {#if showSearchBar && !activeTrailId}
     <div class="action-search-bar">
       <TextInput
         placeholder="Search..."
