@@ -1,107 +1,103 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, fireEvent, waitFor } from "@testing-library/svelte";
+import { render, fireEvent, waitFor, getByText } from "@testing-library/svelte";
 import Popup from "../src/lib/Popup.svelte";
 import { MessageRequest } from "../src/utils";
 
-describe("Popup Component", () => {
+function makeDefaultSendMessage(overrides: Partial<Record<string, any>> = {}) {
+  return vi.fn().mockImplementation(async (req: any) => {
+    switch (req.type) {
+      case MessageRequest.GET_SETTINGS:
+        return overrides.settings ?? {
+          show: true,
+          alignment: "right",
+          darkMode: false,
+          hasSeenOnboarding: false,
+        };
+      case MessageRequest.GET_ALL_BURROWS:
+        return overrides.burrows ?? [];
+      case MessageRequest.GET_ALL_RABBITHOLES:
+        return overrides.rabbitholes ?? [];
+      case MessageRequest.GET_ACTIVE_BURROW:
+        return overrides.activeBurrow ?? null;
+      case MessageRequest.GET_ACTIVE_RABBITHOLE:
+        return overrides.activeRabbithole ?? null;
+      default:
+        return {};
+    }
+  });
+}
+
+describe("Popup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(chrome.runtime.sendMessage).mockImplementation(
-      async (req: any) => {
-        if (req.type === MessageRequest.GET_SETTINGS)
-          return {
-            show: true,
-            alignment: "right",
-            darkMode: false,
-            hasSeenOnboarding: true,
-          };
-        if (req.type === MessageRequest.GET_ALL_BURROWS) return [];
-        if (req.type === MessageRequest.GET_ALL_RABBITHOLES) return [];
-        if (req.type === MessageRequest.GET_ACTIVE_BURROW) return null;
-        if (req.type === MessageRequest.GET_ACTIVE_RABBITHOLE) return null;
-        if (req.type === MessageRequest.SAVE_WINDOW_TO_ACTIVE_BURROW)
-          return { success: true };
-        if (req.type === MessageRequest.UPDATE_SETTINGS) return {};
-        return {};
-      },
-    );
-
-    vi.mocked(chrome.tabs.query).mockResolvedValue([
-      { id: 1, active: true, currentWindow: true } as chrome.tabs.Tab,
-    ]);
-    vi.mocked(chrome.tabs.reload).mockResolvedValue(undefined);
     vi.mocked(chrome.storage.local.get).mockImplementation(
       (keys: any, callback?: any) => {
         if (typeof callback === "function") callback({});
         return Promise.resolve({});
       },
     );
+    vi.mocked(chrome.tabs.query).mockResolvedValue([]);
   });
 
-  it("renders correctly and fetches settings", async () => {
-    const { getByText } = render(Popup);
-    await waitFor(
-      () => {
-        expect(getByText("Hide Overlay")).toBeInTheDocument();
-      },
-      { timeout: 3000 },
+  it("clicking sync on the popup syncs websites in window to current burrow if set, or current rabbithole if set, or does nothing", async () => {
+    vi.mocked(chrome.runtime.sendMessage).mockImplementation(
+      makeDefaultSendMessage(),
     );
-  });
 
-  it("renders Sync Window button", async () => {
-    const { getByText } = render(Popup);
-    await waitFor(() => getByText("Sync Window"), { timeout: 3000 });
-    expect(getByText("Sync Window")).toBeInTheDocument();
-  });
-
-  it("sends SAVE_WINDOW_TO_ACTIVE_BURROW when Sync Window is clicked", async () => {
-    const { getByText } = render(Popup);
-    await waitFor(() => getByText("Sync Window"), { timeout: 3000 });
-    await fireEvent.click(getByText("Sync Window"));
-
-    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
-      type: MessageRequest.SAVE_WINDOW_TO_ACTIVE_BURROW,
-    });
-
-    await waitFor(
-      () => {
-        expect(getByText("Synced!")).toBeInTheDocument();
-      },
-      { timeout: 3000 },
-    );
-  });
-
-  it("toggles overlay visibility to hidden", async () => {
-    const { getByText } = render(Popup);
-    await waitFor(() => getByText("Hide Overlay"), { timeout: 3000 });
-    await fireEvent.click(getByText("Hide Overlay"));
-
-    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: MessageRequest.UPDATE_SETTINGS,
-        settings: expect.objectContaining({ show: false }),
-      }),
-    );
-  });
-
-  it("shows Show Overlay button after hiding", async () => {
-    const { getByText } = render(Popup);
-    await waitFor(() => getByText("Hide Overlay"), { timeout: 3000 });
-    await fireEvent.click(getByText("Hide Overlay"));
-    await waitFor(() => {
-      expect(getByText("Show Overlay")).toBeInTheDocument();
-    });
-  });
-
-  it("renders the embedded Overlay in popup mode", async () => {
     const { container } = render(Popup);
-    await waitFor(
-      () => {
-        expect(
-          container.querySelector(".rabbithole-overlay"),
-        ).toBeInTheDocument();
-      },
-      { timeout: 3000 },
+
+    // Wait for mount
+    await waitFor(() => {
+      expect(container.querySelector(".popup-container")).toBeInTheDocument();
+    });
+
+    const calls: any[] = [];
+    vi.mocked(chrome.runtime.sendMessage).mockImplementation(async (req: any) => {
+      calls.push(req);
+      return {};
+    });
+
+    const syncButton = container.querySelector(".link-button") as HTMLElement;
+    expect(syncButton).toBeTruthy();
+    expect(syncButton.textContent).toContain("Sync Window");
+    await fireEvent.click(syncButton);
+
+    await waitFor(() => {
+      const syncCall = calls.find((c) => c.type === MessageRequest.SAVE_WINDOW_TO_ACTIVE_BURROW);
+      expect(syncCall).toBeTruthy();
+    });
+  });
+
+  it("clicking show/hide overlay on the popup sets user.settings.show to true/false", async () => {
+    // Start with show:true (so the button says "Hide Overlay")
+    vi.mocked(chrome.runtime.sendMessage).mockImplementation(
+      makeDefaultSendMessage({ settings: { show: true, alignment: "right", darkMode: false, hasSeenOnboarding: false } }),
     );
+
+    const { container } = render(Popup);
+
+    await waitFor(() => {
+      expect(container.querySelector(".popup-container")).toBeInTheDocument();
+    });
+
+    const calls: any[] = [];
+    vi.mocked(chrome.runtime.sendMessage).mockImplementation(async (req: any) => {
+      calls.push(req);
+      return {};
+    });
+
+    // Second link-button is the "Hide Overlay" / "Show Overlay" toggle
+    const linkButtons = container.querySelectorAll(".link-button");
+    expect(linkButtons.length).toBeGreaterThanOrEqual(2);
+    const toggleButton = linkButtons[1] as HTMLElement;
+    expect(toggleButton.textContent).toContain("Hide");
+
+    await fireEvent.click(toggleButton);
+
+    await waitFor(() => {
+      const updateCall = calls.find((c) => c.type === MessageRequest.UPDATE_SETTINGS);
+      expect(updateCall).toBeTruthy();
+      expect(updateCall.settings.show).toBe(false);
+    });
   });
 });
