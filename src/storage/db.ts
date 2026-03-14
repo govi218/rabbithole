@@ -1523,6 +1523,7 @@ export class WebsiteStore {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       completed: false,
+      status: "ACTIVE",
     };
     return new Promise((resolve, reject) => {
       const req = db
@@ -1574,11 +1575,30 @@ export class WebsiteStore {
     });
   }
 
+  async rewindTrailWalk(trailId: string): Promise<TrailWalk> {
+    const db = await this.getDb();
+    const walk = await this.getTrailWalk(trailId);
+    if (!walk) throw new Error("No active walk for this trail");
+    if (walk.visitedStops.length > 0) {
+      walk.visitedStops = walk.visitedStops.slice(0, -1);
+    }
+    walk.updatedAt = Date.now();
+    return new Promise((resolve, reject) => {
+      const req = db
+        .transaction(["trailWalks"], "readwrite")
+        .objectStore("trailWalks")
+        .put(walk);
+      req.onsuccess = () => resolve(walk);
+      req.onerror = (e) => reject((e.target as IDBRequest).error);
+    });
+  }
+
   async completeTrailWalk(trailId: string): Promise<void> {
     const db = await this.getDb();
     const walk = await this.getTrailWalk(trailId);
     if (!walk) return;
     walk.completed = true;
+    walk.status = "COMPLETED";
     walk.updatedAt = Date.now();
     return new Promise((resolve, reject) => {
       const req = db

@@ -13,9 +13,19 @@
   import ContainerSelector from "src/lib/ContainerSelector.svelte";
   import { MessageRequest, NotificationDuration, Logger } from "../utils";
   import { Move, EyeNone, Update, Check, Cross2 } from "radix-icons-svelte";
-  import type { Burrow, Rabbithole, Settings } from "src/utils/types";
+  import type {
+    Burrow,
+    Rabbithole,
+    Settings,
+    Trail,
+    TrailStop,
+    TrailWalk,
+    TrailWalkState,
+    Website,
+  } from "src/utils/types";
 
   export let isPopup: boolean = false;
+  export let trailMode: boolean = false;
 
   let settings: Settings | null = null;
   let alignment: "left" | "right" = "right";
@@ -35,6 +45,92 @@
   let pageUrl: string = "";
   let isSaving: boolean = false;
   let saveSuccess: boolean = false;
+
+  // trail walk state
+  let trail: Trail | null = null;
+  let walk: TrailWalk | null = null;
+  let trailWebsites: Website[] = [];
+
+  $: visitedCount = walk?.visitedStops?.length ?? 0;
+  $: currentStop = (trail?.stops?.[visitedCount] ?? null) as TrailStop | null;
+  $: totalStops = trail?.stops?.length ?? 0;
+
+  function getTrailWebsite(url: string): Website | undefined {
+    return trailWebsites.find((w) => w.url === url);
+  }
+
+  async function refreshTrailWalk(): Promise<void> {
+    const activeTrail: Trail | null = await chrome.runtime.sendMessage({
+      type: MessageRequest.GET_ACTIVE_TRAIL,
+    });
+    if (!activeTrail) {
+      trail = null;
+      walk = null;
+      return;
+    }
+    const res: TrailWalkState = await chrome.runtime.sendMessage({
+      type: MessageRequest.GET_TRAIL_WALK_STATE,
+      trailId: activeTrail.id,
+    });
+    trail = res.trail;
+    walk = res.walk;
+    trailWebsites = res.websites;
+  }
+
+  async function advanceTrail(): Promise<void> {
+    if (!currentStop || !trail) return;
+
+    walk = await chrome.runtime.sendMessage({
+      type: MessageRequest.ADVANCE_TRAIL_WALK,
+      trailId: trail.id,
+      websiteUrl: currentStop.websiteUrl,
+    });
+
+    const nextStop: TrailStop | undefined =
+      trail.stops[walk.visitedStops.length];
+
+    if (!nextStop) {
+      await chrome.runtime.sendMessage({
+        type: MessageRequest.COMPLETE_TRAIL_WALK,
+        trailId: trail.id,
+      });
+      const trailPageUrl = chrome.runtime.getURL(
+        `src/trail/trail.html?trailId=${trail.id}&completed=1`,
+      );
+      window.location.href = trailPageUrl;
+      return;
+    }
+
+    // If the next stop has a note, navigate back to the trail page to show it
+    if (nextStop.note && nextStop.note.trim()) {
+      const trailPageUrl = chrome.runtime.getURL(
+        `src/trail/trail.html?trailId=${trail.id}&showNote=1`,
+      );
+      window.location.href = trailPageUrl;
+    } else {
+      window.location.href = nextStop.websiteUrl;
+    }
+  }
+
+  async function goBackTrail(): Promise<void> {
+    if (!trail || !walk || visitedCount === 0) return;
+    const prevUrl: string = walk.visitedStops[visitedCount - 1];
+    walk = await chrome.runtime.sendMessage({
+      type: MessageRequest.REWIND_TRAIL_WALK,
+      trailId: trail.id,
+    });
+    window.location.href = prevUrl;
+  }
+
+  async function abandonTrail(): Promise<void> {
+    if (!trail) return;
+    await chrome.runtime.sendMessage({
+      type: MessageRequest.ABANDON_TRAIL_WALK,
+      trailId: trail.id,
+    });
+    walk = null;
+    trail = null;
+  }
 
   function orderBurrows(activeBurrowId: string | null): void {
     if (!activeBurrowId) return;
@@ -95,6 +191,9 @@
     await fetchAll();
     await refreshActiveContainers();
     await refreshSettings();
+    if (trailMode) {
+      await refreshTrailWalk();
+    }
   }
 
   function dismissOverlayHelp(): void {
@@ -117,7 +216,11 @@
     await fetchAll();
     await refreshActiveContainers();
 
-    if (!isPopup) {
+    if (trailMode) {
+      await refreshTrailWalk();
+    }
+
+    if (!isPopup && !trailMode) {
       chrome.storage.local.get("hasSeenOverlayHelpV2", (result) => {
         if (!result.hasSeenOverlayHelpV2) {
           setTimeout(() => {
@@ -278,64 +381,128 @@
 
 <svelte:window on:click={handleWindowClick} />
 
-{#if show || isPopup}
+{#if show || isPopup || trailMode}
   <div
     id="rabbithole-overlay-container"
     class="rabbithole-overlay rabbithole-{alignment}"
     class:rabbithole-popup={isPopup}
+    class:rabbithole-trail={trailMode}
   >
     {#if !isPopup}
       <div class="rabbithole-header">
-        <Text size="sm" weight="bold" class="rabbithole-icon">Rabbithole</Text>
+        <Text size="sm" weight="bold" class="rabbithole-icon">
+          {#if trailMode && trail}
+            🐾 {trail.name}
+          {:else}
+            Rabbithole
+          {/if}
+        </Text>
         <Group spacing="xs">
-          <Tooltip label="Save all tabs in window to current burrow" withArrow>
-            <div class="icon-wrapper">
+          {#if !trailMode}
+            <Tooltip
+              label="Save all tabs in window to current burrow"
+              withArrow
+            >
+              <div class="icon-wrapper">
+                <ActionIcon
+                  on:click={saveAllTabsToActiveBurrow}
+                  size="sm"
+                  class="rabbithole-icon header-icon"
+                  disabled={isSyncingWindow}
+                >
+                  <Update />
+                </ActionIcon>
+                {#if syncWindowSuccess}
+                  <div class="success-check-icon">
+                    <Check size={12} />
+                  </div>
+                {/if}
+              </div>
+            </Tooltip>
+            <Tooltip label="Move Position" withArrow>
               <ActionIcon
-                on:click={saveAllTabsToActiveBurrow}
+                on:click={changeAlignment}
                 size="sm"
                 class="rabbithole-icon header-icon"
-                disabled={isSyncingWindow}
               >
-                <Update />
+                <Move />
               </ActionIcon>
-              {#if syncWindowSuccess}
-                <div class="success-check-icon">
-                  <Check size={12} />
-                </div>
-              {/if}
-            </div>
-          </Tooltip>
-          <Tooltip label="Move Position" withArrow>
-            <ActionIcon
-              on:click={changeAlignment}
-              size="sm"
-              class="rabbithole-icon header-icon"
+            </Tooltip>
+            <Tooltip
+              label={"Hide Overlay (You can show/hide anytime using popup or settings)"}
+              opened={showOverlayHelp || undefined}
+              withArrow
             >
-              <Move />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip
-            label={"Hide Overlay (You can show/hide anytime using popup or settings)"}
-            opened={showOverlayHelp || undefined}
-            withArrow
-          >
-            <ActionIcon
-              on:click={(e) => {
-                e.stopPropagation();
-                hideOverlay();
-              }}
-              size="sm"
-              class="rabbithole-icon header-icon"
-            >
-              <EyeNone />
-            </ActionIcon>
-          </Tooltip>
+              <ActionIcon
+                on:click={(e) => {
+                  e.stopPropagation();
+                  hideOverlay();
+                }}
+                size="sm"
+                class="rabbithole-icon header-icon"
+              >
+                <EyeNone />
+              </ActionIcon>
+            </Tooltip>
+          {:else}
+            <Tooltip label="Abandon trail" withArrow>
+              <ActionIcon
+                on:click={abandonTrail}
+                size="sm"
+                class="rabbithole-icon header-icon abandon-icon"
+              >
+                <Cross2 />
+              </ActionIcon>
+            </Tooltip>
+          {/if}
         </Group>
       </div>
     {/if}
 
     <div class="rabbithole-content">
-      {#if isSavingPage}
+      {#if trailMode && trail && walk && !walk.completed}
+        <div class="trail-progress-dots">
+          {#each trail.stops as stop, i}
+            <div
+              class="dot"
+              class:visited={walk.visitedStops.includes(stop.websiteUrl)}
+              class:current={i === visitedCount}
+              title={getTrailWebsite(stop.websiteUrl)?.name ?? stop.websiteUrl}
+            ></div>
+          {/each}
+        </div>
+        <div class="trail-step-info">
+          {#if currentStop}
+            <div class="trail-step-label">
+              Stop {visitedCount + 1} of {totalStops}
+            </div>
+            <div class="trail-step-name">
+              {getTrailWebsite(currentStop.websiteUrl)?.name ??
+                currentStop.websiteUrl}
+            </div>
+          {:else}
+            <div class="trail-step-label">All stops visited!</div>
+          {/if}
+        </div>
+        <div class="trail-nav-actions">
+          <button
+            class="trail-nav-btn"
+            on:click={goBackTrail}
+            disabled={visitedCount === 0}>←</button
+          >
+          <button
+            class="trail-nav-btn primary"
+            on:click={advanceTrail}
+            disabled={!currentStop}
+          >
+            {visitedCount + 1 < totalStops ? "Next →" : "Done ✓"}
+          </button>
+        </div>
+      {:else if trailMode && (!walk || walk?.completed)}
+        <div class="trail-done">
+          <div class="trail-step-label">Trail complete 🎉</div>
+        </div>
+      {:else if isSavingPage}
         <div class="save-page-form">
           <div class="form-header">
             <Text size="xs" weight="bold" color="dimmed">Save to Burrow</Text>
@@ -411,6 +578,15 @@
 
   .rabbithole-overlay:hover {
     background-color: rgba(255, 255, 255, 0.95);
+  }
+
+  .rabbithole-overlay.rabbithole-trail {
+    border-color: rgba(17, 133, 254, 0.25);
+    background-color: rgba(255, 255, 255, 0.6);
+  }
+
+  .rabbithole-overlay.rabbithole-trail:hover {
+    background-color: rgba(255, 255, 255, 0.97);
   }
 
   .rabbithole-overlay.rabbithole-popup {
@@ -491,6 +667,98 @@
     margin-bottom: 4px;
   }
 
+  .trail-progress-dots {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #dee2e6;
+    transition: all 0.2s;
+  }
+
+  .dot.visited {
+    background: #1185fe;
+  }
+
+  .dot.current {
+    background: #1185fe;
+    box-shadow: 0 0 0 3px rgba(17, 133, 254, 0.25);
+    transform: scale(1.3);
+  }
+
+  .trail-step-info {
+    text-align: center;
+  }
+
+  .trail-step-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #868e96;
+    margin-bottom: 4px;
+  }
+
+  .trail-step-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1a1b1e;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .trail-nav-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .trail-nav-btn {
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    background: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    color: #495057;
+    transition: all 0.2s;
+  }
+
+  .trail-nav-btn:hover:not(:disabled) {
+    background: #f1f3f5;
+  }
+
+  .trail-nav-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .trail-nav-btn.primary {
+    background: #1185fe;
+    color: white;
+    border-color: #1185fe;
+  }
+
+  .trail-nav-btn.primary:hover:not(:disabled) {
+    background: #0070e0;
+  }
+
+  .trail-done {
+    text-align: center;
+    padding: 8px 0;
+  }
+
+  :global(.abandon-icon svg) {
+    color: #e03131 !important;
+  }
+
   :global(.save-input input),
   :global(.save-input textarea) {
     background-color: rgba(255, 255, 255, 0.8) !important;
@@ -529,7 +797,6 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
-  /* Dark mode support for overlay */
   @media (prefers-color-scheme: dark) {
     .rabbithole-overlay:not(.rabbithole-popup) {
       background-color: rgba(37, 38, 43, 0.4);
@@ -539,29 +806,38 @@
     .rabbithole-overlay:not(.rabbithole-popup):hover {
       background-color: rgba(37, 38, 43, 0.95);
     }
-
+    .rabbithole-overlay.rabbithole-trail:not(.rabbithole-popup) {
+      border-color: rgba(77, 171, 247, 0.3);
+    }
     .rabbithole-overlay.rabbithole-popup {
       background-color: transparent;
     }
-
     .rabbithole-overlay.rabbithole-popup:hover {
       background-color: transparent;
     }
-
     :global(.rabbithole-icon.header-icon:hover) {
       background-color: rgba(255, 255, 255, 0.1) !important;
     }
-
     .save-page-form {
       background: rgba(0, 0, 0, 0.2);
       border-color: rgba(255, 255, 255, 0.1);
     }
-
     :global(.save-input input),
     :global(.save-input textarea) {
       background-color: rgba(0, 0, 0, 0.3) !important;
       color: white !important;
       border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+    .trail-step-name {
+      color: #e7e7e7;
+    }
+    .trail-nav-btn {
+      background: #25262b;
+      border-color: rgba(255, 255, 255, 0.12);
+      color: #c1c2c5;
+    }
+    .trail-nav-btn:hover:not(:disabled) {
+      background: #2c2e33;
     }
   }
 </style>

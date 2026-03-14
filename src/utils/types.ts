@@ -44,10 +44,17 @@ export enum MessageRequest {
   GET_ACTIVE_TRAIL,
   START_TRAIL_WALK,
   ADVANCE_TRAIL_WALK,
+  REWIND_TRAIL_WALK,
   COMPLETE_TRAIL_WALK,
   ABANDON_TRAIL_WALK,
   GET_TRAIL_WALK_STATE,
+  GET_TRAIL_WALK_TAB,
+  FOCUS_TRAIL_TAB,
+  GET_CURRENT_TAB_ID,
+  REGISTER_TRAIL_WALK_TAB,
 }
+
+export type TrailWalkStatus = "ACTIVE" | "COMPLETED" | "ABANDONED";
 
 export interface Settings {
   alignment: "left" | "right";
@@ -87,6 +94,7 @@ export interface Trail {
   rabbitholeId: string;
   stops: TrailStop[];
   startNote: string;
+  endNote?: string;
 }
 
 export interface TrailWalk {
@@ -96,6 +104,13 @@ export interface TrailWalk {
   createdAt: number;
   updatedAt: number;
   completed: boolean;
+  status: TrailWalkStatus;
+}
+
+export interface TrailWalkState {
+  trail: Trail | null;
+  walk: TrailWalk | null;
+  websites: Website[];
 }
 
 export interface Rabbithole {

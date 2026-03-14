@@ -80,6 +80,11 @@
   let nameModalPlaceholder: string = "";
   let nameModalResolve: ((value: string | null) => void) | null = null;
 
+  let openTrailInEditMode: boolean = false;
+
+  let trailViewRef: TrailView = null;
+  let trailIsEditing: boolean = false;
+
   function promptName(
     title: string,
     placeholder: string,
@@ -111,6 +116,10 @@
       input?.select();
     }
   });
+
+  $: if (activeTrail) {
+    trailIsEditing = openTrailInEditMode;
+  }
 
   async function updatePinnedWebsites(): Promise<void> {
     isUpdatingPinnedWebsites = true;
@@ -583,7 +592,13 @@
         name,
         websites: selectedUrls,
       });
-      dispatch("navigateUp");
+      openTrailInEditMode = true;
+      trailIsEditing = true;
+      await selectTrail(
+        await chrome.runtime.sendMessage({
+          type: MessageRequest.GET_ACTIVE_TRAIL,
+        }).then((t) => t?.id),
+      );
     }
     selectionMode = null;
   }
@@ -594,10 +609,26 @@
       trailId: activeTrail.id,
       updates: {
         startNote: e.detail.trail.startNote,
+        endNote: e.detail.trail.endNote ?? "",
         stops: e.detail.trail.stops,
       },
     });
+    openTrailInEditMode = false;
+    trailIsEditing = false;
     dispatch("refresh");
+  }
+
+  function handleTrailEditToggle() {
+    if (trailViewRef) {
+      trailViewRef.toggleEdit();
+      trailIsEditing = trailViewRef.getIsEditing();
+    }
+  }
+
+  function handleStartTrail() {
+    if (trailViewRef) {
+      trailViewRef.startTrail();
+    }
   }
 </script>
 
@@ -807,6 +838,21 @@
       on:publish={openPublishModal}
       on:deleteContainer={deleteContainer}
     />
+
+    {#if activeTrail}
+      <div class="trail-action-row">
+        <Button size="xs" variant="light" color="blue" on:click={handleStartTrail}>
+          Start Trail
+        </Button>
+        <Button
+          size="xs"
+          variant={trailIsEditing ? "filled" : "light"}
+          on:click={handleTrailEditToggle}
+        >
+          {trailIsEditing ? "Done" : "Edit"}
+        </Button>
+      </div>
+    {/if}
   </div>
 
   <div class="feed">
@@ -825,7 +871,13 @@
         on:cancel={() => (selectionMode = null)}
       />
     {:else if activeTrail}
-      <TrailView trail={activeTrail} {websites} on:save={handleSaveTrail} />
+      <TrailView
+        bind:this={trailViewRef}
+        trail={activeTrail}
+        {websites}
+        initialEditMode={openTrailInEditMode}
+        on:save={handleSaveTrail}
+      />
     {:else}
       {#if shouldShowBurrows}
         <div class="rabbitholes-collapsible">
@@ -1061,6 +1113,14 @@
     border: 1px solid #fa5252 !important;
     border-radius: 4px;
     background-color: rgba(250, 82, 82, 0.1) !important;
+  }
+
+  .trail-action-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 8px;
+    width: 100%;
   }
 
   .timeline-feed {
