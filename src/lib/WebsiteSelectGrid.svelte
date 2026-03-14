@@ -3,6 +3,7 @@
   import type { Website } from "src/utils/types";
   import TimelineCard from "./TimelineCard.svelte";
   import { Button } from "@svelteuidev/core";
+  import { isValidWebUrl } from "src/utils/browser";
 
   export let websites: Website[] = [];
   export let mode: "Burrow" | "Trail" = "Burrow";
@@ -21,9 +22,32 @@
   }
 
   async function selectFromOpenTabs() {
-    const tabs = await chrome.tabs.query({ currentWindow: true });
-    const openUrls = new Set(tabs.map((t) => t.url).filter(Boolean));
-    selectedUrls = websites.map((w) => w.url).filter((u) => openUrls.has(u));
+    // Use lastFocusedWindow so we get the actual browser window, not the
+    // extension popup window. This ensures all real tabs are captured.
+    const tabs = await chrome.tabs.query({ lastFocusedWindow: true });
+    const openUrls = tabs
+      .map((t) => t.url)
+      .filter((url) => isValidWebUrl(url));
+
+    // Add any open-tab URLs that aren't already in the websites list
+    const existingUrls = new Set(websites.map((w) => w.url));
+    for (const url of openUrls) {
+      if (!existingUrls.has(url)) {
+        const tab = tabs.find((t) => t.url === url);
+        websites = [
+          ...websites,
+          {
+            url,
+            name: tab?.title || url,
+            savedAt: Date.now(),
+            faviconUrl: tab?.favIconUrl || "",
+          },
+        ];
+      }
+    }
+
+    const merged = new Set([...selectedUrls, ...openUrls]);
+    selectedUrls = [...merged];
   }
 </script>
 

@@ -108,14 +108,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return db.createNewActiveBurrow(req.newBurrowName);
     },
 
+    // Fix: guard against null burrowId before trying to fetch the parent rabbithole
     [MessageRequest.CHANGE_ACTIVE_BURROW]: async (req) => {
       if (!("burrowId" in req)) {
         throw new Error("burrowId required");
+      }
+      if (req.burrowId === null) {
+        await db.changeActiveBurrow(null);
+        await db.changeActiveTrail(null);
+        return { success: true };
       }
       const parentRabbithole = await db.fetchRabbitholeForBurrow(req.burrowId);
       await db.changeActiveRabbithole(parentRabbithole.id);
       await db.changeActiveBurrow(req.burrowId);
       await db.changeActiveTrail(null);
+      return { success: true };
     },
 
     [MessageRequest.GET_ACTIVE_BURROW]: async () => db.getActiveBurrow(),
@@ -149,9 +156,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return burrow;
     },
 
+    // Fix: use lastFocusedWindow to get the actual browser window the user is in,
+    // not the extension's own window context. Fall back gracefully if none found.
     [MessageRequest.SAVE_WINDOW_TO_ACTIVE_BURROW]: async () => {
-      const window = await chrome.windows.getCurrent();
-      const tabs = await chrome.tabs.query({ windowId: window.id });
+      const windows = await chrome.windows.getAll({ populate: false });
+      // Find the last focused normal browser window (not the extension popup)
+      const lastFocused = await chrome.windows.getLastFocused({
+        populate: false,
+        windowTypes: ["normal"],
+      });
+
+      if (!lastFocused?.id) {
+        Logger.warn("SAVE_WINDOW_TO_ACTIVE_BURROW: no focused window found");
+        return { success: false };
+      }
+
+      const tabs = await chrome.tabs.query({ windowId: lastFocused.id });
       const sites = await storeWebsites(tabs, db);
 
       if (sites.length > 0) {
@@ -174,8 +194,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         throw new Error("rabbitholeId required");
       }
 
-      const window = await chrome.windows.getCurrent();
-      const tabs = await chrome.tabs.query({ windowId: window.id });
+      const lastFocused = await chrome.windows.getLastFocused({
+        populate: false,
+        windowTypes: ["normal"],
+      });
+
+      if (!lastFocused?.id) {
+        Logger.warn("SAVE_WINDOW_TO_RABBITHOLE: no focused window found");
+        return { success: false };
+      }
+
+      const tabs = await chrome.tabs.query({ windowId: lastFocused.id });
       const sites = await storeWebsites(tabs, db);
       const urls = sites.map((s) => s.url);
 
@@ -217,10 +246,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
       await db.deleteBurrowFromRabbithole(req.rabbitholeId, req.burrowId);
       await db.deleteBurrow(req.burrowId);
-      const activeBurrow = await db.getActiveBurrow();
-      if (activeBurrow?.id === req.burrowId) {
-        await db.changeActiveBurrow(null);
-      }
+      // Always clear the active burrow and trail when a burrow is deleted,
+      // regardless of which burrow was active, to avoid a stuck UI state.
+      await db.changeActiveBurrow(null);
+      await db.changeActiveTrail(null);
     },
 
     [MessageRequest.DELETE_WEBSITE]: async (req) => {
@@ -430,10 +459,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
       await db.deleteTrailFromRabbithole(req.rabbitholeId, req.trailId);
       await db.deleteTrail(req.trailId);
-      const activeTrail = await db.getActiveTrail();
-      if (activeTrail?.id === req.trailId) {
-        await db.changeActiveTrail(null);
-      }
+      // Always clear the active trail when a trail is deleted to avoid stuck UI.
+      await db.changeActiveTrail(null);
     },
 
     [MessageRequest.START_TRAIL_WALK]: async (req) => {

@@ -139,11 +139,27 @@ export function isNewtabPage(url: string): boolean {
   return false;
 }
 
+/**
+ * Returns true for URLs that are real http/https pages we can save.
+ * Excludes browser internal pages, extension pages, new tab pages, etc.
+ */
+export function isValidWebUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  if (isNewtabPage(url)) return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export async function storeWebsites(
   tabs: chrome.tabs.Tab[],
   db: WebsiteStore,
 ): Promise<Website[]> {
-  const validTabs = tabs.filter((tab) => tab.url && !isNewtabPage(tab.url));
+  // Only keep real http/https pages — drop new-tab, chrome://, extension pages, etc.
+  const validTabs = tabs.filter((tab) => isValidWebUrl(tab.url));
 
   if (validTabs.length === 0) {
     return [];
