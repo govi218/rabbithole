@@ -151,6 +151,77 @@ export async function exchangeCodeForTokens(
   return await response.json();
 }
 
+export async function refreshAccessToken(): Promise<ATProtoSession> {
+  const session = await getSession();
+  if (!session) throw new Error("No session found");
+  if (!session.refreshToken) throw new Error("No refresh token available");
+
+  const keyPair = await getDpopKey();
+  if (!keyPair) throw new Error("No DPoP key found");
+
+  const tokenEndpoint = session.tokenEndpoint;
+
+  let dpopProof = await createDpopProof("POST", tokenEndpoint, keyPair);
+
+  let response = await fetch(tokenEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      DPoP: dpopProof,
+    },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: session.refreshToken,
+      client_id: ClientMetadataUrl,
+    }),
+  });
+
+  // Handle DPoP nonce requirement on refresh
+  if (response.status === 400 || response.status === 401) {
+    const dpopNonce = response.headers.get("DPoP-Nonce");
+    if (dpopNonce) {
+      dpopProof = await createDpopProof(
+        "POST",
+        tokenEndpoint,
+        keyPair,
+        dpopNonce,
+      );
+
+      response = await fetch(tokenEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          DPoP: dpopProof,
+        },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: session.refreshToken,
+          client_id: ClientMetadataUrl,
+        }),
+      });
+    }
+  }
+
+  if (!response.ok) {
+    const errText = await response.text();
+    Logger.error("Token refresh failed:", { status: response.status, errText });
+    // Refresh token is invalid/expired — clear session so user must re-auth
+    await clearSession();
+    throw new Error("Session expired, please sign in again");
+  }
+
+  const tokenData = await response.json();
+
+  const updatedSession: ATProtoSession = {
+    ...session,
+    accessToken: tokenData.access_token,
+    refreshToken: tokenData.refresh_token ?? session.refreshToken,
+  };
+
+  await saveSession(updatedSession);
+  return updatedSession;
+}
+
 export async function startAuthFlow(
   handleInput: string,
 ): Promise<ATProtoSession> {
@@ -238,6 +309,7 @@ async function authenticatedFetch(
   url: string,
   method: string,
   body: any = null,
+  isRetryAfterRefresh = false,
 ) {
   const session = await getSession();
   if (!session) throw new Error("No session found");
@@ -268,6 +340,7 @@ async function authenticatedFetch(
     body: body ? JSON.stringify(body) : undefined,
   });
 
+  // Handle DPoP nonce requirement
   if (response.status === 401) {
     const nonce = response.headers.get("DPoP-Nonce");
     if (nonce) {
@@ -278,6 +351,19 @@ async function authenticatedFetch(
         headers,
         body: body ? JSON.stringify(body) : undefined,
       });
+    }
+
+    // If still 401 and we haven't already retried after a refresh, try refreshing the token
+    if (response.status === 401 && !isRetryAfterRefresh) {
+      Logger.warn("Access token likely expired, attempting refresh...");
+      try {
+        await refreshAccessToken();
+      } catch (err) {
+        Logger.error("Token refresh failed during authenticated fetch:", err);
+        throw err;
+      }
+      // Retry the original request once with the new token
+      return authenticatedFetch(url, method, body, true);
     }
   }
 
@@ -296,7 +382,9 @@ export async function createRecord(
   record: any,
 ): Promise<{ uri: string; cid: string }> {
   const session = await getSession();
-  if (!session) throw new Error("No session found");
+  if (!session) {
+    throw new Error("No session found");
+  }
 
   const pdsUrl = session.pdsUrl || new URL(session.tokenEndpoint).origin;
   const url = `${pdsUrl}/xrpc/com.atproto.repo.createRecord`;
