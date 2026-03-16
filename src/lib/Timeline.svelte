@@ -83,7 +83,6 @@
   let openTrailInEditMode: boolean = false;
 
   let trailViewRef: TrailView = null;
-  let trailIsEditing: boolean = false;
 
   function promptName(
     title: string,
@@ -297,7 +296,7 @@
 
           successCount++;
         } catch (err) {
-          Logger.error(`Failed to create card/link for ${site.url}`, err);
+          Logger.error(`Failed to create card/link for ${site}`, err);
           lastError = err;
         }
       }

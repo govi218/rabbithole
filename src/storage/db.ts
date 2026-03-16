@@ -1152,9 +1152,11 @@ export class WebsiteStore {
     return new Promise(async (resolve, reject) => {
       try {
         const burrow = await this.getBurrow(burrowId);
-        const websites = await Promise.all(
-          burrow?.websites?.map(async (w) => await this.getWebsite(w)) ?? [],
-        );
+        const websites = await (
+          await Promise.all(
+            burrow?.websites?.map(async (w) => await this.getWebsite(w)) ?? [],
+          )
+        ).filter(Boolean);
         resolve(websites);
       } catch (err) {
         reject(err);
