@@ -13,8 +13,6 @@ export async function createCollection(
   const collectionRecord = {
     name: name,
     accessType: "CLOSED",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
     $type: "network.cosmik.collection",
   };
 
@@ -26,7 +24,6 @@ export async function createUrlCard(
   site: any,
 ): Promise<CosmikRef> {
   const metadata = {
-    type: "link",
     $type: "network.cosmik.card#urlMetadata",
     title: site.name,
     description: site.description || undefined,
@@ -46,7 +43,6 @@ export async function createUrlCard(
       url: site.url,
       metadata: metadata,
     },
-    createdAt: new Date(site.savedAt).toISOString(),
   };
 
   return await createRecord(did, "network.cosmik.card", cardRecord);
@@ -69,7 +65,6 @@ export async function createCollectionLink(
     },
     addedBy: did,
     addedAt: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
   };
 
   return await createRecord(did, "network.cosmik.collectionLink", linkRecord);
@@ -97,14 +92,16 @@ export async function syncBurrowToCollection(
   const links = linksRes.records.filter(
     (r: any) => r.value.collection.uri === collectionUri,
   );
+
+  // Store full record including CID for swapRecord usage
   const cards = new Map(
     cardsRes.records.map((r: any) => [
       r.uri,
-      { ...r.value, rkey: r.uri.split("/").pop() },
+      { ...r.value, rkey: r.uri.split("/").pop(), cid: r.cid },
     ]),
   );
 
-  // Map of URL -> { linkRkey, cardRkey, cardRecord }
+  // Map of URL -> { linkRkey, cardRkey, cardCid, cardRecord }
   const remoteItems = new Map();
 
   for (const link of links) {
@@ -114,6 +111,7 @@ export async function syncBurrowToCollection(
       remoteItems.set(card.url, {
         linkRkey: link.uri.split("/").pop(),
         cardRkey: card.rkey,
+        cardCid: card.cid,
         cardRecord: card,
         linkRecord: link.value,
       });
@@ -130,31 +128,36 @@ export async function syncBurrowToCollection(
     if (remote) {
       // Update if changed
       const card = remote.cardRecord;
-      const metadata = card.content.metadata;
+      const metadata = card.content?.metadata;
 
       const needsUpdate =
-        metadata.title !== site.name ||
-        metadata.description !== (site.description || undefined);
+        metadata?.title !== site.name ||
+        metadata?.description !== (site.description || undefined);
 
       if (needsUpdate) {
         const updatedCard = {
-          ...card,
+          $type: "network.cosmik.card",
+          type: "URL",
+          url: card.url,
           content: {
-            ...card.content,
+            $type: "network.cosmik.card#urlContent",
+            url: card.url,
             metadata: {
-              ...metadata,
+              $type: "network.cosmik.card#urlMetadata",
               title: site.name,
               description: site.description || undefined,
+              imageUrl: metadata?.imageUrl,
+              retrievedAt: metadata?.retrievedAt,
             },
           },
         };
-        delete updatedCard.rkey;
 
         await putRecord(
           did,
           "network.cosmik.card",
           remote.cardRkey,
           updatedCard,
+          remote.cardCid,
         );
       }
 
