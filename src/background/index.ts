@@ -10,6 +10,7 @@ import {
   completeSidetrailWalk,
   abandonSidetrailWalk,
 } from "../atproto/sidetrail";
+import { syncFromAtProto } from "../atproto/sync";
 import { storeWebsites } from "../utils/browser";
 import {
   importBookmarksFromBrowser,
@@ -490,6 +491,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       await db.changeActiveTrail(null);
       await clearTrailWalkTab();
       await broadcastTrailWalkUpdated();
+    },
+
+    [MessageRequest.SYNC_ATPROTO]: async () => {
+      const session = await getSession();
+      if (!session) return { success: false };
+      const imported = await syncFromAtProto(session.did, db);
+      return { success: true, imported };
     },
 
     [MessageRequest.PUBLISH_TRAIL]: async (req) => {
