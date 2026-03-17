@@ -371,6 +371,7 @@
       on:selectRabbithole={(event) => selectRabbithole(event.detail)}
       on:selectBurrow={handleSearchSelectBurrow}
       on:navigate={handleNavigation}
+      on:refresh={refreshHomeState}
     />
 
     <AppShell class={!opened ? "sidebar-closed-shell" : ""}>

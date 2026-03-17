@@ -15,7 +15,7 @@ export const ClientMetadataUrl =
 const SessionStorageKey = "rabbithole_atproto_session";
 const DpopKeyStorageKey = "rabbithole_dpop_key";
 const scopes =
-  "atproto repo:network.cosmik.collection repo:network.cosmik.card repo:network.cosmik.collectionLink";
+  "atproto repo:network.cosmik.collection repo:network.cosmik.card repo:network.cosmik.collectionLink repo:app.sidetrail.trail repo:app.sidetrail.walk repo:app.sidetrail.completion";
 
 export interface ATProtoSession {
   did: string;

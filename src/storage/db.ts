@@ -1537,6 +1537,119 @@ export class WebsiteStore {
     });
   }
 
+  async patchTrailWalkById(
+    walkId: string,
+    updates: Partial<TrailWalk>,
+  ): Promise<void> {
+    const db = await this.getDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(["trailWalks"], "readwrite");
+      const store = tx.objectStore("trailWalks");
+      const req = store.get(walkId);
+      req.onsuccess = () => {
+        const walk = req.result;
+        if (!walk) return resolve();
+        Object.assign(walk, updates);
+        store.put(walk);
+        tx.oncomplete = () => resolve();
+        tx.onerror = (e) => reject((e.target as IDBRequest).error);
+      };
+      req.onerror = (e) => reject((e.target as IDBRequest).error);
+    });
+  }
+
+  async getAllTrails(): Promise<Trail[]> {
+    const db = await this.getDb();
+    return new Promise((resolve, reject) => {
+      const req = db.transaction(["trails"]).objectStore("trails").getAll();
+      req.onsuccess = () => resolve(req.result ?? []);
+      req.onerror = (e) => reject((e.target as IDBRequest).error);
+    });
+  }
+
+  /**
+   * Create a rabbithole without changing the active rabbithole.
+   */
+  async createRabbithole(
+    title: string,
+    description?: string,
+  ): Promise<Rabbithole> {
+    const db = await this.getDb();
+    const rabbithole: Rabbithole = {
+      id: uuid(),
+      createdAt: Date.now(),
+      burrows: [],
+      trails: [],
+      title,
+      description,
+      meta: [],
+    };
+    return new Promise((resolve, reject) => {
+      const req = db
+        .transaction(["rabbitholes"], "readwrite")
+        .objectStore("rabbitholes")
+        .put(rabbithole);
+      req.onsuccess = () => resolve(rabbithole);
+      req.onerror = (e) => reject((e.target as IDBRequest).error);
+    });
+  }
+
+  /**
+   * Create a burrow inside a rabbithole without changing the active burrow.
+   */
+  async createBurrow(
+    rabbitholeId: string,
+    name: string,
+    sembleCollectionUri?: string,
+    websites: string[] = [],
+  ): Promise<Burrow> {
+    const db = await this.getDb();
+    const burrow: Burrow = {
+      id: uuid(),
+      createdAt: Date.now(),
+      name,
+      websites: [...new Set(websites)],
+      sembleCollectionUri,
+    };
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(["burrows", "rabbitholes"], "readwrite");
+      const burrowStore = tx.objectStore("burrows");
+      const rhStore = tx.objectStore("rabbitholes");
+
+      burrowStore.put(burrow);
+
+      const rhReq = rhStore.get(rabbitholeId);
+      rhReq.onsuccess = () => {
+        const rh = rhReq.result;
+        if (rh) {
+          rh.burrows = [...(rh.burrows ?? []), burrow.id];
+          rhStore.put(rh);
+        }
+      };
+
+      tx.oncomplete = () => resolve(burrow);
+      tx.onerror = (e) => reject((e.target as IDBRequest).error);
+    });
+  }
+
+  /**
+   * Save website stubs without overwriting existing records.
+   * Uses IDB `add` which silently skips duplicate keys.
+   */
+  async saveWebsiteStubs(items: Website[]): Promise<void> {
+    if (!items.length) return;
+    const db = await this.getDb();
+    return new Promise((resolve) => {
+      const tx = db.transaction(["websites"], "readwrite");
+      const store = tx.objectStore("websites");
+      for (const item of items) {
+        const req = store.add(item);
+        req.onerror = () => {}; // ignore duplicates
+      }
+      tx.oncomplete = () => resolve();
+    });
+  }
+
   async getTrailWalk(trailId: string): Promise<TrailWalk | null> {
     const db = await this.getDb();
     return new Promise((resolve, reject) => {
