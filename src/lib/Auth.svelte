@@ -10,6 +10,7 @@
     startAuthFlow,
   } from "../atproto/client";
   import type { ATProtoSession } from "../atproto/client";
+  import { MessageRequest } from "../utils";
   import { getDpopKey } from "src/utils/crypto";
 
   export let showWhyBluesky: boolean = false;
@@ -17,12 +18,52 @@
   const dispatch = createEventDispatcher();
 
   let isLoading: boolean = false;
+  let isSyncing: boolean = false;
   let error: string = null;
   let isAuthenticated: boolean = false;
   let userDisplayName: string = null;
   let userHandle: string = null;
   let userAvatar: string = null;
   let handleInput: string = "";
+
+  type Actor = { handle: string; displayName?: string; avatar?: string };
+  let suggestions: Actor[] = [];
+  let showSuggestions: boolean = false;
+  let suggestionsDebounce: ReturnType<typeof setTimeout> | null = null;
+
+  async function fetchSuggestions(q: string): Promise<void> {
+    if (q.length < 2) {
+      suggestions = [];
+      showSuggestions = false;
+      return;
+    }
+    try {
+      const res = await fetch(
+        `https://public.api.bsky.app/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(q)}&limit=6`,
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      suggestions = data.actors ?? [];
+      showSuggestions = suggestions.length > 0;
+    } catch {
+      // non-fatal
+    }
+  }
+
+  function handleInput_change(): void {
+    if (suggestionsDebounce) clearTimeout(suggestionsDebounce);
+    suggestionsDebounce = setTimeout(() => fetchSuggestions(handleInput), 200);
+  }
+
+  function selectSuggestion(actor: Actor): void {
+    handleInput = actor.handle;
+    suggestions = [];
+    showSuggestions = false;
+  }
+
+  function dismissSuggestions(): void {
+    showSuggestions = false;
+  }
 
   onMount(async () => {
     await restoreSession();
@@ -76,10 +117,26 @@
       };
 
       await saveSession(session);
-
       await fetchProfile(session);
+
+      // Sync remote trails/collections and report what was imported
+      isSyncing = true;
+      let imported = { trails: 0, collections: 0 };
+      try {
+        const syncResult = await chrome.runtime.sendMessage({
+          type: MessageRequest.SYNC_ATPROTO,
+        });
+        if (syncResult?.imported) {
+          imported = syncResult.imported;
+        }
+      } catch {
+        // sync failure is non-fatal
+      } finally {
+        isSyncing = false;
+      }
+
       error = null;
-      dispatch("authSuccess");
+      dispatch("authSuccess", { imported });
     } catch (err) {
       error = err.message || "Failed to start authentication";
     }
@@ -88,7 +145,31 @@
     handleInput = "";
   }
 
+  let activeIndex: number = -1;
+
   function handleKeydown(event: KeyboardEvent): void {
+    if (showSuggestions && suggestions.length > 0) {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        activeIndex = (activeIndex + 1) % suggestions.length;
+        return;
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        activeIndex = (activeIndex - 1 + suggestions.length) % suggestions.length;
+        return;
+      }
+      if (event.key === "Escape") {
+        dismissSuggestions();
+        return;
+      }
+      if (event.key === "Enter" && activeIndex >= 0) {
+        event.preventDefault();
+        selectSuggestion(suggestions[activeIndex]);
+        activeIndex = -1;
+        return;
+      }
+    }
     if (event.key === "Enter") {
       submitHandle();
     }
@@ -129,19 +210,48 @@
         >
       </div>
 
-      <input
-        type="text"
-        class="handle-input"
-        placeholder="user.bsky.social"
-        bind:value={handleInput}
-        on:keydown={handleKeydown}
-      />
+      <div class="input-wrapper">
+        <input
+          type="text"
+          class="handle-input"
+          placeholder="user.bsky.social"
+          bind:value={handleInput}
+          on:input={handleInput_change}
+          on:keydown={handleKeydown}
+          on:blur={() => setTimeout(dismissSuggestions, 150)}
+          autocomplete="off"
+        />
+        {#if showSuggestions}
+          <ul class="suggestions">
+            {#each suggestions as actor, i}
+              <!-- svelte-ignore a11y-click-events-have-key-events -->
+              <li
+                class="suggestion-item"
+                class:active={i === activeIndex}
+                on:click={() => selectSuggestion(actor)}
+              >
+                {#if actor.avatar}
+                  <img src={actor.avatar} alt="" class="suggestion-avatar" />
+                {:else}
+                  <div class="suggestion-avatar-placeholder" />
+                {/if}
+                <div class="suggestion-text">
+                  <span class="suggestion-display">{actor.displayName || actor.handle}</span>
+                  <span class="suggestion-handle">@{actor.handle}</span>
+                </div>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </div>
       <button
         class="auth-button login"
         on:click={submitHandle}
         disabled={isLoading}
       >
-        {#if isLoading}
+        {#if isSyncing}
+          Syncing...
+        {:else if isLoading}
           Connecting...
         {:else}
           Sign in
@@ -276,6 +386,80 @@
     align-items: center;
   }
 
+  .input-wrapper {
+    position: relative;
+    width: 100%;
+  }
+
+  .suggestions {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    list-style: none;
+    margin: 0;
+    padding: 4px 0;
+    z-index: 100;
+    overflow: hidden;
+  }
+
+  .suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background-color 0.1s;
+  }
+
+  .suggestion-item:hover,
+  .suggestion-item.active {
+    background-color: #f1f3f5;
+  }
+
+  .suggestion-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .suggestion-avatar-placeholder {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #dee2e6;
+    flex-shrink: 0;
+  }
+
+  .suggestion-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .suggestion-display {
+    font-size: 13px;
+    font-weight: 500;
+    color: #1a1b1e;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .suggestion-handle {
+    font-size: 12px;
+    color: #868e96;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .handle-input {
     width: 100%;
     padding: 10px 14px;
@@ -378,6 +562,29 @@
 
   :global(body.dark-mode) .handle-input::placeholder {
     color: #666;
+  }
+
+  :global(body.dark-mode) .suggestions {
+    background: #2c2e33;
+    border-color: #3a3b3c;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  }
+
+  :global(body.dark-mode) .suggestion-item:hover,
+  :global(body.dark-mode) .suggestion-item.active {
+    background-color: #373a40;
+  }
+
+  :global(body.dark-mode) .suggestion-display {
+    color: #e4e6eb;
+  }
+
+  :global(body.dark-mode) .suggestion-handle {
+    color: #868e96;
+  }
+
+  :global(body.dark-mode) .suggestion-avatar-placeholder {
+    background: #3a3b3c;
   }
 
   :global(body.dark-mode) .why-bluesky-content {
