@@ -3,6 +3,13 @@ import { WebsiteStore } from "../storage/db";
 import type { Burrow } from "../utils/types";
 import { getSession } from "../atproto/client";
 import { syncBurrowToCollection } from "../atproto/cosmik";
+import {
+  publishTrail as publishSidetrailTrail,
+  startSidetrailWalk,
+  advanceSidetrailWalk,
+  completeSidetrailWalk,
+  abandonSidetrailWalk,
+} from "../atproto/sidetrail";
 import { storeWebsites } from "../utils/browser";
 import {
   importBookmarksFromBrowser,
@@ -485,6 +492,35 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       await broadcastTrailWalkUpdated();
     },
 
+    [MessageRequest.PUBLISH_TRAIL]: async (req) => {
+      if (!("trailId" in req)) {
+        throw new Error("trailId required");
+      }
+      const session = await getSession();
+      if (!session) throw new Error("Not logged in");
+
+      const trail = await db.getTrail(req.trailId);
+      if (!trail) throw new Error("Trail not found");
+
+      const existingRkey = trail.sidetrailUri
+        ? trail.sidetrailUri.split("/").pop()
+        : undefined;
+
+      const ref = await publishSidetrailTrail(
+        session.did,
+        trail,
+        existingRkey,
+        trail.sidetrailCid,
+      );
+
+      await db.updateTrail(req.trailId, {
+        sidetrailUri: ref.uri,
+        sidetrailCid: ref.cid,
+      });
+
+      return { uri: ref.uri, cid: ref.cid };
+    },
+
     [MessageRequest.START_TRAIL_WALK]: async (req, sender) => {
       if (!("trailId" in req)) {
         throw new Error("trailId required");
@@ -493,6 +529,29 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (sender.tab?.id) {
         await setTrailWalkTabId(sender.tab.id);
       }
+
+      // Optionally push walk to sidetrail if trail is published
+      const session = await getSession();
+      if (session) {
+        const trail = await db.getTrail(req.trailId);
+        if (trail?.sidetrailUri && trail.sidetrailCid) {
+          try {
+            const walkRef = await startSidetrailWalk(
+              session.did,
+              trail.sidetrailUri,
+              trail.sidetrailCid,
+              "stop-0",
+            );
+            walk.sidetrailWalkUri = walkRef.uri;
+            await db.patchTrailWalkById(walk.id, {
+              sidetrailWalkUri: walkRef.uri,
+            });
+          } catch (err) {
+            Logger.warn("Failed to start sidetrail walk:", err);
+          }
+        }
+      }
+
       await broadcastTrailWalkUpdated();
       return walk;
     },
@@ -501,7 +560,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (!("trailId" in req) || !("websiteUrl" in req)) {
         throw new Error("trailId and websiteUrl required");
       }
-      return db.advanceTrailWalk(req.trailId, req.websiteUrl);
+      const walk = await db.advanceTrailWalk(req.trailId, req.websiteUrl);
+
+      if (walk.sidetrailWalkUri) {
+        (async () => {
+          const session = await getSession();
+          if (!session) return;
+          const trail = await db.getTrail(req.trailId);
+          if (!trail?.sidetrailUri) return;
+          const walkRkey = walk.sidetrailWalkUri.split("/").pop()!;
+          const stopIdx = trail.stops.findIndex(
+            (s) => s.websiteUrl === req.websiteUrl,
+          );
+          const visitedTids = Array.from(
+            { length: stopIdx + 1 },
+            (_, i) => `stop-${i}`,
+          );
+          await advanceSidetrailWalk(
+            session.did,
+            walkRkey,
+            undefined,
+            trail.sidetrailUri,
+            trail.sidetrailCid ?? "",
+            visitedTids,
+          );
+        })().catch((err) =>
+          Logger.warn("Failed to advance sidetrail walk:", err),
+        );
+      }
+
+      return walk;
     },
 
     [MessageRequest.REWIND_TRAIL_WALK]: async (req, sender) => {
@@ -520,18 +608,58 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (!("trailId" in req)) {
         throw new Error("trailId required");
       }
+      // Get walk and trail before completing (getTrailWalk filters out completed)
+      const [walkBeforeComplete, trail] = await Promise.all([
+        db.getTrailWalk(req.trailId),
+        db.getTrail(req.trailId),
+      ]);
+
       await db.completeTrailWalk(req.trailId);
       await clearTrailWalkTab();
       await broadcastTrailWalkUpdated();
+
+      // Fire-and-forget sidetrail completion
+      if (walkBeforeComplete?.sidetrailWalkUri && trail?.sidetrailUri) {
+        (async () => {
+          const session = await getSession();
+          if (!session) return;
+          const walkRkey = walkBeforeComplete.sidetrailWalkUri
+            .split("/")
+            .pop()!;
+          await completeSidetrailWalk(
+            session.did,
+            walkRkey,
+            trail.sidetrailUri,
+            trail.sidetrailCid ?? "",
+          );
+        })().catch((err) =>
+          Logger.warn("Failed to complete sidetrail walk:", err),
+        );
+      }
     },
 
     [MessageRequest.ABANDON_TRAIL_WALK]: async (req) => {
       if (!("trailId" in req)) {
         throw new Error("trailId required");
       }
+      // Get walk before abandoning (abandonTrailWalk deletes the record)
+      const walkBeforeAbandon = await db.getTrailWalk(req.trailId);
+
       await db.abandonTrailWalk(req.trailId);
       await clearTrailWalkTab();
       await broadcastTrailWalkUpdated();
+
+      // Fire-and-forget sidetrail abandon
+      if (walkBeforeAbandon?.sidetrailWalkUri) {
+        (async () => {
+          const session = await getSession();
+          if (!session) return;
+          const walkRkey = walkBeforeAbandon.sidetrailWalkUri.split("/").pop()!;
+          await abandonSidetrailWalk(session.did, walkRkey);
+        })().catch((err) =>
+          Logger.warn("Failed to abandon sidetrail walk:", err),
+        );
+      }
     },
 
     [MessageRequest.GET_TRAIL_WALK_STATE]: async (req) => {

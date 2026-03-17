@@ -16,9 +16,11 @@
   export let activeTrailId: string | null = null;
   export let activeRabbitholeId: string | null = null;
   export let sembleUrl: string | null = null;
+  export let trailPublished: boolean = false;
   export let isSavingWindow: boolean = false;
   export let isUpdatingPinnedWebsites: boolean = false;
   export let isPublishing: boolean = false;
+  export let isPublishingTrail: boolean = false;
   export let isDeleting: boolean = false;
 
   const dispatch = createEventDispatcher();
@@ -50,7 +52,7 @@
   <div class="action-bar">
     <Group spacing="xs">
       {#if activeTrailId}
-        <!-- Trail mode: just show Start Trail + Delete -->
+        <!-- Trail mode: Start Trail + Publish + Delete -->
         <Tooltip label="Start Trail" withArrow transition="fade">
           <ActionIcon
             size="lg"
@@ -59,6 +61,30 @@
             on:click={() => dispatch("startTrail")}
           >
             <Play size={18} />
+          </ActionIcon>
+        </Tooltip>
+
+        <div class="action-divider"></div>
+
+        <Tooltip
+          label={trailPublished
+            ? "Update on Sidetrail"
+            : "Publish to Sidetrail"}
+          withArrow
+          transition="fade"
+        >
+          <ActionIcon
+            size="lg"
+            radius="md"
+            color={trailPublished ? "orange" : "grape"}
+            on:click={() => dispatch("publishTrail")}
+            loading={isPublishingTrail}
+          >
+            {#if trailPublished}
+              <Upload size={18} />
+            {:else}
+              <Rocket size={18} />
+            {/if}
           </ActionIcon>
         </Tooltip>
 

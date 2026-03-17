@@ -16,6 +16,7 @@ export enum MessageRequest {
   DELETE_BURROW,
   DELETE_WEBSITE,
   PUBLISH_BURROW,
+  PUBLISH_TRAIL,
   GET_ACTIVE_RABBITHOLE,
   CHANGE_ACTIVE_RABBITHOLE,
   CREATE_NEW_RABBITHOLE,
@@ -95,6 +96,8 @@ export interface Trail {
   stops: TrailStop[];
   startNote: string;
   endNote?: string;
+  sidetrailUri?: string;
+  sidetrailCid?: string;
 }
 
 export interface TrailWalk {
@@ -105,6 +108,7 @@ export interface TrailWalk {
   updatedAt: number;
   completed: boolean;
   status: TrailWalkStatus;
+  sidetrailWalkUri?: string;
 }
 
 export interface TrailWalkState {

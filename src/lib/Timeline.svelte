@@ -50,6 +50,8 @@
   let previousWebsitesLength: number = 0;
   let isPublishing: boolean = false;
   let showPublishModal: boolean = false;
+  let isPublishingTrail: boolean = false;
+  let showPublishTrailModal: boolean = false;
   let isSyncing: boolean = false;
 
   let hoveredTimestamp: number = null;
@@ -594,6 +596,32 @@
       trailViewRef.startTrail();
     }
   }
+
+  async function publishTrailToSidetrail(): Promise<void> {
+    if (!activeTrail) return;
+    isPublishingTrail = true;
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: MessageRequest.PUBLISH_TRAIL,
+        trailId: activeTrail.id,
+      });
+      if (response?.error) throw new Error(response.error);
+      activeTrail.sidetrailUri = response.uri;
+      activeTrail.sidetrailCid = response.cid;
+    } catch (e) {
+      Logger.error("Failed to publish trail:", e);
+      if (e.message?.includes("ScopeMissingError")) {
+        alert(
+          "Permission denied. Please log out and log back in to grant the necessary permissions.",
+        );
+      } else {
+        alert("Error publishing trail: " + e.message);
+      }
+    } finally {
+      isPublishingTrail = false;
+      showPublishTrailModal = false;
+    }
+  }
 </script>
 
 <OrganizeModal
@@ -668,6 +696,30 @@
     >
     <Button on:click={confirmPublish} loading={isPublishing}>
       {sembleUrl ? "Update" : "Publish"}
+    </Button>
+  </Group>
+</Modal>
+
+<Modal
+  isOpen={showPublishTrailModal}
+  title={activeTrail?.sidetrailUri
+    ? "Update on Sidetrail"
+    : "Publish to Sidetrail"}
+  on:close={() => (showPublishTrailModal = false)}
+>
+  <p>
+    {activeTrail?.sidetrailUri
+      ? "Update this trail on Sidetrail with the latest stops and notes?"
+      : "Publish this trail to Sidetrail? Walks and completions will be tracked there automatically while you're logged in."}
+  </p>
+  <Group position="right">
+    <Button
+      variant="subtle"
+      color="gray"
+      on:click={() => (showPublishTrailModal = false)}>Cancel</Button
+    >
+    <Button on:click={publishTrailToSidetrail} loading={isPublishingTrail}>
+      {activeTrail?.sidetrailUri ? "Update" : "Publish"}
     </Button>
   </Group>
 </Modal>
@@ -785,11 +837,13 @@
     <ActionBar
       {sembleUrl}
       {isPublishing}
+      {isPublishingTrail}
       {isSavingWindow}
       {isUpdatingPinnedWebsites}
       activeBurrowId={activeBurrow?.id}
       activeTrailId={activeTrail?.id}
       activeRabbitholeId={activeRabbithole?.id}
+      trailPublished={!!activeTrail?.sidetrailUri}
       isDeleting={activeBurrow || activeTrail ? isDeletingContainer : false}
       on:saveWindow={saveWindow}
       on:updatePinnedWebsites={updatePinnedWebsites}
@@ -798,6 +852,7 @@
       on:publish={openPublishModal}
       on:deleteContainer={deleteContainer}
       on:startTrail={handleStartTrail}
+      on:publishTrail={() => (showPublishTrailModal = true)}
     />
   </div>
 
