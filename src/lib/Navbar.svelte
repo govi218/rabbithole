@@ -42,6 +42,7 @@
 
   let settings: Settings | null = null;
   let showOverlay: boolean = true;
+  let importNotice: { trails: number; collections: number } | null = null;
 
   function dismissHelpTooltip() {
     if (showHelpTooltip) {
@@ -127,7 +128,9 @@
     }
   }
 
-  async function handleAuthSuccess(): Promise<void> {
+  async function handleAuthSuccess(
+    event: CustomEvent<{ imported: { trails: number; collections: number } }>,
+  ): Promise<void> {
     // Refresh login state
     const session = await getSession();
     if (session) {
@@ -136,6 +139,13 @@
       await loadUserProfile(session);
     }
     showAuthModal = false;
+
+    const imported = event.detail?.imported;
+    if (imported && (imported.trails > 0 || imported.collections > 0)) {
+      importNotice = imported;
+      dispatch("refresh");
+      setTimeout(() => (importNotice = null), 5000);
+    }
   }
 
   async function handleSignOut(): Promise<void> {
@@ -252,6 +262,18 @@
 >
   <Auth on:authSuccess={handleAuthSuccess} showWhyBluesky={true} />
 </Modal>
+
+{#if importNotice}
+  <div class="import-toast">
+    Imported {importNotice.trails > 0
+      ? `${importNotice.trails} trail${importNotice.trails !== 1 ? "s" : ""}`
+      : ""}{importNotice.trails > 0 && importNotice.collections > 0
+      ? " & "
+      : ""}{importNotice.collections > 0
+      ? `${importNotice.collections} collection${importNotice.collections !== 1 ? "s" : ""}`
+      : ""} from your Bluesky account
+  </div>
+{/if}
 
 <OnboardingModal
   isOpen={showOnboardingModal}
@@ -402,6 +424,39 @@
 </nav>
 
 <style>
+  .import-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #1a1b1e;
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    z-index: 9999;
+    white-space: nowrap;
+    animation: fadeInUp 0.25s ease-out;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+
+  :global(body.dark-mode) .import-toast {
+    background-color: #e4e6eb;
+    color: #1a1b1e;
+  }
+
   .navbar {
     position: fixed;
     top: 0;
