@@ -11,8 +11,6 @@
   import { Trash, DotsHorizontal, Plus, Copy } from "radix-icons-svelte";
   import type { Website } from "src/utils/types";
   import default1 from "../assets/rabbit-default-1.jpg";
-  import default2 from "../assets/rabbit-default-2.jpg";
-  import default3 from "../assets/rabbit-default-3.jpg";
 
   const dispatch = createEventDispatcher();
 
@@ -24,7 +22,7 @@
   let isHoveringDesc: boolean = false;
   let imageLoadError: boolean = false;
 
-  const defaultImages = [default1, default2, default3];
+  const defaultImages = [default1];
 
   function getDefaultImage(url: string): string {
     let hash = 0;
