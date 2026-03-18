@@ -508,6 +508,14 @@
     opacity: 0.95;
   }
 
+  :global(*) {
+    font-family: 'Futura', system-ui, sans-serif;
+  }
+
+  :global(h1), :global(h2), :global(h3), :global(h4), :global(h5), :global(h6) {
+    font-family: 'Share Tech', system-ui, sans-serif;
+  }
+
   :global(.rabbitholes-btn) {
     font-weight: 600;
     font-size: 13px;

@@ -611,6 +611,7 @@
   }
 
   .home-title {
+    font-family: 'Share Tech', system-ui, sans-serif;
     margin: 0;
     font-size: 1.6rem;
     font-weight: 800;

@@ -2,7 +2,12 @@
 module.exports = {
 	content: ['./src/**/*.{html,js,svelte,ts}'],
 	theme: {
-		extend: {}
+		extend: {
+			fontFamily: {
+				sans: ['Futura', 'system-ui', 'sans-serif'],
+				display: ['"Share Tech"', 'system-ui', 'sans-serif']
+			}
+		}
 	},
 	plugins: []
 };

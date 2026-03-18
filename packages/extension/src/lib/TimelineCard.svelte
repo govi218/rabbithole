@@ -326,7 +326,7 @@
     width: 100%;
     border: none;
     background: transparent;
-    font-family: inherit;
+    font-family: 'Share Tech', system-ui, sans-serif;
     font-weight: 700;
     font-size: 1rem; /* 16px */
     color: #1a1b1e;

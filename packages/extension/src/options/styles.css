@@ -1,34 +1,34 @@
 @font-face {
   font-family: 'Futura';
-  src: url('/fonts/Futura Book.otf') format('opentype');
+  src: url('../assets/Futura Book.otf') format('opentype');
   font-weight: 400;
   font-style: normal;
 }
 
 @font-face {
   font-family: 'Futura';
-  src: url('/fonts/Futura Medium.otf') format('opentype');
+  src: url('../assets/Futura Medium.otf') format('opentype');
   font-weight: 500;
   font-style: normal;
 }
 
 @font-face {
   font-family: 'Futura';
-  src: url('/fonts/Futura Bold.otf') format('opentype');
+  src: url('../assets/Futura Bold.otf') format('opentype');
   font-weight: 700;
   font-style: normal;
 }
 
 @font-face {
   font-family: 'Share Tech';
-  src: url('/fonts/ShareTech-Regular.ttf') format('truetype');
+  src: url('../assets/ShareTech-Regular.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
 }
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+* {
+  font-family: 'Futura', system-ui, sans-serif;
+}
 
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Share Tech', system-ui, sans-serif;

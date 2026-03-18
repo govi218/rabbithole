@@ -1,8 +1,41 @@
+@font-face {
+  font-family: 'Futura';
+  src: url('../assets/Futura Book.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Futura';
+  src: url('../assets/Futura Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Futura';
+  src: url('../assets/Futura Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Share Tech';
+  src: url('../assets/ShareTech-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 * {
   margin: 0;
   padding: 0;
   border: none;
   outline: none;
+  font-family: 'Futura', system-ui, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Share Tech', system-ui, sans-serif;
 }
 
 html {
@@ -21,10 +54,6 @@ body {
   height: 190px;
   margin: 0;
   padding: 0;
-  font-family:
-    system-ui,
-    -apple-system,
-    sans-serif;
   overflow: visible;
   border: none;
   outline: none;

@@ -135,6 +135,7 @@
   }
 
   .card-title {
+    font-family: 'Share Tech', system-ui, sans-serif;
     font-weight: 900;
     font-size: 14px;
     color: #1a1b1e;

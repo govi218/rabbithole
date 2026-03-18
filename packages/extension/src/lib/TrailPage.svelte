@@ -314,8 +314,7 @@
 <style>
   :global(body) {
     margin: 0;
-    font-family:
-      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: 'Futura', system-ui, sans-serif;
     background: #f8f9fa;
     color: #1a1b1e;
     transition:
@@ -465,6 +464,7 @@
   }
 
   .completion-title {
+    font-family: 'Share Tech', system-ui, sans-serif;
     font-size: 32px;
     font-weight: 900;
     color: #1a1b1e;
@@ -651,6 +651,7 @@
   h1 {
     font-size: 32px;
     font-weight: 900;
+    font-family: 'Share Tech', system-ui, sans-serif;
     color: #1a1b1e;
     margin: 0;
   }
@@ -662,6 +663,7 @@
   h2 {
     font-size: 22px;
     font-weight: 800;
+    font-family: 'Share Tech', system-ui, sans-serif;
     color: #1a1b1e;
     margin: 0;
   }
@@ -752,6 +754,7 @@
   }
 
   .stop-name {
+    font-family: 'Share Tech', system-ui, sans-serif;
     font-weight: 600;
     color: #1a1b1e;
     font-size: 14px;
