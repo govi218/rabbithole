@@ -26,6 +26,7 @@
 
   export let onRabbitholesClick = () => {};
   export let onBurrowsClick = () => {};
+  export let onExploreClick = () => {};
   export let isDark: boolean = false;
 
   const dispatch = createEventDispatcher();
@@ -301,6 +302,15 @@
       class="rabbitholes-btn"
     >
       Rabbitholes
+    </Button>
+    <Button
+      variant="subtle"
+      color="gray"
+      size="md"
+      on:click={onExploreClick}
+      class="rabbitholes-btn"
+    >
+      Explore
     </Button>
   </div>
 

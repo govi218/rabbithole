@@ -2,6 +2,7 @@
   import { onMount, tick } from "svelte";
   import Timeline from "src/lib/Timeline.svelte";
   import Navbar from "src/lib/Navbar.svelte";
+  import Explore from "@rabbithole/shared/lib/Explore.svelte";
   import RabbitholeGrid from "src/lib/RabbitholeGrid.svelte";
   import Onboarding from "src/lib/Onboarding.svelte";
   import { MessageRequest } from "../utils";
@@ -34,6 +35,7 @@
 
   let settings: Settings | null = null;
   let showOnboarding: boolean = false;
+  let showExplore: boolean = false;
 
   interface ActiveTrailWalkIndicator {
     trail: Trail;
@@ -195,7 +197,12 @@
     }
   }
 
+  function goExplore(): void {
+    showExplore = true;
+  }
+
   async function goHome(): Promise<void> {
+    showExplore = false;
     await chrome.runtime.sendMessage({
       type: MessageRequest.CHANGE_ACTIVE_RABBITHOLE,
       rabbitholeId: null,
@@ -366,6 +373,7 @@
   <SvelteUIProvider>
     <Navbar
       onRabbitholesClick={goHome}
+      onExploreClick={goExplore}
       {isDark}
       on:toggleTheme={toggleTheme}
       on:selectRabbithole={(event) => selectRabbithole(event.detail)}
@@ -377,7 +385,14 @@
     <AppShell class={!opened ? "sidebar-closed-shell" : ""}>
       <div class="main-content" class:sidebar-closed={!opened}>
         <div class="timeline-wrapper">
-          {#if isLoadingHome}
+          {#if showExplore}
+            <Explore
+              isExtension={true}
+              onWalkTrail={(trail) => {
+                // TODO: import trail and start walk
+              }}
+            />
+          {:else if isLoadingHome}
             <div class="home-loading">
               <Loader size="md" variant="dots" />
               <Text size="sm" color="dimmed" style="margin-top: 1rem;">

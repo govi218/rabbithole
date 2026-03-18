@@ -732,7 +732,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         // FIXME: how much scale is this required to support?
         const existingUrls = new Set(allWebsites.map((w) => w.url));
-        const existingBurrowMap = new Map(
+        const existingBurrowMap = new Map<string, Burrow>(
           existingBurrows.map((b) => [b.name, b]),
         );
         const oldIdToNewId = new Map<string, string>();
