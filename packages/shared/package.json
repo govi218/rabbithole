@@ -4,9 +4,8 @@
   "type": "module",
   "exports": {
     "./types": "./src/utils/types.ts",
+    "./utils/og": "./src/utils/og.ts",
     "./atproto/http": "./src/atproto/http.ts",
-    "./atproto/cosmik": "./src/atproto/cosmik.ts",
-    "./atproto/sidetrail": "./src/atproto/sidetrail.ts",
     "./atproto/explore": "./src/atproto/explore.ts",
     "./lib/*": "./src/lib/*.svelte"
   },
