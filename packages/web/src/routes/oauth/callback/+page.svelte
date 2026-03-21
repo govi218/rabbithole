@@ -21,7 +21,9 @@
   });
 </script>
 
-<main style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui,sans-serif;">
+<main
+  style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui,sans-serif;"
+>
   {#if error}
     <div style="text-align:center;">
       <p style="color:#dc3545;">{error}</p>
