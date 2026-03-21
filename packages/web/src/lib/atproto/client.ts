@@ -39,7 +39,10 @@ export function clearSession(): void {
 async function saveDpopKey(keyPair: CryptoKeyPair): Promise<void> {
   const priv = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
   const pub = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
-  localStorage.setItem(DPOP_KEY, JSON.stringify({ private: priv, public: pub }));
+  localStorage.setItem(
+    DPOP_KEY,
+    JSON.stringify({ private: priv, public: pub }),
+  );
 }
 
 export async function getDpopKey(): Promise<CryptoKeyPair | null> {
@@ -48,10 +51,18 @@ export async function getDpopKey(): Promise<CryptoKeyPair | null> {
     if (!stored) return null;
     const keys = JSON.parse(stored);
     const privateKey = await crypto.subtle.importKey(
-      "jwk", keys.private, { name: "ECDSA", namedCurve: "P-256" }, true, ["sign"],
+      "jwk",
+      keys.private,
+      { name: "ECDSA", namedCurve: "P-256" },
+      true,
+      ["sign"],
     );
     const publicKey = await crypto.subtle.importKey(
-      "jwk", keys.public, { name: "ECDSA", namedCurve: "P-256" }, true, ["verify"],
+      "jwk",
+      keys.public,
+      { name: "ECDSA", namedCurve: "P-256" },
+      true,
+      ["verify"],
     );
     return { privateKey, publicKey };
   } catch {
@@ -61,7 +72,7 @@ export async function getDpopKey(): Promise<CryptoKeyPair | null> {
 
 export async function startAuthFlow(handle: string): Promise<void> {
   let h = handle.trim();
-  if (!h.includes(".")) h = `${h}.bsky.social`;
+  if (h.startsWith("@")) h = h.slice(1);
   const { did, pdsUrl } = await resolveHandleAndPds(h);
   const authServer = await getAuthServerMetadata(pdsUrl);
   const keyPair = await generateDpopKeyPair();
@@ -71,7 +82,17 @@ export async function startAuthFlow(handle: string): Promise<void> {
   const state = generateRandomString(16);
   const redirectUri = `${window.location.origin.replace("localhost", "127.0.0.1")}/oauth/callback`;
   // Persist PKCE state for callback
-  localStorage.setItem(PKCE_KEY, JSON.stringify({ codeVerifier, state, did, pdsUrl, tokenEndpoint: authServer.token_endpoint, handle: h }));
+  localStorage.setItem(
+    PKCE_KEY,
+    JSON.stringify({
+      codeVerifier,
+      state,
+      did,
+      pdsUrl,
+      tokenEndpoint: authServer.token_endpoint,
+      handle: h,
+    }),
+  );
   const authUrl = new URL(authServer.authorization_endpoint);
   authUrl.searchParams.set("response_type", "code");
   authUrl.searchParams.set("client_id", ClientMetadataUrl);
@@ -85,22 +106,36 @@ export async function startAuthFlow(handle: string): Promise<void> {
   window.location.href = authUrl.toString();
 }
 
-export async function handleCallback(params: URLSearchParams): Promise<ATProtoSession> {
+export async function handleCallback(
+  params: URLSearchParams,
+): Promise<ATProtoSession> {
   const code = params.get("code");
   const returnedState = params.get("state");
   const oauthError = params.get("error");
-  if (oauthError) throw new Error(params.get("error_description") || oauthError);
+  if (oauthError)
+    throw new Error(params.get("error_description") || oauthError);
   if (!code) throw new Error("No authorization code received");
   const pkce = localStorage.getItem(PKCE_KEY);
   if (!pkce) throw new Error("No PKCE state found");
-  const { codeVerifier, state, did, pdsUrl, tokenEndpoint, handle } = JSON.parse(pkce);
+  const { codeVerifier, state, did, pdsUrl, tokenEndpoint, handle } =
+    JSON.parse(pkce);
   if (returnedState !== state) throw new Error("OAuth state mismatch");
   const keyPair = await getDpopKey();
   if (!keyPair) throw new Error("No DPoP key found");
   const redirectUri = `${window.location.origin.replace("localhost", "127.0.0.1")}/oauth/callback`;
-  const tokenResponse = await exchangeCodeForTokens(code, codeVerifier, tokenEndpoint, keyPair, redirectUri, ClientMetadataUrl);
+  const tokenResponse = await exchangeCodeForTokens(
+    code,
+    codeVerifier,
+    tokenEndpoint,
+    keyPair,
+    redirectUri,
+    ClientMetadataUrl,
+  );
   const session: ATProtoSession = {
-    did, handle, pdsUrl, tokenEndpoint,
+    did,
+    handle,
+    pdsUrl,
+    tokenEndpoint,
     accessToken: tokenResponse.access_token,
     refreshToken: tokenResponse.refresh_token,
   };
@@ -118,23 +153,49 @@ async function refreshSessionImpl(): Promise<ATProtoSession> {
   let dpopProof = await createDpopProof("POST", session.tokenEndpoint, keyPair);
   let response = await fetch(session.tokenEndpoint, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", DPoP: dpopProof },
-    body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: session.refreshToken, client_id: ClientMetadataUrl }),
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      DPoP: dpopProof,
+    },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: session.refreshToken,
+      client_id: ClientMetadataUrl,
+    }),
   });
   if (response.status === 400 || response.status === 401) {
     const nonce = response.headers.get("DPoP-Nonce");
     if (nonce) {
-      dpopProof = await createDpopProof("POST", session.tokenEndpoint, keyPair, nonce);
+      dpopProof = await createDpopProof(
+        "POST",
+        session.tokenEndpoint,
+        keyPair,
+        nonce,
+      );
       response = await fetch(session.tokenEndpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded", DPoP: dpopProof },
-        body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: session.refreshToken, client_id: ClientMetadataUrl }),
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          DPoP: dpopProof,
+        },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: session.refreshToken,
+          client_id: ClientMetadataUrl,
+        }),
       });
     }
   }
-  if (!response.ok) { clearSession(); throw new Error("Session expired"); }
+  if (!response.ok) {
+    clearSession();
+    throw new Error("Session expired");
+  }
   const data = await response.json();
-  const updated = { ...session, accessToken: data.access_token, refreshToken: data.refresh_token ?? session.refreshToken };
+  const updated = {
+    ...session,
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token ?? session.refreshToken,
+  };
   saveSession(updated);
   return updated;
 }

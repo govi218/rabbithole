@@ -387,7 +387,6 @@
         <div class="timeline-wrapper">
           {#if showExplore}
             <Explore
-              isExtension={true}
               onWalkTrail={(trail) => {
                 // TODO: import trail and start walk
               }}

@@ -1,136 +1,178 @@
 <script lang="ts">
-  import type { ActorTrail, ActorCollection } from "../atproto/explore";
-  import { resolveHandle, fetchActorTrails, fetchActorCollections } from "../atproto/explore";
+  import { onMount } from "svelte";
+  import type { ActorTrail, ActorCollectionWithAuthor } from "../atproto/explore";
+  import { fetchLatestTrails, fetchLatestCollections } from "../atproto/explore";
 
-  export let isExtension: boolean = false;
+
   export let onWalkTrail: ((trail: ActorTrail) => void) | undefined = undefined;
+  export let onTrailClick: ((trail: ActorTrail) => void) | undefined = undefined;
+  export let onBurrowClick: ((burrow: ActorCollectionWithAuthor) => void) | undefined = undefined;
+  export let selectedTrail: ActorTrail | null = null;
 
-  let handleInput = "";
-  let isLoading = false;
-  let error: string | null = null;
+  let tab: "trails" | "burrows" = "trails";
+
   let trails: ActorTrail[] = [];
-  let collections: ActorCollection[] = [];
-  let activeTab: "trails" | "collections" = "trails";
-  let selectedTrail: ActorTrail | null = null;
-  let hasSearched = false;
+  let isLoadingTrails = false;
+  let trailsError: string | null = null;
 
-  async function search() {
-    if (!handleInput.trim()) return;
-    isLoading = true;
-    error = null;
-    trails = [];
-    collections = [];
-    hasSearched = false;
-    try {
-      let handle = handleInput.trim();
-      if (!handle.includes(".")) handle = `${handle}.bsky.social`;
-      const did = await resolveHandle(handle);
-      [trails, collections] = await Promise.all([
-        fetchActorTrails(did),
-        fetchActorCollections(did),
-      ]);
-      hasSearched = true;
-      if (trails.length > 0) activeTab = "trails";
-      else if (collections.length > 0) activeTab = "collections";
-    } catch (e: any) {
-      error = e.message || "Failed to load profile";
-    } finally {
-      isLoading = false;
-    }
+  let burrows: ActorCollectionWithAuthor[] = [];
+  let isLoadingBurrows = false;
+  let burrowsError: string | null = null;
+
+  onMount(async () => {
+    loadTrails();
+  });
+
+  async function loadTrails() {
+    if (trails.length) return;
+    isLoadingTrails = true; trailsError = null;
+    try { trails = await fetchLatestTrails(); }
+    catch (e: any) { trailsError = e.message; }
+    finally { isLoadingTrails = false; }
   }
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Enter") search();
+  async function loadBurrows() {
+    if (burrows.length) return;
+    isLoadingBurrows = true; burrowsError = null;
+    try { burrows = await fetchLatestCollections(); }
+    catch (e: any) { burrowsError = e.message; }
+    finally { isLoadingBurrows = false; }
+  }
+
+  function switchTab(t: "trails" | "burrows") {
+    tab = t;
+    selectedTrail = null;
+    if (t === "burrows") loadBurrows();
+  }
+
+  function timeAgo(iso: string | undefined): string {
+    if (!iso) return "";
+    const diff = Date.now() - new Date(iso).getTime();
+    const s = Math.floor(diff / 1000);
+    if (s < 60) return s <= 5 ? "just now" : `${s}s ago`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    const d = Math.floor(h / 24);
+    if (d < 7) return `${d}d ago`;
+    if (d < 30) return `${Math.floor(d / 7)}w ago`;
+    if (d < 365) return `${Math.floor(d / 30)}mo ago`;
+    return `${Math.floor(d / 365)}y ago`;
+  }
+
+  function fullDate(iso: string | undefined): string {
+    if (!iso) return "";
+    return new Date(iso).toLocaleString(undefined, {
+      year: "numeric", month: "short", day: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
   }
 </script>
 
 <div class="explore-container">
-  <div class="explore-search">
-    <input
-      type="text"
-      placeholder="Enter a handle (e.g. jay.bsky.social)"
-      bind:value={handleInput}
-      on:keydown={handleKeydown}
-      class="explore-input"
-    />
-    <button class="explore-btn" on:click={search} disabled={isLoading}>
-      {isLoading ? "Loading..." : "Explore"}
+
+  <div class="view-tabs">
+    <button class="view-tab" class:active={tab === "trails"} on:click={() => switchTab("trails")}>
+      Trails
+    </button>
+    <button class="view-tab" class:active={tab === "burrows"} on:click={() => switchTab("burrows")}>
+      Burrows
     </button>
   </div>
 
-  {#if error}
-    <p class="explore-error">{error}</p>
-  {/if}
-
-  {#if hasSearched}
-    {#if trails.length === 0 && collections.length === 0}
-      <p class="explore-empty">No published trails or collections found.</p>
-    {:else}
-      <div class="explore-tabs">
-        <button
-          class="tab-btn"
-          class:active={activeTab === "trails"}
-          on:click={() => { activeTab = "trails"; selectedTrail = null; }}
-        >
-          Trails ({trails.length})
-        </button>
-        <button
-          class="tab-btn"
-          class:active={activeTab === "collections"}
-          on:click={() => { activeTab = "collections"; selectedTrail = null; }}
-        >
-          Collections ({collections.length})
-        </button>
+  {#if selectedTrail}
+    <div class="trail-detail">
+      <button class="back-btn" on:click={() => selectedTrail = null}>← Back</button>
+      <h2 class="trail-title">{selectedTrail.title}</h2>
+      {#if selectedTrail.description}
+        <p class="trail-desc">{selectedTrail.description}</p>
+      {/if}
+      <div class="stops-list">
+        {#each selectedTrail.stops as stop, i}
+          <div class="stop-row">
+            <div class="stop-num">{i + 1}</div>
+            <div class="stop-content">
+              <a href={stop.url} target="_blank" rel="noopener noreferrer" class="stop-url">{stop.url}</a>
+              {#if stop.note}
+                <p class="stop-note">{stop.note}</p>
+              {/if}
+            </div>
+          </div>
+        {/each}
       </div>
+      {#if onWalkTrail}
+        <button class="walk-btn" on:click={() => selectedTrail && onWalkTrail(selectedTrail)}>Walk this trail →</button>
+      {/if}
+    </div>
 
-      {#if selectedTrail}
-        <div class="trail-detail">
-          <button class="back-btn" on:click={() => selectedTrail = null}>← Back</button>
-          <h2 class="trail-title">{selectedTrail.title}</h2>
-          {#if selectedTrail.description}
-            <p class="trail-desc">{selectedTrail.description}</p>
-          {/if}
-          <ol class="stops-list">
-            {#each selectedTrail.stops as stop, i}
-              <li class="stop-item">
-                <a href={stop.url} target="_blank" rel="noopener noreferrer" class="stop-url">{stop.url}</a>
-                {#if stop.note}
-                  <p class="stop-note">{stop.note}</p>
-                {/if}
-              </li>
-            {/each}
-          </ol>
-          {#if isExtension && onWalkTrail}
-            <button class="walk-btn" on:click={() => onWalkTrail(selectedTrail)}>
-              Walk this trail
-            </button>
-          {/if}
-        </div>
-      {:else if activeTab === "trails"}
-        <div class="results-grid">
-          {#each trails as trail}
-            <!-- svelte-ignore a11y-click-events-have-key-events -->
-            <div class="result-card" on:click={() => selectedTrail = trail}>
+  {:else if tab === "trails"}
+    {#if isLoadingTrails}
+      <p class="feed-empty">Loading trails...</p>
+    {:else if trailsError}
+      <p class="feed-error">{trailsError}</p>
+    {:else}
+      <div class="feed">
+        {#each trails as trail}
+          <!-- svelte-ignore a11y-click-events-have-key-events -->
+          <div class="feed-card" on:click={() => onTrailClick ? onTrailClick(trail) : (selectedTrail = trail)}>
+            <div class="feed-author">
+              {#if trail.authorAvatar}
+                <img src={trail.authorAvatar} alt={trail.authorHandle} class="author-avatar" />
+              {:else}
+                <div class="author-avatar-placeholder" />
+              {/if}
+              <span class="author-label">
+                <strong>@{trail.authorHandle ?? trail.authorDid?.slice(0, 16) ?? "unknown"}</strong> created a trail
+              </span>
+              {#if trail.createdAt}
+                <span class="timestamp" title={fullDate(trail.createdAt)}>{timeAgo(trail.createdAt)}</span>
+              {/if}
+            </div>
+            <div class="feed-card-body">
               <h3 class="card-title">{trail.title}</h3>
               {#if trail.description}
                 <p class="card-desc">{trail.description}</p>
               {/if}
-              <span class="card-meta">{trail.stops.length} stop{trail.stops.length !== 1 ? "s" : ""}</span>
+              <span class="stop-badge">{trail.stops.length} stop{trail.stops.length !== 1 ? "s" : ""}</span>
             </div>
-          {/each}
-        </div>
-      {:else}
-        <div class="results-grid">
-          {#each collections as col}
-            <div class="result-card">
-              <h3 class="card-title">{col.name}</h3>
-              <span class="card-meta">{col.urls.length} URL{col.urls.length !== 1 ? "s" : ""}</span>
+          </div>
+        {/each}
+      </div>
+    {/if}
+
+  {:else}
+    {#if isLoadingBurrows}
+      <p class="feed-empty">Loading burrows...</p>
+    {:else if burrowsError}
+      <p class="feed-error">{burrowsError}</p>
+    {:else}
+      <div class="feed">
+        {#each burrows as burrow}
+          <!-- svelte-ignore a11y-click-events-have-key-events -->
+          <div class="feed-card" class:no-click={!onBurrowClick} on:click={() => onBurrowClick && onBurrowClick(burrow)}>
+            <div class="feed-author">
+              {#if burrow.authorAvatar}
+                <img src={burrow.authorAvatar} alt={burrow.authorHandle} class="author-avatar" />
+              {:else}
+                <div class="author-avatar-placeholder" />
+              {/if}
+              <span class="author-label">
+                <strong>@{burrow.authorHandle ?? burrow.authorDid?.slice(0, 16) ?? "unknown"}</strong> created a burrow
+              </span>
+              {#if burrow.createdAt}
+                <span class="timestamp" title={fullDate(burrow.createdAt)}>{timeAgo(burrow.createdAt)}</span>
+              {/if}
             </div>
-          {/each}
-        </div>
-      {/if}
+            <div class="feed-card-body">
+              <h3 class="card-title">{burrow.name}</h3>
+            </div>
+          </div>
+        {/each}
+      </div>
     {/if}
   {/if}
+
 </div>
 
 <style>
@@ -138,228 +180,121 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-    padding: 24px;
     max-width: 800px;
     margin: 0 auto;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
 
-  .explore-search {
-    display: flex;
-    gap: 8px;
-  }
-
-  .explore-input {
-    flex: 1;
-    padding: 10px 14px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 14px;
-    outline: none;
-    background: white;
-    color: #333;
-  }
-
-  .explore-input:focus {
-    border-color: #1185fe;
-  }
-
-  .explore-btn {
-    padding: 10px 20px;
-    background: #1185fe;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-
-  .explore-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .explore-error {
-    color: #dc3545;
-    font-size: 13px;
-    margin: 0;
-  }
-
-  .explore-empty {
-    color: #868e96;
-    font-size: 14px;
-    text-align: center;
-    padding: 32px 0;
-  }
-
-  .explore-tabs {
+  .view-tabs {
     display: flex;
     gap: 4px;
-    border-bottom: 1px solid #dee2e6;
-    padding-bottom: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
 
-  .tab-btn {
-    padding: 8px 16px;
+  .view-tab {
+    padding: 8px 20px;
     background: none;
     border: none;
     border-bottom: 2px solid transparent;
     font-size: 14px;
+    font-weight: 500;
     color: #868e96;
     cursor: pointer;
     margin-bottom: -1px;
+    transition: color 0.15s;
+    font-family: inherit;
   }
 
-  .tab-btn.active {
-    color: #1185fe;
-    border-bottom-color: #1185fe;
-    font-weight: 500;
-  }
+  .view-tab.active { color: #4dabf7; border-bottom-color: #4dabf7; }
+  .view-tab:hover:not(.active) { color: #c1c2c5; }
 
-  .results-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 12px;
-  }
+  .feed { display: flex; flex-direction: column; gap: 12px; }
 
-  .result-card {
-    padding: 14px;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
+  .feed-card {
+    background: #25262b;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    overflow: hidden;
     cursor: pointer;
     transition: border-color 0.15s, box-shadow 0.15s;
   }
+  .feed-card:hover { border-color: #4dabf7; box-shadow: 0 4px 20px rgba(77, 171, 247, 0.12); }
+  .feed-card.no-click { cursor: default; }
+  .feed-card.no-click:hover { border-color: rgba(255,255,255,0.1); box-shadow: none; }
 
-  .result-card:hover {
-    border-color: #1185fe;
-    box-shadow: 0 2px 8px rgba(17, 133, 254, 0.1);
+  .feed-author {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
 
+  .author-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+  .author-avatar-placeholder { width: 24px; height: 24px; border-radius: 50%; background: #373a40; flex-shrink: 0; }
+
+  .author-label { font-size: 12px; color: #868e96; flex: 1; }
+  .author-label strong { color: #c1c2c5; font-weight: 600; }
+
+  .timestamp { font-size: 11px; color: #5c5f66; white-space: nowrap; flex-shrink: 0; }
+  .timestamp:hover { color: #868e96; }
+
+  .feed-card-body { padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 6px; }
+
+  .card-footer-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+  .feed-error { color: #ff6b6b; font-size: 13px; margin: 0; }
+  .feed-empty { color: #868e96; font-size: 14px; text-align: center; padding: 32px 0; }
+
   .card-title {
-    font-size: 14px;
-    font-weight: 600;
-    margin: 0 0 4px;
-    color: #1a1b1e;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    font-size: 15px; font-weight: 700; margin: 0; color: #e7e7e7;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
 
   .card-desc {
-    font-size: 12px;
-    color: #868e96;
-    margin: 0 0 8px;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    font-size: 12px; color: #909296; margin: 0;
+    overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   }
 
-  .card-meta {
-    font-size: 11px;
-    color: #adb5bd;
+  .stop-badge {
+    display: inline-block; background: rgba(77, 171, 247, 0.1); color: #4dabf7;
+    font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; align-self: flex-start;
   }
 
-  .trail-detail {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
+  /* ── Trail detail ── */
+  .trail-detail { display: flex; flex-direction: column; gap: 16px; }
 
   .back-btn {
-    background: none;
-    border: none;
-    color: #1185fe;
-    font-size: 13px;
-    cursor: pointer;
-    padding: 0;
-    text-align: left;
+    background: none; border: none; color: #4dabf7; font-size: 13px;
+    cursor: pointer; padding: 0; text-align: left; font-family: inherit;
   }
 
-  .trail-title {
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0;
-    color: #1a1b1e;
+  .trail-title { font-size: 24px; font-weight: 900; margin: 0; color: #e7e7e7; }
+  .trail-desc { font-size: 14px; color: #909296; margin: 0; line-height: 1.5; }
+
+  .stops-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .stop-row {
+    display: flex; align-items: flex-start; gap: 14px;
+    background: #25262b; border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px; padding: 14px 16px;
   }
 
-  .trail-desc {
-    font-size: 14px;
-    color: #495057;
-    margin: 0;
+  .stop-num {
+    width: 28px; height: 28px; border-radius: 50%; background: #1185fe; color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 13px; flex-shrink: 0;
   }
 
-  .stops-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding-left: 20px;
-    margin: 0;
-  }
-
-  .stop-item {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .stop-url {
-    font-size: 13px;
-    color: #1185fe;
-    word-break: break-all;
-    text-decoration: none;
-  }
-
-  .stop-url:hover {
-    text-decoration: underline;
-  }
-
-  .stop-note {
-    font-size: 12px;
-    color: #495057;
-    margin: 0;
-  }
+  .stop-content { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+  .stop-url { font-size: 13px; color: #4dabf7; word-break: break-all; text-decoration: none; font-weight: 500; }
+  .stop-url:hover { text-decoration: underline; }
+  .stop-note { font-size: 12px; color: #909296; margin: 0; line-height: 1.5; }
 
   .walk-btn {
-    padding: 10px 20px;
-    background: #1185fe;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    align-self: flex-start;
+    padding: 12px 24px; background: #1185fe; color: white; border: none;
+    border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer;
+    align-self: flex-start; font-family: inherit; transition: background 0.15s;
   }
-
-  /* Dark mode */
-  :global(body.dark-mode) .explore-input {
-    background: #2c2e33;
-    border-color: #3a3b3c;
-    color: #e4e6eb;
-  }
-
-  :global(body.dark-mode) .result-card {
-    border-color: #3a3b3c;
-    background: #25262b;
-  }
-
-  :global(body.dark-mode) .result-card:hover {
-    border-color: #1185fe;
-  }
-
-  :global(body.dark-mode) .card-title,
-  :global(body.dark-mode) .trail-title {
-    color: #e4e6eb;
-  }
-
-  :global(body.dark-mode) .trail-desc,
-  :global(body.dark-mode) .stop-note {
-    color: #c1c2c5;
-  }
-
-  :global(body.dark-mode) .explore-tabs {
-    border-bottom-color: #3a3b3c;
-  }
+  .walk-btn:hover { background: #0070e0; }
 </style>

@@ -1,77 +1,8 @@
 import { Logger } from "./index";
 import { WebsiteStore } from "../storage/db";
 import type { Website } from "./types";
-
-export function extractOpenGraphData(html: string): {
-  title: string | null;
-  image: string | null;
-  description: string | null;
-} {
-  let title: string | null = null;
-  let image: string | null = null;
-  let description: string | null = null;
-
-  // Extract Open Graph title
-  const titleMatch = html.match(
-    /<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i,
-  );
-  if (titleMatch) {
-    title = titleMatch[1];
-  }
-
-  // Extract Open Graph image
-  const imageMatch = html.match(
-    /<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i,
-  );
-  if (imageMatch) {
-    image = imageMatch[1];
-  }
-
-  // Extract Open Graph description
-  const descriptionMatch = html.match(
-    /<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i,
-  );
-  if (descriptionMatch) {
-    description = descriptionMatch[1];
-  }
-
-  // Fallback 1: Standard meta description
-  if (!description) {
-    const metaDescriptionMatch = html.match(
-      /<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i,
-    );
-    if (metaDescriptionMatch) {
-      description = metaDescriptionMatch[1];
-    }
-  }
-
-  // Fallback 2: Twitter card description
-  if (!description) {
-    const twitterDescMatch = html.match(
-      /<meta\s+name=["']twitter:description["']\s+content=["']([^"']+)["']/i,
-    );
-    if (twitterDescMatch) {
-      description = twitterDescMatch[1];
-    }
-  }
-
-  // Fallback 3: Extract first paragraph of meaningful text
-  if (!description) {
-    description = extractFirstParagraph(html);
-  }
-
-  // Fallback 4: Use title as description if available
-  if (!description && title) {
-    description = title;
-  }
-
-  // Fallback 5: Generic placeholder
-  if (!description) {
-    description = "No description available";
-  }
-
-  return { title, image, description };
-}
+import { extractOpenGraphData } from "@rabbithole/shared/utils/og";
+export { extractOpenGraphData };
 
 export function extractFirstParagraph(html: string): string | null {
   // Remove script and style tags
