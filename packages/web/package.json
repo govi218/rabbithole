@@ -9,6 +9,7 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
   },
   "devDependencies": {
+    "@sveltejs/adapter-static": "^2.0.3",
     "@sveltejs/adapter-vercel": "^1.0.6",
     "@sveltejs/kit": "^1.0.0",
     "@typescript-eslint/eslint-plugin": "^5.45.0",
@@ -27,8 +28,8 @@
   },
   "type": "module",
   "dependencies": {
-    "@rabbithole/shared": "workspace:*",
     "@atproto/api": "^0.18.7",
+    "@rabbithole/shared": "workspace:*",
     "@vercel/analytics": "^0.1.8",
     "svelte-scrollto": "^0.2.0"
   }

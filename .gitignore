@@ -25,3 +25,9 @@ dist-ssr
 *.sln
 *.sw?
 .aider*
+
+# SvelteKit
+.svelte-kit
+.vercel
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
