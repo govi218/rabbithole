@@ -267,7 +267,7 @@
 
         <div class="privacy-note">
           <p>
-            🛡️ <strong>Privacy First:</strong> Rabbithole does not collect any information
+            ️ <strong>Privacy First:</strong> Rabbithole does not collect any information
             about you and all your data is stored locally on your device.
           </p>
         </div>
