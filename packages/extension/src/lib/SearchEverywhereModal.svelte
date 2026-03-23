@@ -15,7 +15,7 @@
   import BurrowGrid from "src/lib/BurrowGrid.svelte";
   import CollapsibleContainer from "src/lib/CollapsibleContainer.svelte";
   import { MessageRequest, Logger } from "../utils";
-  import type { Burrow, Rabbithole, Website } from "src/utils/types";
+  import type { Burrow, Rabbithole, Trail, Website } from "src/utils/types";
 
   export let isOpen: boolean = false;
 
@@ -25,9 +25,11 @@
   let allWebsites: Website[] = [];
   let allRabbitholes: Rabbithole[] = [];
   let allBurrows: Burrow[] = [];
+  let allTrails: Trail[] = [];
   let websiteResults: Website[] = [];
   let rabbitholeResults: Rabbithole[] = [];
   let burrowResults: Burrow[] = [];
+  let trailResults: Trail[] = [];
   let inputRef: HTMLDivElement;
   let isLoading: boolean = false;
   let dataLoaded: boolean = false;
@@ -35,6 +37,7 @@
   let websiteFuse: Fuse<Website>;
   let rabbitholeFuse: Fuse<Rabbithole>;
   let burrowFuse: Fuse<Burrow>;
+  let trailFuse: Fuse<Trail>;
 
   function buildIndexes(): void {
     websiteFuse = new Fuse(allWebsites, {
@@ -52,17 +55,23 @@
       includeScore: true,
       threshold: 0.3,
     });
+    trailFuse = new Fuse(allTrails, {
+      keys: ["name", "startNote"],
+      includeScore: true,
+      threshold: 0.3,
+    });
   }
 
   async function loadData(): Promise<void> {
     isLoading = true;
     try {
-      [allWebsites, allRabbitholes, allBurrows] = await Promise.all([
+      [allWebsites, allRabbitholes, allBurrows, allTrails] = await Promise.all([
         chrome.runtime.sendMessage({ type: MessageRequest.GET_ALL_ITEMS }),
         chrome.runtime.sendMessage({
           type: MessageRequest.GET_ALL_RABBITHOLES,
         }),
         chrome.runtime.sendMessage({ type: MessageRequest.GET_ALL_BURROWS }),
+        chrome.runtime.sendMessage({ type: MessageRequest.GET_ALL_TRAILS }),
       ]);
       buildIndexes();
       dataLoaded = true;
@@ -85,6 +94,7 @@
     rabbitholes: true,
     burrows: true,
     websites: true,
+    trails: true,
   };
 
   afterUpdate(() => {
@@ -102,6 +112,7 @@
     websiteResults = [];
     rabbitholeResults = [];
     burrowResults = [];
+    trailResults = [];
     dataLoaded = false;
   }
 
@@ -116,6 +127,7 @@
       websiteResults = [];
       rabbitholeResults = [];
       burrowResults = [];
+      trailResults = [];
       return;
     }
 
@@ -126,6 +138,7 @@
       .search(searchQuery)
       .map((res) => res.item);
     burrowResults = burrowFuse.search(searchQuery).map((res) => res.item);
+    trailResults = trailFuse.search(searchQuery).map((res) => res.item);
   }
 
   function handleToggleSection(section: string, event: CustomEvent<any>): void {
@@ -148,7 +161,7 @@
   }
 
   $: totalResults =
-    websiteResults.length + rabbitholeResults.length + burrowResults.length;
+    websiteResults.length + rabbitholeResults.length + burrowResults.length + trailResults.length;
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
@@ -222,6 +235,28 @@
                       }
                     }}
                   />
+                </CollapsibleContainer>
+              {/if}
+
+              {#if trailResults.length > 0}
+                <CollapsibleContainer
+                  title="Trails ({trailResults.length})"
+                  open={sectionStates.trails}
+                  on:toggle={(e) => handleToggleSection("trails", e)}
+                >
+                  <Stack spacing="xs">
+                    {#each trailResults as trail}
+                      <button
+                        class="trail-result"
+                        on:click={() => dispatch("selectTrail", trail)}
+                      >
+                        <span class="trail-name">{trail.name}</span>
+                        {#if trail.stops?.length}
+                          <span class="trail-meta">{trail.stops.length} stops</span>
+                        {/if}
+                      </button>
+                    {/each}
+                  </Stack>
                 </CollapsibleContainer>
               {/if}
 
@@ -342,6 +377,36 @@
 
   .results-container::-webkit-scrollbar-thumb:hover {
     background: #868e96;
+  }
+
+  .trail-result {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: left;
+    font-size: 14px;
+    color: #495057;
+    transition: all 0.2s;
+  }
+
+  .trail-result:hover {
+    background: rgba(17, 133, 254, 0.1);
+    color: #1185fe;
+  }
+
+  .trail-name {
+    font-weight: 500;
+  }
+
+  .trail-meta {
+    font-size: 12px;
+    color: #868e96;
   }
 
   /* Dark mode styles */
