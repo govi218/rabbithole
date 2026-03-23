@@ -689,173 +689,151 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     [MessageRequest.FOCUS_TRAIL_TAB]: async (req) => {
       return focusOrOpenTrailTab("url" in req ? req.url : undefined);
     },
-  };
 
-  if (request.type === MessageRequest.OPEN_TABS) {
-    handle(
-      sendResponse,
-      async (req) => {
-        if (!("urls" in req)) {
-          throw new Error("urls required");
+    [MessageRequest.OPEN_TABS]: async (req) => {
+      if (!("urls" in req)) {
+        throw new Error("urls required");
+      }
+      req.urls.forEach((url: string) => {
+        chrome.tabs.create({ url });
+      });
+      return { success: true };
+    },
+
+    [MessageRequest.IMPORT_DATA]: async (req) => {
+      if (!("rabbitholes" in req && "websites" in req)) {
+        throw new Error("projects required");
+      }
+
+      const burrowsToImport = (req as any).burrows as (Burrow & {
+        savedWebsites?: string[];
+      })[];
+      const websitesToImport = (req as any).websites || [];
+      const rabbitholesToImport = ((req as any).rabbitholes || []) as any[];
+
+      if (websitesToImport.length > 0) {
+        await db.saveWebsites(websitesToImport);
+      }
+
+      const existingBurrows = await db.getAllBurrows();
+      const allWebsites = await db.getAllWebsites();
+
+      const existingUrls = new Set(allWebsites.map((w) => w.url));
+      const existingBurrowMap = new Map<string, Burrow>(
+        existingBurrows.map((b) => [b.name, b]),
+      );
+      const oldIdToNewId = new Map<string, string>();
+
+      for (const burrow of burrowsToImport) {
+        const missingWebsites: any[] = [];
+        const websites = burrow.websites ?? burrow.savedWebsites ?? [];
+        if (websites) {
+          for (const url of websites) {
+            if (!existingUrls.has(url)) {
+              missingWebsites.push({
+                url,
+                name: url,
+                savedAt: Date.now(),
+                faviconUrl: "",
+                description: "Imported",
+              });
+              existingUrls.add(url);
+            }
+          }
         }
-        req.urls.forEach((url: string) => {
-          chrome.tabs.create({ url });
-        });
-        return { success: true };
-      },
-      request,
-      sender,
-    );
-    return true;
-  }
 
-  if (request.type === MessageRequest.IMPORT_DATA) {
-    handle(
-      sendResponse,
-      async (req) => {
-        if (!("burrows" in req && "websites" in req)) {
-          throw new Error("projects required");
+        if (missingWebsites.length > 0) {
+          await db.saveWebsites(missingWebsites);
         }
 
-        const burrowsToImport = req.burrows as (Burrow & {
-          savedWebsites?: string[];
-        })[];
-        const websitesToImport = req.websites || [];
-        const rabbitholesToImport = (req.rabbitholes || []) as any[];
+        let burrowName = burrow.name;
+        const existingBurrow = existingBurrowMap.get(burrowName);
 
-        if (websitesToImport.length > 0) {
-          await db.saveWebsites(websitesToImport);
-        }
+        if (existingBurrow) {
+          const existingWebsites = new Set(existingBurrow.websites);
+          const newWebsites = new Set(websites);
 
-        const existingBurrows = await db.getAllBurrows();
-        const allWebsites = await db.getAllWebsites();
-
-        // FIXME: how much scale is this required to support?
-        const existingUrls = new Set(allWebsites.map((w) => w.url));
-        const existingBurrowMap = new Map<string, Burrow>(
-          existingBurrows.map((b) => [b.name, b]),
-        );
-        const oldIdToNewId = new Map<string, string>();
-
-        for (const burrow of burrowsToImport) {
-          const missingWebsites: any[] = [];
-          const websites = burrow.websites ?? burrow.savedWebsites ?? [];
-          if (websites) {
-            for (const url of websites) {
-              if (!existingUrls.has(url)) {
-                missingWebsites.push({
-                  url,
-                  name: url,
-                  savedAt: Date.now(),
-                  faviconUrl: "",
-                  description: "Imported",
-                });
-                existingUrls.add(url);
+          let isConsistent = existingWebsites.size === newWebsites.size;
+          if (isConsistent) {
+            for (const w of newWebsites) {
+              if (!existingWebsites.has(w)) {
+                isConsistent = false;
+                break;
               }
             }
           }
 
-          if (missingWebsites.length > 0) {
-            await db.saveWebsites(missingWebsites);
-          }
-
-          let burrowName = burrow.name;
-          const existingBurrow = existingBurrowMap.get(burrowName);
-
-          if (existingBurrow) {
-            // Check consistency
-            const existingWebsites = new Set(existingBurrow.websites);
-            const newWebsites = new Set(websites);
-
-            let isConsistent = existingWebsites.size === newWebsites.size;
-            if (isConsistent) {
-              for (const w of newWebsites) {
-                if (!existingWebsites.has(w)) {
-                  isConsistent = false;
-                  break;
-                }
-              }
-            }
-
-            if (isConsistent) {
-              oldIdToNewId.set(burrow.id, existingBurrow.id);
-              continue;
-            } else {
-              let counter = 1;
-              while (existingBurrowMap.has(burrowName)) {
-                burrowName = `${burrow.name} (${counter})`;
-                counter++;
-              }
-            }
-          }
-
-          const newBurrow = await db.createNewActiveBurrow(
-            burrowName,
-            websites,
-          );
-          oldIdToNewId.set(burrow.id, newBurrow.id);
-
-          existingBurrowMap.set(burrowName, {
-            id: newBurrow.id,
-            createdAt: Date.now(),
-            name: burrowName,
-            websites: websites,
-          } as any);
-        }
-
-        // Import Rabbitholes
-        const existingRabbitholes = await db.getAllRabbitholes();
-        const existingRabbitholeMap = new Map(
-          existingRabbitholes.map((r) => [r.title, r]),
-        );
-
-        for (const rh of rabbitholesToImport) {
-          if (existingRabbitholeMap.has(rh.title)) {
+          if (isConsistent) {
+            oldIdToNewId.set(burrow.id, existingBurrow.id);
             continue;
+          } else {
+            let counter = 1;
+            while (existingBurrowMap.has(burrowName)) {
+              burrowName = `${burrow.name} (${counter})`;
+              counter++;
+            }
           }
+        }
 
+        const newBurrow = await db.createNewActiveBurrow(burrowName, websites);
+        oldIdToNewId.set(burrow.id, newBurrow.id);
+
+        existingBurrowMap.set(burrowName, {
+          id: newBurrow.id,
+          createdAt: Date.now(),
+          name: burrowName,
+          websites: websites,
+        } as any);
+      }
+
+      // Import Rabbitholes
+      const existingRabbitholes = await db.getAllRabbitholes();
+      const existingRabbitholeMap = new Map(
+        existingRabbitholes.map((r) => [r.title, r]),
+      );
+
+      for (const rh of rabbitholesToImport) {
+        const metaUrls: string[] = rh.meta || [];
+        const existing = existingRabbitholeMap.get(rh.title);
+
+        let rhId: string;
+        if (existing) {
+          rhId = existing.id;
+          if ((existing.meta || []).length > 0) continue;
+        } else {
           const newRh = await db.createNewActiveRabbithole(
             rh.title,
             rh.description,
           );
+          rhId = newRh.id;
+
           const newBurrowIds = (rh.burrows || [])
             .map((oldId: string) => oldIdToNewId.get(oldId))
             .filter((id: string | undefined) => id !== undefined);
-
           if (newBurrowIds.length > 0) {
-            await db.addBurrowsToRabbithole(newRh.id, newBurrowIds);
+            await db.addBurrowsToRabbithole(rhId, newBurrowIds);
           }
         }
 
-        return { success: true };
-      },
-      request,
-      sender,
-    );
-    return true;
-  }
-
-  if (request.type === "IMPORT_BROWSER_DATA") {
-    handle(
-      sendResponse,
-      async (req) => {
-        const { importBookmarks, importTabGroups } = req as any;
-
-        if (importBookmarks) {
-          await importBookmarksFromBrowser(db);
+        if (metaUrls.length > 0) {
+          await db.addWebsitesToRabbitholeMeta(rhId, metaUrls);
         }
+      }
 
-        if (importTabGroups) {
-          await importTabGroupsFromBrowser(db);
-        }
+      return { success: true };
+    },
 
-        return { success: true };
-      },
-      request,
-      sender,
-    );
-    return true;
-  }
+    [MessageRequest.IMPORT_BROWSER_DATA]: async (req) => {
+      const { importBookmarks, importTabGroups } = req as any;
+      if (importBookmarks) {
+        await importBookmarksFromBrowser(db);
+      }
+      if (importTabGroups) {
+        await importTabGroupsFromBrowser(db);
+      }
+      return { success: true };
+    },
+  };
 
   const handler = handlers[request.type as MessageRequest];
   if (handler) {
