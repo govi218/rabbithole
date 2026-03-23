@@ -215,7 +215,7 @@
         }
 
         await chrome.runtime.sendMessage({
-          type: "IMPORT_DATA",
+          type: MessageRequest.IMPORT_DATA,
           burrows: burrowsToImport,
           websites: websitesToImport,
           rabbitholes: rabbitholesToImport,

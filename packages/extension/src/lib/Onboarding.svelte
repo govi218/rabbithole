@@ -136,7 +136,7 @@
       isImporting = true;
       try {
         await chrome.runtime.sendMessage({
-          type: "IMPORT_BROWSER_DATA",
+          type: MessageRequest.IMPORT_BROWSER_DATA,
           importBookmarks,
           importTabGroups,
         });
