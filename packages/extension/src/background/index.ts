@@ -818,6 +818,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (metaUrls.length > 0) {
           await db.addWebsitesToRabbitholeMeta(rhId, metaUrls);
         }
+
+        const activeTabUrls: string[] = rh.activeTabs || [];
+        if (activeTabUrls.length > 0) {
+          await db.updateRabbitholeActiveTabs(rhId, activeTabUrls);
+        }
       }
 
       return { success: true };

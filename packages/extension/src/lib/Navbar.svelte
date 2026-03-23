@@ -170,11 +170,15 @@
     const rabbitholes = await chrome.runtime.sendMessage({
       type: MessageRequest.GET_ALL_RABBITHOLES,
     });
+    const trails = await chrome.runtime.sendMessage({
+      type: MessageRequest.GET_ALL_TRAILS,
+    });
 
     const exportData = {
       burrows,
       websites,
       rabbitholes,
+      trails,
     };
 
     const blob = new Blob([JSON.stringify(exportData)], {
