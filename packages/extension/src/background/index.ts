@@ -10,7 +10,7 @@ import {
   completeSidetrailWalk,
   abandonSidetrailWalk,
 } from "../atproto/sidetrail";
-import { syncFromAtProto } from "../atproto/sync";
+import { syncFromAtproto } from "../atproto/sync";
 import { storeWebsites } from "../utils/browser";
 import {
   importBookmarksFromBrowser,
@@ -496,7 +496,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     [MessageRequest.SYNC_ATPROTO]: async () => {
       const session = await getSession();
       if (!session) return { success: false };
-      const imported = await syncFromAtProto(session.did, db);
+      const imported = await syncFromAtproto(session.did, db);
       return { success: true, imported };
     },
 

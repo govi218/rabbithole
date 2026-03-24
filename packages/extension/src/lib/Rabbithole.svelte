@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
+  import Modal from "./Modal.svelte";
   import Timeline from "src/lib/Timeline.svelte";
   import Navbar from "src/lib/Navbar.svelte";
   import Explore from "@rabbithole/shared/lib/Explore.svelte";
@@ -37,11 +38,19 @@
   let showOnboarding: boolean = false;
   let showExplore: boolean = false;
 
+  let importNotice: {
+    trails: { count: number; names: string[] };
+    burrows: { count: number; names: string[] };
+  } | null = null;
+
   interface ActiveTrailWalkIndicator {
     trail: Trail;
     walk: TrailWalk;
   }
   let activeTrailWalk: ActiveTrailWalkIndicator | null = null;
+
+  let trailsExpanded: boolean = false;
+  let burrowsExpanded: boolean = false;
 
   // Apply theme immediately from localStorage to prevent flash
   const cachedDarkMode = localStorage.getItem("rabbithole-dark-mode");
@@ -174,6 +183,21 @@
 
     updateWebsites();
     await refreshTrailWalkIndicator();
+  }
+
+  function handleAuthStateChange(
+    event: CustomEvent<{ type: "login" | "logout"; imported?: { trails: { count: number; names: string[] }; burrows: { count: number; names: string[] } } }>
+  ): void {
+    const { type, imported } = event.detail;
+    
+    if (type === "login") {
+      refreshHomeState();
+      if (imported && (imported.trails?.count > 0 || imported.burrows?.count > 0)) {
+        importNotice = imported;
+      }
+    } else if (type === "logout") {
+      refreshHomeState();
+    }
   }
 
   async function updateWebsites(): Promise<void> {
@@ -379,7 +403,7 @@
       on:selectRabbithole={(event) => selectRabbithole(event.detail)}
       on:selectBurrow={handleSearchSelectBurrow}
       on:navigate={handleNavigation}
-      on:refresh={refreshHomeState}
+      on:authStateChange={handleAuthStateChange}
     />
 
     <AppShell class={!opened ? "sidebar-closed-shell" : ""}>
@@ -457,7 +481,69 @@
   </SvelteUIProvider>
 {/if}
 
+<Modal
+  isOpen={importNotice !== null}
+  title="Welcome back!"
+  on:close={() => (importNotice = null)}
+>
+  <div class="import-modal-content">
+    <p style="margin-bottom: 16px;">
+      Imported from your Bluesky account:
+    </p>
+    {#if importNotice?.trails?.count > 0}
+      <div class="import-section">
+        <div class="import-header" on:click={() => trailsExpanded = !trailsExpanded}>
+          <span class="import-arrow">{trailsExpanded ? "▼" : "▶"}</span>
+          <span>{importNotice.trails.count} trail{importNotice.trails.count !== 1 ? "s" : ""}</span>
+        </div>
+        {#if trailsExpanded}
+          <ul class="import-list">
+            {#each importNotice.trails.names as name}
+              <li>{name}</li>
+            {/each}
+          </ul>
+        {/if}
+      </div>
+    {/if}
+    {#if importNotice?.burrows?.count > 0}
+      <div class="import-section">
+        <div class="import-header" on:click={() => burrowsExpanded = !burrowsExpanded}>
+          <span class="import-arrow">{burrowsExpanded ? "▼" : "▶"}</span>
+          <span>{importNotice.burrows.count} burrow{importNotice.burrows.count !== 1 ? "s" : ""}</span>
+        </div>
+        {#if burrowsExpanded}
+          <ul class="import-list">
+            {#each importNotice.burrows.names as name}
+              <li>{name}</li>
+            {/each}
+          </ul>
+        {/if}
+      </div>
+    {/if}
+  </div>
+</Modal>
+
 <style>
+  .import-section {
+    margin-bottom: 12px;
+  }
+  .import-header {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+  }
+  .import-arrow {
+    font-size: 10px;
+  }
+  .import-list {
+    margin: 4px 0 0 24px;
+    padding-left: 0;
+  }
+  .import-list li {
+    margin-bottom: 4px;
+  }
   :global(body) {
     background-color: #f8f9fa;
     margin: 0;
