@@ -20,10 +20,6 @@
   let isLoading: boolean = false;
   let isSyncing: boolean = false;
   let error: string = null;
-  let isAuthenticated: boolean = false;
-  let userDisplayName: string = null;
-  let userHandle: string = null;
-  let userAvatar: string = null;
   let handleInput: string = "";
 
   type Actor = { handle: string; displayName?: string; avatar?: string };
@@ -93,11 +89,6 @@
     if (!response.success) {
       throw new Error("Failed to fetch profile");
     }
-
-    isAuthenticated = true;
-    userDisplayName = response.data.displayName || response.data.handle;
-    userHandle = response.data.handle;
-    userAvatar = response.data.avatar;
   }
 
   async function submitHandle(): Promise<void> {
@@ -121,7 +112,7 @@
 
       // Sync remote trails/collections and report what was imported
       isSyncing = true;
-      let imported = { trails: 0, collections: 0 };
+      let imported = { trails: { count: 0, names: [] }, burrows: { count: 0, names: [] } };
       try {
         const syncResult = await chrome.runtime.sendMessage({
           type: MessageRequest.SYNC_ATPROTO,
@@ -136,12 +127,12 @@
       }
 
       error = null;
+      isLoading = false;
       dispatch("authSuccess", { imported });
     } catch (err) {
       error = err.message || "Failed to start authentication";
     }
 
-    isLoading = false;
     handleInput = "";
   }
 
@@ -156,7 +147,8 @@
       }
       if (event.key === "ArrowUp") {
         event.preventDefault();
-        activeIndex = (activeIndex - 1 + suggestions.length) % suggestions.length;
+        activeIndex =
+          (activeIndex - 1 + suggestions.length) % suggestions.length;
         return;
       }
       if (event.key === "Escape") {
@@ -174,28 +166,12 @@
       submitHandle();
     }
   }
-
-  async function handleLogout(): Promise<void> {
-    await clearSession();
-    isAuthenticated = false;
-    userDisplayName = null;
-    userHandle = null;
-    userAvatar = null;
-  }
 </script>
 
 <div class="auth-container">
-  {#if isAuthenticated}
-    <div class="auth-status">
-      <div class="user-info">
-        {#if userAvatar}
-          <img src={userAvatar} alt={userDisplayName} class="user-avatar" />
-        {/if}
-        <span class="user-handle" title={userHandle}>{userDisplayName}</span>
-      </div>
-      <button class="auth-button logout" on:click={handleLogout}>
-        Logout
-      </button>
+  {#if isLoading}
+    <div class="auth-loading">
+      <span class="syncing-text">Connecting...</span>
     </div>
   {:else}
     <div class="handle-input-container">
@@ -237,7 +213,9 @@
                   <div class="suggestion-avatar-placeholder" />
                 {/if}
                 <div class="suggestion-text">
-                  <span class="suggestion-display">{actor.displayName || actor.handle}</span>
+                  <span class="suggestion-display"
+                    >{actor.displayName || actor.handle}</span
+                  >
                   <span class="suggestion-handle">@{actor.handle}</span>
                 </div>
               </li>
@@ -337,35 +315,17 @@
     padding: 16px;
   }
 
-  .auth-status {
+  .auth-loading {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 12px;
-    width: 100%;
+    padding: 20px;
   }
 
-  .user-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .user-avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 1px solid #eee;
-  }
-
-  .user-handle {
+  .syncing-text {
     font-size: 14px;
     color: #666;
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .bluesky-info {

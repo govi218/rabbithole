@@ -16,9 +16,9 @@ async function getOrCreateRabbithole(db: WebsiteStore, title: string) {
 async function importSidetrailTrails(
   did: string,
   db: WebsiteStore,
-): Promise<number> {
+): Promise<{ count: number; names: string[] }> {
   const res = await listRecords(did, "app.sidetrail.trail");
-  if (!res.records.length) return 0;
+  if (!res.records.length) return { count: 0, names: [] };
 
   const localTrails = await db.getAllTrails();
   const publishedUris = new Set(
@@ -26,12 +26,16 @@ async function importSidetrailTrails(
   );
 
   const missing = res.records.filter((r) => !publishedUris.has(r.uri));
-  if (!missing.length) return 0;
+  if (!missing.length) return { count: 0, names: [] };
 
   const rh = await getOrCreateRabbithole(db, SIDETRAILS_RH_TITLE);
 
+  const names: string[] = [];
   for (const record of missing) {
     const value = record.value as any;
+    const title = value.title ?? "Imported Trail";
+    names.push(title);
+
     const remoteStops: any[] = value.stops ?? [];
     const urls = remoteStops
       .map((s: any) => s.external?.uri)
@@ -69,20 +73,20 @@ async function importSidetrailTrails(
     Logger.info(`Imported sidetrail: ${value.title}`);
   }
 
-  return missing.length;
+  return { count: missing.length, names };
 }
 
 async function importSembleCollections(
   did: string,
   db: WebsiteStore,
-): Promise<number> {
+): Promise<{ count: number; names: string[] }> {
   const [collectionsRes, linksRes, cardsRes] = await Promise.all([
     listRecords(did, "network.cosmik.collection"),
     listRecords(did, "network.cosmik.collectionLink"),
     listRecords(did, "network.cosmik.card"),
   ]);
 
-  if (!collectionsRes.records.length) return;
+  if (!collectionsRes.records.length) return { count: 0, names: [] };
 
   const localBurrows = await db.getAllBurrows();
   const publishedUris = new Set(
@@ -92,23 +96,19 @@ async function importSembleCollections(
   const missing = collectionsRes.records.filter(
     (r) => !publishedUris.has(r.uri),
   );
-  if (!missing.length) return 0;
+  if (!missing.length) return { count: 0, names: [] };
 
   // card URI → { url, name }
   const cardMap = new Map<string, { url: string; name: string }>();
   for (const card of cardsRes.records) {
     const url = (card.value as any).url as string | undefined;
     if (!url) continue;
-    const name =
-      (card.value as any).content?.metadata?.title ?? url;
+    const name = (card.value as any).content?.metadata?.title ?? url;
     cardMap.set(card.uri, { url, name });
   }
 
   // collection URI → items[]
-  const collectionItems = new Map<
-    string,
-    { url: string; name: string }[]
-  >();
+  const collectionItems = new Map<string, { url: string; name: string }[]>();
   for (const link of linksRes.records) {
     const collUri = (link.value as any).collection?.uri as string | undefined;
     const cardUri = (link.value as any).card?.uri as string | undefined;
@@ -121,8 +121,13 @@ async function importSembleCollections(
 
   const rh = await getOrCreateRabbithole(db, SEMBLE_RH_TITLE);
 
+  const names: string[] = [];
+  
   for (const record of missing) {
     const value = record.value as any;
+    const name = value.name ?? "Imported Collection";
+    names.push(name);
+
     const items = collectionItems.get(record.uri) ?? [];
     const urls = items.map((i) => i.url);
 
@@ -146,22 +151,22 @@ async function importSembleCollections(
     Logger.info(`Imported Semble collection: ${value.name}`);
   }
 
-  return missing.length;
+  return { count: missing.length, names };
 }
 
-export async function syncFromAtProto(
+export async function syncFromAtproto(
   did: string,
   db: WebsiteStore,
-): Promise<{ trails: number; collections: number }> {
+): Promise<{ trails: { count: number; names: string[] }; burrows: { count: number; names: string[] } }> {
   const [trails, collections] = await Promise.all([
-    importSidetrailTrails(did, db).catch((err) => {
+    importSidetrailTrails(did, db).catch(() => {
       Logger.warn("Sidetrail import failed:", err);
-      return 0;
+      return { count: 0, names: [] };
     }),
-    importSembleCollections(did, db).catch((err) => {
+    importSembleCollections(did, db).catch(() => {
       Logger.warn("Semble import failed:", err);
-      return 0;
+      return { count: 0, names: [] };
     }),
   ]);
-  return { trails, collections };
+  return { trails, burrows: collections };
 }
