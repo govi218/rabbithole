@@ -939,6 +939,7 @@
                 <div class="date-cards">
                   {#each group.items as site (site.url)}
                     <div class="timeline-item">
+                      <!-- svelte-ignore a11y-no-static-element-interactions -->
                       <div
                         class="timeline-dot"
                         on:mouseenter={(e) => {
@@ -948,6 +949,7 @@
                         on:mousemove={updateHoverPosition}
                         on:mouseleave={clearTimestamp}
                       ></div>
+                      <!-- svelte-ignore a11y-no-static-element-interactions -->
                       <div
                         class="timeline-connector"
                         on:mouseenter={(e) => {

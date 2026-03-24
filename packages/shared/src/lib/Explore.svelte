@@ -115,6 +115,7 @@
       <div class="feed">
         {#each trails as trail}
           <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
           <div class="feed-card" on:click={() => onTrailClick ? onTrailClick(trail) : (selectedTrail = trail)}>
             <div class="feed-author">
               {#if trail.authorAvatar}
@@ -150,6 +151,7 @@
       <div class="feed">
         {#each burrows as burrow}
           <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
           <div class="feed-card" class:no-click={!onBurrowClick} on:click={() => onBurrowClick && onBurrowClick(burrow)}>
             <div class="feed-author">
               {#if burrow.authorAvatar}
@@ -241,7 +243,6 @@
 
   .feed-card-body { padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 6px; }
 
-  .card-footer-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
   .feed-error { color: #ff6b6b; font-size: 13px; margin: 0; }
   .feed-empty { color: #868e96; font-size: 14px; text-align: center; padding: 32px 0; }

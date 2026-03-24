@@ -139,6 +139,7 @@
       align="start"
       style="margin-bottom: 8px; padding-right: 24px;"
     >
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
       <div
         class="title-wrapper"
         on:mouseenter={() => (isHoveringTitle = true)}
@@ -163,6 +164,7 @@
     </Group>
 
     <!-- Body: Description -->
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div
       class="description-container"
       on:mouseenter={() => (isHoveringDesc = true)}

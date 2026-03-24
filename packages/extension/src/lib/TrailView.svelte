@@ -5,7 +5,6 @@
 
   export let trail: Trail;
   export let websites: Website[];
-  export let initialEditMode: boolean = false;
 
   const dispatch = createEventDispatcher();
 

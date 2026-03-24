@@ -4,7 +4,6 @@
   import type { Rabbithole, Burrow } from "src/utils/types";
 
   export let rabbitholes: Rabbithole[] = [];
-  export let burrows: Burrow[] = [];
   export let onSelect: (rabbitholeId: string) => Promise<void> | void;
 
   export let horizontal: boolean = false;

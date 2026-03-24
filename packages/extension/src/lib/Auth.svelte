@@ -225,6 +225,7 @@
           <ul class="suggestions">
             {#each suggestions as actor, i}
               <!-- svelte-ignore a11y-click-events-have-key-events -->
+              <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
               <li
                 class="suggestion-item"
                 class:active={i === activeIndex}
