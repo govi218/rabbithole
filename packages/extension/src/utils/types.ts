@@ -55,6 +55,7 @@ export enum MessageRequest {
   GET_CURRENT_TAB_ID,
   REGISTER_TRAIL_WALK_TAB,
   IMPORT_BROWSER_DATA,
+  IMPORT_TRAIL_FROM_EXPLORE,
 }
 
 export type TrailWalkStatus = "ACTIVE" | "COMPLETED" | "ABANDONED";
@@ -86,8 +87,11 @@ export interface Burrow {
 }
 
 export interface TrailStop {
+  tid: string;           // unique stop ID
+  title: string;         // stop title (required)
   websiteUrl: string;
   note: string;
+  buttonText?: string;   // default "Next"
 }
 
 export interface Trail {
@@ -97,6 +101,7 @@ export interface Trail {
   rabbitholeId: string;
   stops: TrailStop[];
   startNote: string;
+  description?: string;  // trail description
   endNote?: string;
   sidetrailUri?: string;
   sidetrailCid?: string;

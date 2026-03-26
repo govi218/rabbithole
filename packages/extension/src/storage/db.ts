@@ -11,7 +11,7 @@ import type {
   TrailWalk,
 } from "../utils/types";
 
-const version = 12;
+const version = 13;
 
 export class WebsiteStore {
   factory: IDBFactory;
@@ -288,6 +288,33 @@ export class WebsiteStore {
 
           if (event.oldVersion < 12) {
             db.createObjectStore("trailWalks", { keyPath: "id" });
+          }
+
+          // Migrate trails to new TrailStop format with tid, title, buttonText
+          if (event.oldVersion < 13) {
+            const trailStore = txn.objectStore("trails");
+            const trailReq = trailStore.openCursor();
+            trailReq.onsuccess = (e) => {
+              const cursor = (e.target as IDBRequest).result;
+              if (cursor) {
+                const trail = cursor.value;
+                if (trail.stops && Array.isArray(trail.stops)) {
+                  trail.stops = trail.stops.map((stop: any, i: number) => {
+                    // If missing new fields, add them
+                    if (!stop.tid) stop.tid = `stop-${i}`;
+                    if (!stop.title) {
+                      // Extract domain from URL as default title
+                      try { stop.title = new URL(stop.websiteUrl).hostname; }
+                      catch { stop.title = `Stop ${i + 1}`; }
+                    }
+                    if (!stop.buttonText) stop.buttonText = "Next";
+                    return stop;
+                  });
+                  cursor.update(trail);
+                }
+                cursor.continue();
+              }
+            };
           }
         };
 
@@ -803,7 +830,7 @@ export class WebsiteStore {
         items.forEach((item) => {
           // Use add instead of put to avoid overwriting existing websites
           // This preserves original savedAt, title, description etc.
-          const req = store.add(item);
+          const req = store.put(item);
           req.onerror = (e) => {
             // Ignore ConstraintError (duplicate key) to prevent transaction abort
             // This means the website already exists, which is what we want
@@ -1366,14 +1393,29 @@ export class WebsiteStore {
   async createTrail(
     rabbitholeId: string,
     name: string,
-    websites: string[],
+    stops: (string | TrailStop)[],  // Accept URLs or full TrailStop objects
   ): Promise<Trail> {
     const db = await this.getDb();
 
-    const trailStops: TrailStop[] = websites.map((url) => ({
-      websiteUrl: url,
-      note: "",
-    }));
+    const trailStops: TrailStop[] = stops.map((stop, i) => {
+      if (typeof stop === "string") {
+        // URL string - create TrailStop with defaults
+        const url = stop;
+        let title: string;
+        try { title = new URL(url).hostname; }
+        catch { title = `Stop ${i + 1}`; }
+        return { tid: `stop-${i}`, title, websiteUrl: url, note: "", buttonText: "Next" };
+      } else {
+        // Already a TrailStop object
+        return {
+          tid: stop.tid || `stop-${i}`,
+          title: stop.title || `Stop ${i + 1}`,
+          websiteUrl: stop.websiteUrl,
+          note: stop.note || "",
+          buttonText: stop.buttonText || "Next",
+        };
+      }
+    });
 
     const trail: Trail = {
       id: uuid(),
@@ -1528,12 +1570,11 @@ export class WebsiteStore {
       status: "ACTIVE",
     };
     return new Promise((resolve, reject) => {
-      const req = db
-        .transaction(["trailWalks"], "readwrite")
-        .objectStore("trailWalks")
-        .put(walk);
-      req.onsuccess = () => resolve(walk);
-      req.onerror = (e) => reject((e.target as IDBRequest).error);
+      const tx = db.transaction(["trailWalks"], "readwrite");
+      const req = tx.objectStore("trailWalks").put(walk);
+      tx.oncomplete = () => resolve(walk);
+      tx.onerror = (e) => reject((e.target as IDBRequest).error);
+      tx.onabort = (e) => reject((e.target as IDBRequest).error);
     });
   }
 
@@ -1643,7 +1684,7 @@ export class WebsiteStore {
       const tx = db.transaction(["websites"], "readwrite");
       const store = tx.objectStore("websites");
       for (const item of items) {
-        const req = store.add(item);
+        const req = store.put(item);
         req.onerror = () => {}; // ignore duplicates
       }
       tx.oncomplete = () => resolve();
@@ -1730,12 +1771,11 @@ export class WebsiteStore {
     const walk = await this.getTrailWalk(trailId);
     if (!walk) return;
     return new Promise((resolve, reject) => {
-      const req = db
-        .transaction(["trailWalks"], "readwrite")
-        .objectStore("trailWalks")
-        .delete(walk.id);
-      req.onsuccess = () => resolve();
-      req.onerror = (e) => reject((e.target as IDBRequest).error);
+      const tx = db.transaction(["trailWalks"], "readwrite");
+      const req = tx.objectStore("trailWalks").delete(walk.id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = (e) => reject((e.target as IDBRequest).error);
+      tx.onabort = (e) => reject((e.target as IDBRequest).error);
     });
   }
 }
