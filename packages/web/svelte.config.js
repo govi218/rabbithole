@@ -9,8 +9,9 @@ const config = {
 
   kit: {
     adapter: adapter({
-      
+      pages: "build",
       fallback: "index.html",
+      entries: ["*", "/oauth/callback"],
     }),
     alias: {
       "@rabbithole/shared/types": "../shared/src/utils/types.ts",
