@@ -190,7 +190,10 @@
   .view-tabs {
     display: flex;
     gap: 4px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  }
+  :global(body.dark-mode) .view-tabs {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
   }
 
   .view-tab {
@@ -213,30 +216,40 @@
   .feed { display: flex; flex-direction: column; gap: 12px; }
 
   .feed-card {
-    background: #25262b;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 16px;
     overflow: hidden;
     cursor: pointer;
     transition: border-color 0.15s, box-shadow 0.15s;
   }
+  :global(body.dark-mode) .feed-card {
+    background: #25262b;
+    border-color: rgba(255, 255, 255, 0.1);
+  }
   .feed-card:hover { border-color: #4dabf7; box-shadow: 0 4px 20px rgba(77, 171, 247, 0.12); }
   .feed-card.no-click { cursor: default; }
-  .feed-card.no-click:hover { border-color: rgba(255,255,255,0.1); box-shadow: none; }
+  .feed-card.no-click:hover { border-color: rgba(0,0,0,0.08); box-shadow: none; }
+  :global(body.dark-mode) .feed-card.no-click:hover { border-color: rgba(255,255,255,0.1); }
 
   .feed-author {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 10px 16px 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  }
+  :global(body.dark-mode) .feed-author {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
   }
 
   .author-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-  .author-avatar-placeholder { width: 24px; height: 24px; border-radius: 50%; background: #373a40; flex-shrink: 0; }
+  .author-avatar-placeholder { width: 24px; height: 24px; border-radius: 50%; background: #e9ecef; flex-shrink: 0; }
+  :global(body.dark-mode) .author-avatar-placeholder { background: #373a40; }
 
   .author-label { font-size: 12px; color: #868e96; flex: 1; }
-  .author-label strong { color: #c1c2c5; font-weight: 600; }
+  .author-label strong { color: #1a1b1e; font-weight: 600; }
+  :global(body.dark-mode) .author-label strong { color: #c1c2c5; }
 
   .timestamp { font-size: 11px; color: #5c5f66; white-space: nowrap; flex-shrink: 0; }
   .timestamp:hover { color: #868e96; }
@@ -248,9 +261,10 @@
   .feed-empty { color: #868e96; font-size: 14px; text-align: center; padding: 32px 0; }
 
   .card-title {
-    font-size: 15px; font-weight: 700; margin: 0; color: #e7e7e7;
+    font-size: 15px; font-weight: 700; margin: 0; color: #1a1b1e;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
+  :global(body.dark-mode) .card-title { color: #e7e7e7; }
 
   .card-desc {
     font-size: 12px; color: #909296; margin: 0;
@@ -270,15 +284,20 @@
     cursor: pointer; padding: 0; text-align: left; font-family: inherit;
   }
 
-  .trail-title { font-size: 24px; font-weight: 900; margin: 0; color: #e7e7e7; }
+  .trail-title { font-size: 24px; font-weight: 900; margin: 0; color: #1a1b1e; }
+  :global(body.dark-mode) .trail-title { color: #e7e7e7; }
   .trail-desc { font-size: 14px; color: #909296; margin: 0; line-height: 1.5; }
 
   .stops-list { display: flex; flex-direction: column; gap: 10px; }
 
   .stop-row {
     display: flex; align-items: flex-start; gap: 14px;
-    background: #25262b; border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #fff; border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 10px; padding: 14px 16px;
+  }
+  :global(body.dark-mode) .stop-row {
+    background: #25262b;
+    border-color: rgba(255, 255, 255, 0.1);
   }
 
   .stop-num {
