@@ -1,4 +1,5 @@
 {
+  "outputDirectory": "build",
   "redirects": [
     {
       "source": "/deploy",

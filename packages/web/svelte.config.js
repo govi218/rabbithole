@@ -9,7 +9,7 @@ const config = {
 
   kit: {
     adapter: adapter({
-      pages: "public",
+      
       fallback: "index.html",
     }),
     alias: {
