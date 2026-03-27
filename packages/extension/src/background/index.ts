@@ -302,6 +302,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     [MessageRequest.GET_ALL_RABBITHOLES]: async () => db.getAllRabbitholes(),
 
+    [MessageRequest.GET_ALL_TRAILS]: async () => db.getAllTrails(),
+
     [MessageRequest.FETCH_RABBITHOLE_FOR_BURROW]: async (req) => {
       if (!("burrowId" in req)) {
         throw new Error("burrowId required");
@@ -456,6 +458,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     [MessageRequest.GET_ACTIVE_TRAIL]: async () => db.getActiveTrail(),
 
     [MessageRequest.CHANGE_ACTIVE_TRAIL]: async (req) => {
+      const trail = await db.getTrail(req.trailId);
+      if (trail?.rabbitholeId) {
+        await db.changeActiveRabbithole(trail.rabbitholeId);
+      }
       if (!("trailId" in req)) {
         throw new Error("trailId required");
       }
@@ -498,6 +504,74 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (!session) return { success: false };
       const imported = await syncFromAtproto(session.did, db);
       return { success: true, imported };
+    },
+
+    [MessageRequest.IMPORT_TRAIL_FROM_EXPLORE]: async (req) => {
+      if (!("trail" in req)) {
+        throw new Error("trail required");
+      }
+      const actorTrail = req.trail as any;
+      
+      // Get or create Sidetrails rabbithole for imported trails
+      const SIDETRAILS_RH_TITLE = "Sidetrails";
+      const allRh = await db.getAllRabbitholes();
+      let rabbithole = allRh.find((r) => r.title === SIDETRAILS_RH_TITLE);
+      if (!rabbithole) {
+        rabbithole = await db.createRabbithole(SIDETRAILS_RH_TITLE);
+      }
+      
+      // Build TrailStops from ActorTrail
+      const stops = (actorTrail.stops || []).map((s: any, i: number) => ({
+        tid: s.tid || `stop-${i}`,
+        title: s.title || "",
+        websiteUrl: s.url || "",
+        note: s.note || "",
+        buttonText: s.buttonText || "Next",
+      }));
+
+      // Check if a trail with the same name and stops already exists
+      const existingTrails = await db.getAllTrails();
+      const existingTrail = existingTrails.find((t: any) => {
+        if (t.name !== actorTrail.title) return false;
+        if (t.stops?.length !== stops.length) return false;
+        return t.stops.every((s: any, i: number) => s.websiteUrl === stops[i].websiteUrl);
+      });
+
+      if (existingTrail) {
+        // Reuse existing trail - just set as active and start walk
+        await db.changeActiveTrail(existingTrail.id);
+        await db.startTrailWalk(existingTrail.id);
+        await clearTrailWalkTab(); // Clear any previous tab registration
+        const firstStop = existingTrail.stops?.[0];
+        return { trailId: existingTrail.id, firstStopUrl: firstStop?.websiteUrl };
+      }
+
+      const trail = await db.createTrail(rabbithole.id, actorTrail.title || "Imported Trail", stops);
+      await db.updateTrail(trail.id, {
+        description: actorTrail.description || "",
+        startNote: actorTrail.description || "",
+      });
+      
+      // Set as active trail (critical for overlay detection)
+      await db.changeActiveTrail(trail.id);
+      await db.startTrailWalk(trail.id); // Start the walk so overlay can detect it
+      await clearTrailWalkTab(); // Clear any previous tab registration
+      
+      // Save website stubs for the trail URLs (needed for trail walk state)
+      const urls = stops.map((s: any) => s.websiteUrl).filter(Boolean);
+      if (urls.length > 0) {
+        const stubs = urls.map((url) => ({
+          url,
+          name: url,
+          savedAt: Date.now(),
+          faviconUrl: "",
+        }));
+        await db.saveWebsiteStubs(stubs);
+        await db.addWebsitesToRabbitholeMeta(rabbithole.id, urls);
+      }
+      
+      const firstStop = trail.stops?.[0];
+      return { trailId: trail.id, firstStopUrl: firstStop?.websiteUrl };
     },
 
     [MessageRequest.PUBLISH_TRAIL]: async (req) => {
