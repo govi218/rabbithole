@@ -11,7 +11,7 @@ import {
 import { Logger } from "../utils";
 
 export const ClientMetadataUrl =
-  "https://rabbithole.to/oauth/client-metadata.json";
+  "https://rabbithole.land/oauth/client-metadata.json";
 const SessionStorageKey = "rabbithole_atproto_session";
 const DpopKeyStorageKey = "rabbithole_dpop_key";
 const scopes =

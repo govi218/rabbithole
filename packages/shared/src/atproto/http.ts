@@ -8,7 +8,7 @@ import {
 import type { ATProtoSession } from "../utils/types";
 
 export const ClientMetadataUrl =
-  "https://rabbithole.to/oauth/client-metadata.json";
+  "https://rabbithole.land/oauth/client-metadata.json";
 export const scopes =
   "atproto repo:network.cosmik.collection repo:network.cosmik.card repo:network.cosmik.collectionLink repo:app.sidetrail.trail repo:app.sidetrail.walk repo:app.sidetrail.completion";
 
