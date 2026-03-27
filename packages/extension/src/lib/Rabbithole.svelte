@@ -453,6 +453,12 @@
         <div class="timeline-wrapper">
           {#if showExplore}
             <Explore
+              onBurrowClick={(burrow) => {
+                const uri = burrow.uri;
+                const did = uri.split("/")[2];
+                const rkey = uri.split("/")[4];
+                window.open(`https://rabbithole.land/burrow/${did}/${rkey}`, "_blank");
+              }}
               onWalkTrail={async (actorTrail) => {
                 const result = await chrome.runtime.sendMessage({
                   type: MessageRequest.IMPORT_TRAIL_FROM_EXPLORE,
