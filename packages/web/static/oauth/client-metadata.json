@@ -1,10 +1,10 @@
 {
-  "client_id": "https://rabbithole.to/oauth/client-metadata.json",
+  "client_id": "https://rabbithole.land/oauth/client-metadata.json",
   "client_name": "Rabbithole",
-  "client_uri": "https://rabbithole.to",
-  "logo_uri": "https://rabbithole.to/logo.png",
+  "client_uri": "https://rabbithole.land",
+  "logo_uri": "https://rabbithole.land/logo.png",
   "redirect_uris": [
-    "https://rabbithole.to/oauth/callback",
+    "https://rabbithole.land/oauth/callback",
     "http://127.0.0.1:5173/oauth/callback",
     "https://nbklhnbdhfhbcojfbhncgkdlppbkiaec.chromiumapp.org/callback",
     "https://lmjlomngicapdikpnodgohfhhhfpeidp.chromiumapp.org/callback"
