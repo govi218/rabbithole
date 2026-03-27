@@ -51,21 +51,24 @@ async function importSidetrailTrails(
     await db.saveWebsiteStubs(stubs);
     if (urls.length) await db.addWebsitesToRabbitholeMeta(rh.id, urls);
 
-    // createTrail builds TrailStop[] from url list; we'll patch notes after
+    // Build TrailStops with full metadata from remote
+    const trailStops = remoteStops.map((s: any, i: number) => ({
+      tid: s.tid || `stop-${i}`,
+      title: s.title || "",
+      websiteUrl: s.external?.uri || "",
+      note: s.content || "",
+      buttonText: s.buttonText || "Next",
+    }));
+
     const trail = await db.createTrail(
       rh.id,
       value.title ?? "Imported Trail",
-      urls,
+      trailStops,
     );
 
-    const patchedStops = trail.stops.map((stop, i) => ({
-      ...stop,
-      note: remoteStops[i]?.content ?? "",
-    }));
-
     await db.updateTrail(trail.id, {
+      description: value.description ?? "",
       startNote: value.description ?? "",
-      stops: patchedStops,
       sidetrailUri: record.uri,
       sidetrailCid: record.cid,
     });
