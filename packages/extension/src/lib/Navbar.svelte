@@ -270,6 +270,11 @@
   <Auth on:authSuccess={handleAuthSuccess} showWhyBluesky={true} />
 </Modal>
 
+<OnboardingModal 
+  isOpen={showOnboardingModal} 
+  on:close={handleOnboardingClose} 
+/>
+
 <input
   type="file"
   accept=".json"
@@ -605,5 +610,8 @@
     .navbar-center {
       max-width: 160px;
     }
+  }
+  :global(.mantine-Menu-dropdown) {
+    z-index: 1001 !important;
   }
 </style>
