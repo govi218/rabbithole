@@ -20,6 +20,8 @@
     const onScroll = () => {
       scrolled = window.scrollY > 10;
     };
+    // Web app is always dark mode
+    document.body.classList.add("dark-mode");
     window.addEventListener("scroll", onScroll, { passive: true });
 
     session = getSession();
