@@ -281,7 +281,7 @@
 <nav class="navbar">
   <div class="navbar-left">
     <div class="logo-container">
-      <img class="logo" alt="Rabbithole logo" src="../assets/icons/logo.png" />
+      <img class="logo" alt="Rabbithole logo" src="../assets/icons/logo.png" /><span class="alpha-badge">alpha</span>
     </div>
     <Button
       variant="subtle"
@@ -462,6 +462,18 @@
     width: 38px;
     height: auto;
     opacity: 0.95;
+  }
+
+  .alpha-badge {
+    font-size: 9px;
+    font-weight: 700;
+    color: #4dabf7;
+    background: rgba(77, 171, 247, 0.15);
+    padding: 2px 5px;
+    border-radius: 4px;
+    margin-left: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
   :global(.rabbitholes-btn) {
