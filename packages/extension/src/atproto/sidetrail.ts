@@ -15,11 +15,11 @@ export async function publishTrail(
   existingRkey?: string,
   existingCid?: string,
 ): Promise<SidetrailRef> {
-  const stops = trail.stops.map((stop, index) => ({
-    tid: `stop-${index}`,
-    title: stop.websiteUrl,
+  const stops = trail.stops.map((stop) => ({
+    tid: stop.tid,
+    title: stop.title,
     content: stop.note || "",
-    buttonText: "Next",
+    buttonText: stop.buttonText || "Next",
     external: {
       uri: stop.websiteUrl,
     },
@@ -28,7 +28,7 @@ export async function publishTrail(
   const record = {
     $type: "app.sidetrail.trail",
     title: trail.name,
-    description: trail.startNote || "",
+    description: trail.description || trail.startNote || "",
     stops,
   };
 
