@@ -19,6 +19,19 @@ async function getMyTabId(): Promise<number | null> {
 
 async function resolveTrailMode(): Promise<boolean> {
   try {
+    const myTabId = await getMyTabId();
+    if (myTabId === null) {
+      return false;
+    }
+
+    const tabRes = await chrome.runtime.sendMessage({
+      type: MessageRequest.GET_TRAIL_WALK_TAB,
+    });
+
+    if (tabRes?.tabId === myTabId) {
+      return true;
+    }
+
     const activeTrail = await chrome.runtime.sendMessage({
       type: MessageRequest.GET_ACTIVE_TRAIL,
     });
@@ -35,33 +48,28 @@ async function resolveTrailMode(): Promise<boolean> {
       return false;
     }
 
-    const myTabId = await getMyTabId();
-    if (myTabId === null) {
-      return false;
-    }
-
+    // Check if this page is a trail stop
     const currentUrl = window.location.href;
+    const normalizeUrl = (url: string) => {
+      try {
+        const u = new URL(url);
+        return u.origin + u.pathname.replace(/\/+$/, '');
+      } catch {
+        return url.replace(/\/+$/, '');
+      }
+    };
 
-    // Check if this page is one of the trail stops
+    const normalizedCurrent = normalizeUrl(currentUrl);
     const isTrailStop = activeTrail.stops?.some(
-      (s: any) => s.websiteUrl === currentUrl,
+      (s: any) => s.websiteUrl && normalizeUrl(s.websiteUrl) === normalizedCurrent,
     );
 
     if (!isTrailStop) {
       return false;
     }
 
-    // This page is a trail stop. Check the registered tab.
-    const tabRes = await chrome.runtime.sendMessage({
-      type: MessageRequest.GET_TRAIL_WALK_TAB,
-    });
-
-    if (tabRes?.tabId === myTabId) {
-      return true;
-    }
-
+    // No tab registered or registered tab doesn't exist - claim this tab
     if (tabRes?.tabId === null || tabRes?.tabId === undefined) {
-      // No tab registered yet — claim this tab
       await chrome.runtime.sendMessage({
         type: MessageRequest.REGISTER_TRAIL_WALK_TAB,
         tabId: myTabId,
@@ -69,12 +77,11 @@ async function resolveTrailMode(): Promise<boolean> {
       return true;
     }
 
-    // Another tab is registered. Check if it still exists.
+    // Check if registered tab still exists
     try {
       await chrome.tabs.get(tabRes.tabId);
       return false;
     } catch {
-      // Registered tab no longer exists — claim this one
       await chrome.runtime.sendMessage({
         type: MessageRequest.REGISTER_TRAIL_WALK_TAB,
         tabId: myTabId,

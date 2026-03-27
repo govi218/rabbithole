@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
+  import { MessageRequest } from "src/utils";
   import type { Trail, Website } from "src/utils/types";
   import TimelineCard from "./TimelineCard.svelte";
 
@@ -16,11 +17,26 @@
     dispatch("save", { trail });
   }
 
-  export function startTrail() {
-    const trailPageUrl = chrome.runtime.getURL(
-      `src/trail/trail.html?trailId=${trail.id}`,
-    );
-    window.open(trailPageUrl, "_blank");
+  export async function startTrail() {
+    // Start the trail walk directly and navigate to the first stop
+    const walk = await chrome.runtime.sendMessage({
+      type: MessageRequest.START_TRAIL_WALK,
+      trailId: trail.id,
+    });
+
+    const firstStop = trail.stops?.[0];
+    if (!firstStop) return;
+
+    // Check if first stop is a concept stop (no URL)
+    if (!firstStop.websiteUrl) {
+      const trailPageUrl = chrome.runtime.getURL(
+        `src/trail/trail.html?trailId=${trail.id}&concept=1`,
+      );
+      window.location.href = trailPageUrl;
+    } else {
+      // Navigate directly to the first URL - the modal will auto-show if there's a note
+      window.location.href = firstStop.websiteUrl;
+    }
   }
 
   // Keep these exports so Timeline.svelte doesn't break

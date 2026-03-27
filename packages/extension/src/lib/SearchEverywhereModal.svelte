@@ -151,9 +151,14 @@
   }
 
   function handleSelectBurrow(burrow: Burrow): void {
-    if (!burrow) return;
     close();
     dispatch("selectBurrow", burrow);
+  }
+
+  function handleSelectTrail(trail: Trail): void {
+    
+    close();
+    dispatch("selectTrail", trail);
   }
 
   $: if (searchQuery) {
@@ -161,14 +166,17 @@
   }
 
   $: totalResults =
-    websiteResults.length + rabbitholeResults.length + burrowResults.length + trailResults.length;
+    websiteResults.length +
+    rabbitholeResults.length +
+    burrowResults.length +
+    trailResults.length;
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
 
 {#if isOpen}
   <!-- svelte-ignore a11y-click-events-have-key-events -->
-      <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="modal-overlay" on:click={close}>
     <div class="modal-content" on:click|stopPropagation>
       <div class="modal-header">
@@ -215,7 +223,6 @@
                 >
                   <RabbitholeGrid
                     rabbitholes={rabbitholeResults}
-                    burrows={allBurrows}
                     onSelect={handleSelectRabbithole}
                   />
                 </CollapsibleContainer>
@@ -245,19 +252,15 @@
                   open={sectionStates.trails}
                   on:toggle={(e) => handleToggleSection("trails", e)}
                 >
-                  <Stack spacing="xs">
-                    {#each trailResults as trail}
-                      <button
-                        class="trail-result"
-                        on:click={() => dispatch("selectTrail", trail)}
-                      >
-                        <span class="trail-name">{trail.name}</span>
-                        {#if trail.stops?.length}
-                          <span class="trail-meta">{trail.stops.length} stops</span>
-                        {/if}
-                      </button>
-                    {/each}
-                  </Stack>
+                  <BurrowGrid
+                    trails={trailResults}
+                    onSelectTrail={(trailId) => {
+                      const trail = allTrails.find((t) => t.id === trailId);
+                      if (trail) {
+                        handleSelectTrail(trail);
+                      }
+                    }}
+                  />
                 </CollapsibleContainer>
               {/if}
 
