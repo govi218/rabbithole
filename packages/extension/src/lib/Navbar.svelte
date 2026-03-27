@@ -243,6 +243,10 @@
     dispatch("selectBurrow", event.detail);
   }
 
+  function handleSearchSelectTrail(event: CustomEvent<any>): void {
+    dispatch("selectTrail", event.detail);
+  }
+
   async function handleOnboardingClose(): Promise<void> {
     showOnboardingModal = false;
   }
@@ -254,6 +258,7 @@
   bind:isOpen={showSearchModal}
   on:selectRabbithole={handleSearchSelectRabbithole}
   on:selectBurrow={handleSearchSelectBurrow}
+  on:selectTrail={handleSearchSelectTrail}
 />
 
 <Modal
@@ -264,8 +269,6 @@
 >
   <Auth on:authSuccess={handleAuthSuccess} showWhyBluesky={true} />
 </Modal>
-  on:close={handleOnboardingClose}
-/>
 
 <input
   type="file"
@@ -420,11 +423,6 @@
 </nav>
 
 <style>
-
-
-
-
-
   .navbar {
     position: fixed;
     top: 0;

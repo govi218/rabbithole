@@ -103,12 +103,38 @@
 
   async function focusTrailTab(): Promise<void> {
     if (!activeTrailWalk) return;
-    const firstStopUrl: string | null =
-      activeTrailWalk.trail?.stops?.[0]?.websiteUrl ?? null;
+
+    // Get current stop based on progress
+    const visitedCount = activeTrailWalk.walk?.visitedStops?.length ?? 0;
+    const currentStop = activeTrailWalk.trail?.stops?.[visitedCount];
+
+    // Determine URL to open
+    let targetUrl: string | null = null;
+    if (currentStop?.websiteUrl) {
+      targetUrl = currentStop.websiteUrl;
+    } else {
+      // Concept stop or no URL - open trail page
+      const trailId = activeTrailWalk.trail?.id;
+      if (trailId) {
+        targetUrl = chrome.runtime.getURL(
+          `src/trail/trail.html?trailId=${trailId}&concept=1`,
+        );
+      }
+    }
+
     await chrome.runtime.sendMessage({
       type: MessageRequest.FOCUS_TRAIL_TAB,
-      url: firstStopUrl,
+      url: targetUrl,
     });
+  }
+
+  async function abandonTrailWalk(): Promise<void> {
+    if (!activeTrailWalk) return;
+    await chrome.runtime.sendMessage({
+      type: MessageRequest.ABANDON_TRAIL_WALK,
+      trailId: activeTrailWalk.trail?.id,
+    });
+    activeTrailWalk = null;
   }
 
   async function handleOnboardingComplete(): Promise<void> {
@@ -186,13 +212,22 @@
   }
 
   function handleAuthStateChange(
-    event: CustomEvent<{ type: "login" | "logout"; imported?: { trails: { count: number; names: string[] }; burrows: { count: number; names: string[] } } }>
+    event: CustomEvent<{
+      type: "login" | "logout";
+      imported?: {
+        trails: { count: number; names: string[] };
+        burrows: { count: number; names: string[] };
+      };
+    }>,
   ): void {
     const { type, imported } = event.detail;
-    
+
     if (type === "login") {
       refreshHomeState();
-      if (imported && (imported.trails?.count > 0 || imported.burrows?.count > 0)) {
+      if (
+        imported &&
+        (imported.trails?.count > 0 || imported.burrows?.count > 0)
+      ) {
         importNotice = imported;
       }
     } else if (type === "logout") {
@@ -386,6 +421,12 @@
     await selectBurrow(event.detail.id);
   }
 
+  async function handleSearchSelectTrail(
+    event: CustomEvent<Burrow>,
+  ): Promise<void> {
+    await selectTrail(event.detail.id);
+  }
+
   async function handleNavigation(): Promise<void> {
     await refreshHomeState();
   }
@@ -402,6 +443,7 @@
       on:toggleTheme={toggleTheme}
       on:selectRabbithole={(event) => selectRabbithole(event.detail)}
       on:selectBurrow={handleSearchSelectBurrow}
+      on:selectTrail={handleSearchSelectTrail}
       on:navigate={handleNavigation}
       on:authStateChange={handleAuthStateChange}
     />
@@ -411,8 +453,21 @@
         <div class="timeline-wrapper">
           {#if showExplore}
             <Explore
-              onWalkTrail={(trail) => {
-                // TODO: import trail and start walk
+              onWalkTrail={async (actorTrail) => {
+                const result = await chrome.runtime.sendMessage({
+                  type: MessageRequest.IMPORT_TRAIL_FROM_EXPLORE,
+                  trail: actorTrail,
+                });
+                if (result?.trailId) {
+                  if (result.firstStopUrl) {
+                    window.location.href = result.firstStopUrl;
+                  } else {
+                    window.location.href = chrome.runtime.getURL(
+                      `src/trail/trail.html?trailId=${result.trailId}`,
+                    );
+                  }
+                  await refreshHomeState();
+                }
               }}
             />
           {:else if isLoadingHome}
@@ -433,7 +488,11 @@
                   — stop {(activeTrailWalk.walk?.visitedStops?.length ?? 0) + 1}
                   of {activeTrailWalk.trail?.stops?.length ?? 0}
                 </span>
-                <span class="trail-walk-cta">Go to tab →</span>
+                <span
+                  class="trail-walk-cta"
+                  on:click|stopPropagation={abandonTrailWalk}>Abandon</span
+                >
+                <span class="trail-walk-cta">Continue</span>
               </button>
             {/if}
 
@@ -487,14 +546,19 @@
   on:close={() => (importNotice = null)}
 >
   <div class="import-modal-content">
-    <p style="margin-bottom: 16px;">
-      Imported from your Bluesky account:
-    </p>
+    <p style="margin-bottom: 16px;">Imported from your Bluesky account:</p>
     {#if importNotice?.trails?.count > 0}
       <div class="import-section">
-        <div class="import-header" on:click={() => trailsExpanded = !trailsExpanded}>
+        <div
+          class="import-header"
+          on:click={() => (trailsExpanded = !trailsExpanded)}
+        >
           <span class="import-arrow">{trailsExpanded ? "▼" : "▶"}</span>
-          <span>{importNotice.trails.count} trail{importNotice.trails.count !== 1 ? "s" : ""}</span>
+          <span
+            >{importNotice.trails.count} trail{importNotice.trails.count !== 1
+              ? "s"
+              : ""}</span
+          >
         </div>
         {#if trailsExpanded}
           <ul class="import-list">
@@ -507,9 +571,17 @@
     {/if}
     {#if importNotice?.burrows?.count > 0}
       <div class="import-section">
-        <div class="import-header" on:click={() => burrowsExpanded = !burrowsExpanded}>
+        <div
+          class="import-header"
+          on:click={() => (burrowsExpanded = !burrowsExpanded)}
+        >
           <span class="import-arrow">{burrowsExpanded ? "▼" : "▶"}</span>
-          <span>{importNotice.burrows.count} burrow{importNotice.burrows.count !== 1 ? "s" : ""}</span>
+          <span
+            >{importNotice.burrows.count} burrow{importNotice.burrows.count !==
+            1
+              ? "s"
+              : ""}</span
+          >
         </div>
         {#if burrowsExpanded}
           <ul class="import-list">
@@ -598,10 +670,10 @@
   }
 
   .trail-walk-banner {
+    width: 100%;
     display: flex;
     align-items: center;
     gap: 10px;
-    width: 100%;
     background: linear-gradient(
       135deg,
       rgba(17, 133, 254, 0.1),
@@ -610,11 +682,11 @@
     border: 1px solid rgba(17, 133, 254, 0.25);
     border-radius: 10px;
     padding: 10px 16px;
-    margin-bottom: 20px;
     cursor: pointer;
     text-align: left;
     transition: all 0.2s;
     font-family: inherit;
+    margin-bottom: 16px;
   }
 
   .trail-walk-banner:hover {
@@ -626,6 +698,19 @@
     border-color: rgba(17, 133, 254, 0.45);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(17, 133, 254, 0.15);
+  }
+
+  .trail-walk-cta {
+    color: #ef4444;
+    font-weight: 600;
+    margin-left: 8px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: rgba(17, 133, 254, 0.25);
+  }
+
+  .trail-walk-cta:hover {
+    background: rgba(17, 133, 254, 0.15);
   }
 
   .trail-walk-icon {

@@ -50,7 +50,11 @@
   let trail: Trail | null = null;
   let walk: TrailWalk | null = null;
   let trailWebsites: Website[] = [];
+  let showStopNote: boolean = false;
+  let lastSeenStopKey: string = "";
 
+  $: hasStopNote = currentStop?.note && currentStop.note.trim().length > 0;
+  $: hasStopTitle = currentStop?.title && currentStop.title.trim().length > 0;
   $: visitedCount = walk?.visitedStops?.length ?? 0;
   $: currentStop = (trail?.stops?.[visitedCount] ?? null) as TrailStop | null;
   $: totalStops = trail?.stops?.length ?? 0;
@@ -75,6 +79,26 @@
     trail = res.trail;
     walk = res.walk;
     trailWebsites = res.websites;
+
+    // Auto-show note if this is a new stop with info, or starting note on first stop
+    const visitedCount = walk?.visitedStops?.length ?? 0;
+    const currentStopData = res.trail?.stops?.[visitedCount];
+    const stopKey = `${res.trail?.id}-${visitedCount}`;
+
+    if (stopKey !== lastSeenStopKey) {
+      // Check for starting note on first stop
+      if (visitedCount === 0 && res.trail?.startNote) {
+        showStopNote = true;
+        lastSeenStopKey = stopKey;
+      }
+      // Check for stop-specific note/title
+      else if (currentStopData && (currentStopData.note || currentStopData.title)) {
+        showStopNote = true;
+        lastSeenStopKey = stopKey;
+      } else {
+        showStopNote = false;
+      }
+    }
   }
 
   async function advanceTrail(): Promise<void> {
@@ -101,13 +125,14 @@
       return;
     }
 
-    // If the next stop has a note, navigate back to the trail page to show it
-    if (nextStop.note && nextStop.note.trim()) {
+    // Check if next stop is a concept stop (no URL)
+    if (!nextStop.websiteUrl) {
       const trailPageUrl = chrome.runtime.getURL(
-        `src/trail/trail.html?trailId=${trail.id}&showNote=1`,
+        `src/trail/trail.html?trailId=${trail.id}&concept=1`,
       );
       window.location.href = trailPageUrl;
     } else {
+      // Navigate directly to the URL - the modal will auto-show if there's a note
       window.location.href = nextStop.websiteUrl;
     }
   }
@@ -484,6 +509,11 @@
             <div class="trail-step-label">All stops visited!</div>
           {/if}
         </div>
+        {#if hasStopTitle || hasStopNote}
+          <button class="trail-info-btn" on:click={() => showStopNote = true}>
+            ℹ️ View Info
+          </button>
+        {/if}
         <div class="trail-nav-actions">
           <button
             class="trail-nav-btn"
@@ -502,7 +532,9 @@
         <div class="trail-done">
           <div class="trail-step-label">Trail complete 🎉</div>
         </div>
-      {:else if isSavingPage}
+      {/if}
+
+      {#if !trailMode && isSavingPage}
         <div class="save-page-form">
           <div class="form-header">
             <Text size="xs" weight="bold" color="dimmed">Save to Burrow</Text>
@@ -537,7 +569,7 @@
             {saveSuccess ? "Saved!" : "Save Page"}
           </Button>
         </div>
-      {:else}
+      {:else if !trailMode}
         <div class="container-selector-wrapper">
           <ContainerSelector
             {burrows}
@@ -558,17 +590,48 @@
   </div>
 {/if}
 
+{#if showStopNote && (visitedCount === 0 ? trail?.startNote : currentStop)}
+  <div class="stop-note-modal" on:click={() => showStopNote = false}>
+    <div class="stop-note-content" on:click|stopPropagation={() => {}}>
+      <div class="stop-note-header">
+        <div class="trail-step-label">{visitedCount === 0 ? "Starting Point" : `Stop ${visitedCount + 1} of ${totalStops}`}</div>
+        <button class="stop-note-close" on:click={() => showStopNote = false}>×</button>
+      </div>
+      {#if visitedCount === 0}
+        <!-- Show starting note -->
+        {#if trail?.name}
+          <h3 class="stop-note-title">{trail.name}</h3>
+        {/if}
+        {#if trail?.startNote}
+          <p class="stop-note-text">{trail.startNote}</p>
+        {/if}
+      {:else}
+        <!-- Show stop-specific note -->
+        {#if hasStopTitle}
+          <h3 class="stop-note-title">{currentStop.title}</h3>
+        {/if}
+        {#if hasStopNote}
+          <p class="stop-note-text">{currentStop.note}</p>
+        {/if}
+      {/if}
+      <button class="trail-nav-btn primary" on:click={() => showStopNote = false}>
+        Got it
+      </button>
+    </div>
+  </div>
+{/if}
+
 <style>
   .rabbithole-overlay {
     z-index: 2147483647;
     width: 260px;
     position: fixed;
     bottom: 24px;
-    background-color: rgba(255, 255, 255, 0.4);
+    background-color: rgba(37, 38, 43, 0.4);
     backdrop-filter: blur(10px);
     border-radius: 12px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 16px;
     display: flex;
     flex-direction: column;
@@ -577,16 +640,16 @@
   }
 
   .rabbithole-overlay:hover {
-    background-color: rgba(255, 255, 255, 0.95);
+    background-color: rgba(37, 38, 43, 0.95);
   }
 
   .rabbithole-overlay.rabbithole-trail {
     border-color: rgba(17, 133, 254, 0.25);
-    background-color: rgba(255, 255, 255, 0.6);
+    background-color: rgba(37, 38, 43, 0.6);
   }
 
   .rabbithole-overlay.rabbithole-trail:hover {
-    background-color: rgba(255, 255, 255, 0.97);
+    background-color: rgba(37, 38, 43, 0.97);
   }
 
   .rabbithole-overlay.rabbithole-popup {
@@ -707,7 +770,7 @@
   .trail-step-name {
     font-size: 13px;
     font-weight: 700;
-    color: #1a1b1e;
+    color: #e7e7e7;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -722,8 +785,8 @@
   .trail-nav-btn {
     padding: 7px 14px;
     border-radius: 8px;
-    border: 1px solid rgba(0, 0, 0, 0.12);
-    background: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #25262b;
     cursor: pointer;
     font-size: 13px;
     font-weight: 700;
@@ -732,7 +795,7 @@
   }
 
   .trail-nav-btn:hover:not(:disabled) {
-    background: #f1f3f5;
+    background: #2c2e33;
   }
 
   .trail-nav-btn:disabled {
@@ -797,47 +860,75 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
-  @media (prefers-color-scheme: dark) {
-    .rabbithole-overlay:not(.rabbithole-popup) {
-      background-color: rgba(37, 38, 43, 0.4);
-      border-color: rgba(255, 255, 255, 0.1);
-      color: white;
-    }
-    .rabbithole-overlay:not(.rabbithole-popup):hover {
-      background-color: rgba(37, 38, 43, 0.95);
-    }
-    .rabbithole-overlay.rabbithole-trail:not(.rabbithole-popup) {
-      border-color: rgba(77, 171, 247, 0.3);
-    }
-    .rabbithole-overlay.rabbithole-popup {
-      background-color: transparent;
-    }
-    .rabbithole-overlay.rabbithole-popup:hover {
-      background-color: transparent;
-    }
-    :global(.rabbithole-icon.header-icon:hover) {
-      background-color: rgba(255, 255, 255, 0.1) !important;
-    }
-    .save-page-form {
-      background: rgba(0, 0, 0, 0.2);
-      border-color: rgba(255, 255, 255, 0.1);
-    }
-    :global(.save-input input),
-    :global(.save-input textarea) {
-      background-color: rgba(0, 0, 0, 0.3) !important;
-      color: white !important;
-      border-color: rgba(255, 255, 255, 0.1) !important;
-    }
-    .trail-step-name {
-      color: #e7e7e7;
-    }
-    .trail-nav-btn {
-      background: #25262b;
-      border-color: rgba(255, 255, 255, 0.12);
-      color: #c1c2c5;
-    }
-    .trail-nav-btn:hover:not(:disabled) {
-      background: #2c2e33;
-    }
+  .trail-info-btn {
+    background: rgba(77, 171, 247, 0.15);
+    border: 1px solid rgba(77, 171, 247, 0.3);
+    color: #4dabf7;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 8px;
+  }
+  .trail-info-btn:hover {
+    background: rgba(77, 171, 247, 0.25);
+  }
+
+  .stop-note-modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2147483647;
+    padding: 24px;
+    box-sizing: border-box;
+  }
+  .stop-note-content {
+    background: #25262b;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 480px;
+    width: 100%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow: hidden;
+  }
+  .stop-note-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .stop-note-close {
+    background: none;
+    border: none;
+    color: #868e96;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+  }
+  .stop-note-close:hover { color: #c1c2c5; }
+  .stop-note-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #e7e7e7;
+    margin: 0;
+  }
+  .stop-note-text {
+    font-size: 14px;
+    color: #c1c2c5;
+    line-height: 1.6;
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-y: auto;
+    max-height: 50vh;
+    padding-right: 8px;
   }
 </style>

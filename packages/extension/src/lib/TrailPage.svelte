@@ -22,7 +22,8 @@
   const params = new URLSearchParams(window.location.search);
   const trailId: string | null = params.get("trailId");
   const isCompleted: boolean = params.get("completed") === "1";
-  const showNote: boolean = params.get("showNote") === "1";
+  // showNote parameter removed - modal auto-shows on the page itself
+  const isConcept: boolean = params.get("concept") === "1";
 
   onMount(async () => {
     const cachedDarkMode = localStorage.getItem("rabbithole-dark-mode");
@@ -60,7 +61,7 @@
   $: currentStop = (trail?.stops?.[visitedCount] ?? null) as TrailStop | null;
   $: totalStops = trail?.stops?.length ?? 0;
 
-  $: upcomingNote = showNote && currentStop ? currentStop.note : "";
+
 
   function getWebsite(url: string): Website | undefined {
     return websites.find((w) => w.url === url);
@@ -70,9 +71,13 @@
     window.location.href = url;
   }
 
-  async function acknowledgeUpcomingNote(): Promise<void> {
-    if (!currentStop) return;
-    goToStop(currentStop.websiteUrl);
+  function goToNextStop(stop: TrailStop): void {
+    if (!stop.websiteUrl) {
+      // Concept stop - show on trail page
+      window.location.href = `${window.location.pathname}?trailId=${trailId}&concept=1`;
+    } else {
+      goToStop(stop.websiteUrl);
+    }
   }
 
   async function startWalk(): Promise<void> {
@@ -84,6 +89,13 @@
     const firstStop: TrailStop | undefined = trail?.stops?.[0];
     if (!firstStop) return;
 
+    // Check if first stop is a concept stop (no URL)
+    if (!firstStop.websiteUrl) {
+      // Show concept page directly
+      window.location.href = `${window.location.pathname}?trailId=${trailId}&concept=1`;
+      return;
+    }
+
     if (currentNoteText) {
       showNoteModal = true;
     } else {
@@ -94,24 +106,29 @@
   async function acknowledgeStartNote(): Promise<void> {
     showNoteModal = false;
     const firstStop: TrailStop | undefined = trail?.stops?.[0];
-    if (firstStop) {
+    if (firstStop && firstStop.websiteUrl) {
       goToStop(firstStop.websiteUrl);
     }
   }
 
   async function advance(): Promise<void> {
     if (!currentStop || !trail) return;
+    
+    // For concept stops, mark as visited without URL
+    const urlToMark = currentStop.websiteUrl || `concept:${currentStop.tid || visitedCount}`;
     walk = await chrome.runtime.sendMessage({
       type: MessageRequest.ADVANCE_TRAIL_WALK,
       trailId,
-      websiteUrl: currentStop.websiteUrl,
+      websiteUrl: urlToMark,
     });
     const nextStop: TrailStop | undefined =
       trail.stops[walk.visitedStops.length];
     if (nextStop) {
-      if (nextStop.note && nextStop.note.trim()) {
-        window.location.href = `${window.location.pathname}?trailId=${trailId}&showNote=1`;
+      // Check if next stop is a concept stop
+      if (!nextStop.websiteUrl) {
+        window.location.href = `${window.location.pathname}?trailId=${trailId}&concept=1`;
       } else {
+        // Navigate directly to the URL - the modal will auto-show if there's a note
         goToStop(nextStop.websiteUrl);
       }
     } else {
@@ -176,7 +193,7 @@
             <div class="completion-stop">
               <div class="stop-check">✓</div>
               <div class="stop-name">
-                {getWebsite(stop.websiteUrl)?.name ?? stop.websiteUrl}
+                {stop.title || getWebsite(stop.websiteUrl)?.name || stop.websiteUrl || "Concept stop"}
               </div>
             </div>
           {/each}
@@ -192,19 +209,28 @@
         </div>
       </div>
     </div>
-  {:else if showNote && currentStop}
-    <!-- Between-stop note screen -->
-    <div class="note-screen">
-      <div class="note-card">
-        <div class="note-screen-label">
-          Before stop {visitedCount + 1} of {totalStops}...
+  {:else if isConcept && currentStop}
+    <!-- Concept stop view (no URL, just content) -->
+    <div class="concept-screen">
+      <div class="concept-card">
+        <div class="progress-dots" style="margin-bottom: 24px;">
+          {#each trail.stops as stop, i}
+            <div
+              class="dot"
+              class:visited={walk?.visitedStops.includes(stop.websiteUrl) || (i < visitedCount)}
+              class:current={i === visitedCount}
+            ></div>
+          {/each}
         </div>
-        <div class="note-screen-site">
-          {getWebsite(currentStop.websiteUrl)?.name ?? currentStop.websiteUrl}
-        </div>
-        <div class="note-screen-text">{upcomingNote}</div>
-        <button class="primary-btn" on:click={acknowledgeUpcomingNote}>
-          Go to stop {visitedCount + 1} →
+        <div class="concept-label">Stop {visitedCount + 1} of {totalStops}</div>
+        {#if currentStop.title}
+          <h2 class="concept-title">{currentStop.title}</h2>
+        {/if}
+        {#if currentStop.note}
+          <div class="concept-content">{currentStop.note}</div>
+        {/if}
+        <button class="primary-btn large" on:click={advance}>
+          Continue →
         </button>
       </div>
     </div>
@@ -226,7 +252,7 @@
           <div class="stop-row">
             <div class="stop-num">{i + 1}</div>
             <div class="stop-name">
-              {getWebsite(stop.websiteUrl)?.name ?? stop.websiteUrl}
+              {stop.title || getWebsite(stop.websiteUrl)?.name || stop.websiteUrl || "Concept stop"}
             </div>
           </div>
         {/each}
@@ -342,66 +368,6 @@
     min-height: 60vh;
     gap: 16px;
     text-align: center;
-  }
-
-  /* ── Note screen (between stops) ── */
-  .note-screen {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 90vh;
-  }
-
-  .note-card {
-    background: #fff;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: 24px;
-    padding: 48px 40px;
-    max-width: 520px;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
-    animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    text-align: center;
-  }
-
-  :global(body.dark-mode) .note-card {
-    background: #25262b;
-    border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-  }
-
-  .note-screen-label {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: #868e96;
-    letter-spacing: 0.06em;
-  }
-
-  .note-screen-site {
-    font-size: 13px;
-    font-weight: 700;
-    color: #1185fe;
-  }
-
-  :global(body.dark-mode) .note-screen-site {
-    color: #4dabf7;
-  }
-
-  .note-screen-text {
-    font-size: 22px;
-    font-weight: 600;
-    line-height: 1.5;
-    color: #1a1b1e;
-    white-space: pre-wrap;
-  }
-
-  :global(body.dark-mode) .note-screen-text {
-    color: #e7e7e7;
   }
 
   /* ── Completion screen ── */
@@ -1009,5 +975,70 @@
 
   :global(body.dark-mode) .note-modal-text {
     color: #e7e7e7;
+  }
+  :global(body.dark-mode) .concept-content {
+    color: #c1c2c5;
+  }
+
+  /* Concept stop screen */
+  .concept-screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 90vh;
+  }
+
+  .concept-card {
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 24px;
+    padding: 48px 40px;
+    max-width: 640px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+    animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    text-align: center;
+  }
+
+  :global(body.dark-mode) .concept-card {
+    background: #25262b;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  }
+
+  .concept-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #868e96;
+    letter-spacing: 0.06em;
+  }
+
+  .concept-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: #1a1b1e;
+    margin: 0;
+  }
+
+  :global(body.dark-mode) .concept-title {
+    color: #e7e7e7;
+  }
+
+  .concept-content {
+    font-size: 18px;
+    line-height: 1.7;
+    color: #1a1b1e;
+    white-space: pre-wrap;
+    text-align: left;
+    width: 100%;
+  }
+
+  :global(body.dark-mode) .concept-content {
+    color: #c1c2c5;
   }
 </style>
