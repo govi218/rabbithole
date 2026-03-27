@@ -2,6 +2,7 @@ import {
   ClientMetadataUrl,
   scopes,
   resolveHandleAndPds,
+  getAuthServerUrl,
   getAuthServerMetadata,
   exchangeCodeForTokens,
   createAuthenticatedFetch,
@@ -41,7 +42,7 @@ async function saveDpopKey(keyPair: CryptoKeyPair): Promise<void> {
   const pub = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
   localStorage.setItem(
     DPOP_KEY,
-    JSON.stringify({ private: priv, public: pub }),
+    JSON.stringify({ private: priv, public: pub })
   );
 }
 
@@ -55,14 +56,14 @@ export async function getDpopKey(): Promise<CryptoKeyPair | null> {
       keys.private,
       { name: "ECDSA", namedCurve: "P-256" },
       true,
-      ["sign"],
+      ["sign"]
     );
     const publicKey = await crypto.subtle.importKey(
       "jwk",
       keys.public,
       { name: "ECDSA", namedCurve: "P-256" },
       true,
-      ["verify"],
+      ["verify"]
     );
     return { privateKey, publicKey };
   } catch {
@@ -74,13 +75,17 @@ export async function startAuthFlow(handle: string): Promise<void> {
   let h = handle.trim();
   if (h.startsWith("@")) h = h.slice(1);
   const { did, pdsUrl } = await resolveHandleAndPds(h);
-  const authServer = await getAuthServerMetadata(pdsUrl);
+  const authServerUrl = await getAuthServerUrl(pdsUrl);
+  const authServer = await getAuthServerMetadata(authServerUrl);
   const keyPair = await generateDpopKeyPair();
   await saveDpopKey(keyPair);
   const codeVerifier = generateRandomString(32);
   const codeChallenge = await generateCodeChallenge(codeVerifier);
   const state = generateRandomString(16);
-  const redirectUri = `${window.location.origin.replace("localhost", "127.0.0.1")}/oauth/callback`;
+  const redirectUri = `${window.location.origin.replace(
+    "localhost",
+    "127.0.0.1"
+  )}/oauth/callback`;
   // Persist PKCE state for callback
   localStorage.setItem(
     PKCE_KEY,
@@ -91,7 +96,7 @@ export async function startAuthFlow(handle: string): Promise<void> {
       pdsUrl,
       tokenEndpoint: authServer.token_endpoint,
       handle: h,
-    }),
+    })
   );
   const authUrl = new URL(authServer.authorization_endpoint);
   authUrl.searchParams.set("response_type", "code");
@@ -107,7 +112,7 @@ export async function startAuthFlow(handle: string): Promise<void> {
 }
 
 export async function handleCallback(
-  params: URLSearchParams,
+  params: URLSearchParams
 ): Promise<ATProtoSession> {
   const code = params.get("code");
   const returnedState = params.get("state");
@@ -122,14 +127,17 @@ export async function handleCallback(
   if (returnedState !== state) throw new Error("OAuth state mismatch");
   const keyPair = await getDpopKey();
   if (!keyPair) throw new Error("No DPoP key found");
-  const redirectUri = `${window.location.origin.replace("localhost", "127.0.0.1")}/oauth/callback`;
+  const redirectUri = `${window.location.origin.replace(
+    "localhost",
+    "127.0.0.1"
+  )}/oauth/callback`;
   const tokenResponse = await exchangeCodeForTokens(
     code,
     codeVerifier,
     tokenEndpoint,
     keyPair,
     redirectUri,
-    ClientMetadataUrl,
+    ClientMetadataUrl
   );
   const session: ATProtoSession = {
     did,
@@ -170,7 +178,7 @@ async function refreshSessionImpl(): Promise<ATProtoSession> {
         "POST",
         session.tokenEndpoint,
         keyPair,
-        nonce,
+        nonce
       );
       response = await fetch(session.tokenEndpoint, {
         method: "POST",
@@ -204,7 +212,7 @@ export const recordOps = createRecordOps(
   createAuthenticatedFetch(
     async () => getSession(),
     getDpopKey,
-    refreshSessionImpl,
+    refreshSessionImpl
   ),
-  async () => getSession(),
+  async () => getSession()
 );

@@ -44,10 +44,35 @@ export async function resolveHandleAndPds(
   } catch {}
   return { did, pdsUrl };
 }
+export async function getAuthServerUrl(pdsUrl: string): Promise<string> {
+  // First, try to get the protected resource metadata to find the auth server
+  try {
+    const resourceResponse = await fetch(
+      `${pdsUrl}/.well-known/oauth-protected-resource`,
+    );
+    console.log({ resourceResponse });
+    if (resourceResponse.ok) {
+      const resourceMetadata = await resourceResponse.json();
+      if (
+        resourceMetadata.authorization_servers &&
+        resourceMetadata.authorization_servers.length > 0
+      ) {
+        return resourceMetadata.authorization_servers[0];
+      }
+    }
+  } catch (err) {
+    Logger.warn("Failed to fetch protected resource metadata:", err);
+  }
 
-export async function getAuthServerMetadata(pdsUrl: string): Promise<any> {
+  // Fallback: assume PDS is also the auth server
+  return pdsUrl;
+}
+
+export async function getAuthServerMetadata(
+  authServerUrl: string,
+): Promise<any> {
   const response = await fetch(
-    `${pdsUrl}/.well-known/oauth-authorization-server`,
+    `${authServerUrl}/.well-known/oauth-authorization-server`,
   );
   if (!response.ok)
     throw new Error("Failed to fetch authorization server metadata");
