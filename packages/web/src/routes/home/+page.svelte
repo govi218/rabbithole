@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Modal, TrailForm } from "@rabbithole/shared/lib";
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import {
@@ -552,102 +553,22 @@
 
 <!-- Create Trail Modal -->
 {#if showCreateTrail}
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <div class="modal-overlay" on:click|self={() => (showCreateTrail = false)}>
-    <div class="modal">
-      <h2>{editingTrail ? "Edit Trail" : "New Trail"}</h2>
-
-      <div class="form-group">
-        <label class="form-label">Title</label>
-        <input
-          class="form-input"
-          placeholder="My trail"
-          bind:value={trailTitle}
-        />
-      </div>
-
-      <div class="form-group">
-        <label class="form-label"
-          >Starting note <span class="optional">optional</span></label
-        >
-        <input
-          class="form-input"
-          placeholder="Context shown before the first stop..."
-          bind:value={trailDesc}
-        />
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Stops</label>
-        <div class="stops-form">
-          {#each trailStops as stop, i}
-            <div class="stop-form-block">
-              <div class="stop-form-header">
-                <div class="stop-num">{i + 1}</div>
-                {#if trailStops.length > 1}
-                  <button class="remove-stop-btn" on:click={() => removeStop(i)}
-                    >✕</button
-                  >
-                {/if}
-              </div>
-              <input
-                class="form-input"
-                placeholder="Step title (e.g. Create an account)"
-                bind:value={stop.title}
-              />
-              <input
-                class="form-input"
-                placeholder="https://... (optional)"
-                bind:value={stop.url}
-              />
-              <textarea
-                class="form-input note-textarea"
-                placeholder="Note (optional)"
-                bind:value={stop.note}
-                rows="2"
-              />
-              <div class="btn-preview-row">
-                <span class="btn-preview-label">Button</span>
-                <div class="btn-preview-wrap">
-                  <input
-                    class="btn-preview-input"
-                    placeholder="Next"
-                    bind:value={stop.buttonText}
-                    style="width: {Math.max(
-                      4,
-                      (stop.buttonText || 'Next').length
-                    )}ch"
-                  />
-                  <span class="btn-preview-arrow">→</span>
-                </div>
-              </div>
-            </div>
-          {/each}
-          <button class="add-stop-btn" on:click={addStop}>+ Add stop</button>
-        </div>
-      </div>
-
-      {#if saveError}<p class="error">{saveError}</p>{/if}
-      <div class="modal-actions">
-        <button class="ghost-btn" on:click={() => (showCreateTrail = false)}
-          >Cancel</button
-        >
-        <button
-          class="primary-btn"
-          on:click={saveTrail}
-          disabled={isSaving || !trailTitle.trim()}
-        >
-          {isSaving
-            ? "Saving..."
-            : editingTrail
-            ? "Save Changes"
-            : "Create Trail"}
-        </button>
-      </div>
-    </div>
-  </div>
+  <Modal
+    title={editingTrail ? "Edit Trail" : "New Trail"}
+    on:close={() => (showCreateTrail = false)}
+  >
+    <TrailForm
+      bind:title={trailTitle}
+      bind:description={trailDesc}
+      bind:stops={trailStops}
+      {isSaving}
+      error={saveError}
+      isEditing={!!editingTrail}
+      on:save={saveTrail}
+      on:cancel={() => (showCreateTrail = false)}
+    />
+  </Modal>
 {/if}
-
 <!-- Create Burrow Modal -->
 {#if showCreateBurrow}
   <!-- svelte-ignore a11y-click-events-have-key-events -->

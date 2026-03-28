@@ -20,6 +20,7 @@
   import OrganizeModal from "src/lib/OrganizeModal.svelte";
   import WebsiteSelectGrid from "src/lib/WebsiteSelectGrid.svelte";
   import TrailView from "src/lib/TrailView.svelte";
+  import { TrailForm } from "@rabbithole/shared/lib";
   import NameInputModal from "src/lib/NameInputModal.svelte";
   import { ChevronLeft, ListBullet, Grid, Update } from "radix-icons-svelte";
   import { getSession } from "../atproto/client";
@@ -83,6 +84,13 @@
   let nameModalResolve: ((value: string | null) => void) | null = null;
 
   let openTrailInEditMode: boolean = false;
+  let showCreateTrailModal: boolean = false;
+  let createTrailTitle: string = "";
+  let createTrailDesc: string = "";
+  let createTrailStops: { tid: string; title: string; url: string; note: string; buttonText: string }[] = [{ tid: "", title: "", url: "", note: "", buttonText: "" }];
+  let createTrailError: string | null = null;
+  let createTrailSaving: boolean = false;
+
 
   let trailViewRef: TrailView = null;
 
@@ -560,19 +568,22 @@
       });
       dispatch("navigateUp");
     } else if (selectionMode === "Trail") {
-      const name = (await promptName("Trail name", "New Trail")) ?? "New Trail";
-      await chrome.runtime.sendMessage({
-        type: MessageRequest.CREATE_TRAIL,
-        rabbitholeId: activeRabbithole.id,
-        name,
-        websites: selectedUrls,
-      });
-      openTrailInEditMode = true;
-      await selectTrail(
-        await chrome.runtime
-          .sendMessage({ type: MessageRequest.GET_ACTIVE_TRAIL })
-          .then((t) => t?.id),
-      );
+      // Open trail creation modal with selected URLs as stops
+      createTrailTitle = "";
+      createTrailDesc = "";
+      createTrailStops = selectedUrls.map((url, i) => ({
+        tid: `stop-${i}`,
+        title: "",
+        url,
+        note: "",
+        buttonText: "",
+      }));
+      if (createTrailStops.length === 0) {
+        createTrailStops = [{ tid: "", title: "", url: "", note: "", buttonText: "" }];
+      }
+      createTrailError = null;
+      createTrailSaving = false;
+      showCreateTrailModal = true;
     }
     selectionMode = null;
   }
@@ -589,6 +600,48 @@
     });
     openTrailInEditMode = false;
     dispatch("refresh");
+  }
+
+
+  async function handleCreateTrailFromForm(e: CustomEvent<any>) {
+    if (!activeRabbithole) return;
+    createTrailSaving = true;
+    createTrailError = null;
+    try {
+      const { title, description, stops } = e.detail;
+      await chrome.runtime.sendMessage({
+        type: MessageRequest.CREATE_TRAIL,
+        rabbitholeId: activeRabbithole.id,
+        name: title,
+        websites: stops.filter(s => s.url.trim()).map(s => s.url.trim()),
+      });
+      const trailId = await chrome.runtime
+        .sendMessage({ type: MessageRequest.GET_ACTIVE_TRAIL })
+        .then((t) => t?.id);
+      if (trailId) {
+        // Update the trail with full metadata
+        await chrome.runtime.sendMessage({
+          type: MessageRequest.UPDATE_TRAIL,
+          trailId,
+          updates: {
+            startNote: description,
+            stops: stops.map((s, i) => ({
+              websiteUrl: s.url.trim(),
+              note: s.note.trim(),
+              title: s.title.trim(),
+              buttonText: s.buttonText.trim() || "Next",
+            })),
+          },
+        });
+        await selectTrail(trailId);
+      }
+      showCreateTrailModal = false;
+      selectionMode = null;
+    } catch (err: any) {
+      createTrailError = err.message || "Failed to create trail";
+    } finally {
+      createTrailSaving = false;
+    }
   }
 
   function handleStartTrail() {
@@ -737,6 +790,22 @@
     nameModalResolve = null;
   }}
 />
+
+<!-- Create Trail Modal -->
+{#if showCreateTrailModal}
+  <Modal isOpen={true} title="New Trail" on:close={() => (showCreateTrailModal = false)}>
+    <TrailForm
+      bind:title={createTrailTitle}
+      bind:description={createTrailDesc}
+      bind:stops={createTrailStops}
+      isSaving={createTrailSaving}
+      error={createTrailError}
+      isEditing={false}
+      on:save={handleCreateTrailFromForm}
+      on:cancel={() => (showCreateTrailModal = false)}
+    />
+  </Modal>
+{/if}
 
 <div class="timeline">
   <div class="header-section">
