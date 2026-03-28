@@ -1,180 +1,41 @@
-import { Agent } from "@atproto/api";
 import {
-  base64UrlEncode,
-  createDpopProof,
-  generateCodeChallenge,
+  resolveHandleAndPds,
+  getAuthServerUrl,
+  getAuthServerMetadata,
+  exchangeCodeForTokens,
+  createAuthenticatedFetch,
+  createRecordOps,
+  ClientMetadataUrl,
+  scopes,
   generateDpopKeyPair,
   generateRandomString,
-  getDpopKey,
-  saveDpopKey,
-} from "src/utils/crypto";
+  generateCodeChallenge,
+  createDpopProof,
+} from "@rabbithole/shared/atproto/http";
+import { getDpopKey, saveDpopKey } from "src/utils/crypto";
 import { Logger } from "../utils";
+import type { ATProtoSession } from "@rabbithole/shared/types";
 
-export const ClientMetadataUrl =
-  "https://rabbithole.land/oauth/client-metadata.json";
 const SessionStorageKey = "rabbithole_atproto_session";
 const DpopKeyStorageKey = "rabbithole_dpop_key";
-const scopes =
-  "atproto repo:network.cosmik.collection repo:network.cosmik.card repo:network.cosmik.collectionLink repo:app.sidetrail.trail repo:app.sidetrail.walk repo:app.sidetrail.completion";
 
-export interface ATProtoSession {
-  did: string;
-  handle: string;
-  pdsUrl: string;
-  accessToken: string;
-  tokenEndpoint: string;
-  refreshToken?: string;
-}
+export { ClientMetadataUrl };
 
-export async function getSession() {
+export async function getSession(): Promise<ATProtoSession | null> {
   const result = await chrome.storage.local.get(SessionStorageKey);
-  return result[SessionStorageKey];
+  return result[SessionStorageKey] || null;
 }
 
-export async function saveSession(session: any) {
+export async function saveSession(session: ATProtoSession): Promise<void> {
   await chrome.storage.local.set({ [SessionStorageKey]: session });
 }
 
-export async function clearSession() {
+export async function clearSession(): Promise<void> {
   await chrome.storage.local.remove([SessionStorageKey, DpopKeyStorageKey]);
 }
 
 export function getRedirectUri(): string {
   return chrome.identity.getRedirectURL("callback");
-}
-
-export async function resolveHandleAndPds(
-  handle: string,
-): Promise<{ did: string; pdsUrl: string }> {
-  const agent = new Agent("https://bsky.social");
-  const resolved = await agent.resolveHandle({ handle });
-
-  if (!resolved.success) {
-    throw new Error("Failed to resolve handle");
-  }
-
-  const did = resolved.data.did;
-
-  let pdsUrl = "https://bsky.social";
-  try {
-    const plcResponse = await fetch(`https://plc.directory/${did}`);
-    if (plcResponse.ok) {
-      const didDoc = await plcResponse.json();
-      const pdsService = didDoc.service?.find(
-        (s: any) =>
-          s.id === "#atproto_pds" || s.type === "AtprotoPersonalDataServer",
-      );
-      if (pdsService) {
-        pdsUrl = pdsService.serviceEndpoint;
-      }
-    }
-  } catch (err) {
-    Logger.warn("Failed to resolve PDS, using default:", err);
-  }
-
-  return { did, pdsUrl };
-}
-
-export async function getAuthServerUrl(pdsUrl: string): Promise<string> {
-  // First, try to get the protected resource metadata to find the auth server
-  try {
-    const resourceResponse = await fetch(
-      `${pdsUrl}/.well-known/oauth-protected-resource`,
-    );
-    console.log({ resourceResponse });
-    if (resourceResponse.ok) {
-      const resourceMetadata = await resourceResponse.json();
-      if (
-        resourceMetadata.authorization_servers &&
-        resourceMetadata.authorization_servers.length > 0
-      ) {
-        return resourceMetadata.authorization_servers[0];
-      }
-    }
-  } catch (err) {
-    Logger.warn("Failed to fetch protected resource metadata:", err);
-  }
-
-  // Fallback: assume PDS is also the auth server
-  return pdsUrl;
-}
-
-export async function getAuthServerMetadata(
-  authServerUrl: string,
-): Promise<any> {
-  const response = await fetch(
-    `${authServerUrl}/.well-known/oauth-authorization-server`,
-  );
-  if (!response.ok) {
-    throw new Error("Failed to fetch authorization server metadata");
-  }
-  return await response.json();
-}
-
-export async function exchangeCodeForTokens(
-  code: string,
-  codeVerifier: string,
-  tokenEndpoint: string,
-  keyPair: CryptoKeyPair,
-  redirectUri: string,
-  clientId: string,
-): Promise<any> {
-  // First attempt without nonce
-  let dpopProof = await createDpopProof("POST", tokenEndpoint, keyPair);
-
-  let response = await fetch(tokenEndpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      DPoP: dpopProof,
-    },
-    body: new URLSearchParams({
-      grant_type: "authorization_code",
-      code: code,
-      redirect_uri: redirectUri,
-      client_id: clientId,
-      code_verifier: codeVerifier,
-    }),
-  });
-
-  // If we get a use_dpop_nonce error, retry with the nonce
-  if (response.status === 400 || response.status === 401) {
-    const dpopNonce = response.headers.get("DPoP-Nonce");
-    if (dpopNonce) {
-      dpopProof = await createDpopProof(
-        "POST",
-        tokenEndpoint,
-        keyPair,
-        dpopNonce,
-      );
-
-      response = await fetch(tokenEndpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          DPoP: dpopProof,
-        },
-        body: new URLSearchParams({
-          grant_type: "authorization_code",
-          code: code,
-          redirect_uri: redirectUri,
-          client_id: clientId,
-          code_verifier: codeVerifier,
-        }),
-      });
-    }
-  }
-
-  if (!response.ok) {
-    const errText = await response.text();
-    Logger.error("Token exchange failed:", {
-      status: response.status,
-      errText,
-    });
-    throw new Error("Failed to exchange code for tokens");
-  }
-
-  return await response.json();
 }
 
 export async function refreshAccessToken(): Promise<ATProtoSession> {
@@ -262,7 +123,6 @@ export async function startAuthFlow(
 
   const { did, pdsUrl } = await resolveHandleAndPds(handle);
 
-  console.log({ did });
   // Get the Authorization Server URL (may be delegated from PDS)
   const authServerUrl = await getAuthServerUrl(pdsUrl);
   const authServer = await getAuthServerMetadata(authServerUrl);
@@ -333,152 +193,18 @@ export async function startAuthFlow(
   };
 }
 
-/* Record operations */
+// Create authenticated fetch using extension storage
+const authenticatedFetch = createAuthenticatedFetch(
+  getSession,
+  getDpopKey,
+  refreshAccessToken,
+);
 
-async function authenticatedFetch(
-  url: string,
-  method: string,
-  body: any = null,
-  isRetryAfterRefresh = false,
-) {
-  const session = await getSession();
-  if (!session) throw new Error("No session found");
+// Export record operations
+export const recordOps = createRecordOps(authenticatedFetch, getSession);
 
-  const keyPair = await getDpopKey();
-  if (!keyPair) throw new Error("No DPoP key found");
-
-  const accessTokenHash = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(session.accessToken),
-  );
-  const ath = base64UrlEncode(new Uint8Array(accessTokenHash));
-
-  let proof = await createDpopProof(method, url, keyPair, null, ath);
-
-  const headers: any = {
-    Authorization: `DPoP ${session.accessToken}`,
-    DPoP: proof,
-  };
-
-  if (body) {
-    headers["Content-Type"] = "application/json";
-  }
-
-  let response = await fetch(url, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  // Handle DPoP nonce requirement
-  if (response.status === 401) {
-    const nonce = response.headers.get("DPoP-Nonce");
-    if (nonce) {
-      proof = await createDpopProof(method, url, keyPair, nonce, ath);
-      headers["DPoP"] = proof;
-      response = await fetch(url, {
-        method,
-        headers,
-        body: body ? JSON.stringify(body) : undefined,
-      });
-    }
-
-    // If still 401 and we haven't already retried after a refresh, try refreshing the token
-    if (response.status === 401 && !isRetryAfterRefresh) {
-      Logger.warn("Access token likely expired, attempting refresh...");
-      try {
-        await refreshAccessToken();
-      } catch (err) {
-        Logger.error("Token refresh failed during authenticated fetch:", err);
-        throw err;
-      }
-      // Retry the original request once with the new token
-      return authenticatedFetch(url, method, body, true);
-    }
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      `Request failed: ${response.status} ${await response.text()}`,
-    );
-  }
-
-  return response.json();
-}
-
-export async function createRecord(
-  repo: string,
-  collection: string,
-  record: any,
-): Promise<{ uri: string; cid: string }> {
-  const session = await getSession();
-  if (!session) {
-    throw new Error("No session found");
-  }
-
-  const pdsUrl = session.pdsUrl || new URL(session.tokenEndpoint).origin;
-  const url = `${pdsUrl}/xrpc/com.atproto.repo.createRecord`;
-
-  const body = {
-    repo,
-    collection,
-    record,
-  };
-
-  return authenticatedFetch(url, "POST", body);
-}
-
-export async function listRecords(
-  repo: string,
-  collection: string,
-): Promise<{
-  records: { uri: string; cid: string; value: any }[];
-  cursor?: string;
-}> {
-  const session = await getSession();
-  if (!session) throw new Error("No session found");
-
-  const pdsUrl = session.pdsUrl || new URL(session.tokenEndpoint).origin;
-  const url = new URL(`${pdsUrl}/xrpc/com.atproto.repo.listRecords`);
-  url.searchParams.set("repo", repo);
-  url.searchParams.set("collection", collection);
-  url.searchParams.set("limit", "100");
-
-  return authenticatedFetch(url.toString(), "GET");
-}
-
-export async function deleteRecord(
-  repo: string,
-  collection: string,
-  rkey: string,
-): Promise<void> {
-  const session = await getSession();
-  if (!session) throw new Error("No session found");
-
-  const pdsUrl = session.pdsUrl || new URL(session.tokenEndpoint).origin;
-  const url = `${pdsUrl}/xrpc/com.atproto.repo.deleteRecord`;
-
-  await authenticatedFetch(url, "POST", { repo, collection, rkey });
-}
-
-export async function putRecord(
-  repo: string,
-  collection: string,
-  rkey: string,
-  record: any,
-  swapRecord?: string,
-): Promise<{ uri: string; cid: string }> {
-  const session = await getSession();
-  if (!session) throw new Error("No session found");
-
-  const pdsUrl = session.pdsUrl || new URL(session.tokenEndpoint).origin;
-  const url = `${pdsUrl}/xrpc/com.atproto.repo.putRecord`;
-
-  return authenticatedFetch(url, "POST", {
-    repo,
-    collection,
-    rkey,
-    record,
-    swapRecord,
-  });
-}
+// Convenience exports for backward compatibility
+export const createRecord = recordOps.createRecord;
+export const listRecords = recordOps.listRecords;
+export const deleteRecord = recordOps.deleteRecord;
+export const putRecord = recordOps.putRecord;

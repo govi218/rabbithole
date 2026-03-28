@@ -61,7 +61,7 @@ export async function getAuthServerUrl(pdsUrl: string): Promise<string> {
       }
     }
   } catch (err) {
-    Logger.warn("Failed to fetch protected resource metadata:", err);
+    console.warn("Failed to fetch protected resource metadata:", err);
   }
 
   // Fallback: assume PDS is also the auth server
