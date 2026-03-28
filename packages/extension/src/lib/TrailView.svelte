@@ -3,11 +3,22 @@
   import { MessageRequest } from "src/utils";
   import type { Trail, Website } from "src/utils/types";
   import TimelineCard from "./TimelineCard.svelte";
+  import Modal from "./Modal.svelte";
+  import { TrailForm } from "@rabbithole/shared/lib";
 
   export let trail: Trail;
+  export let initialEditMode = false;
   export let websites: Website[];
 
   const dispatch = createEventDispatcher();
+
+  // Edit modal state
+  let showEditModal = false;
+  let editTitle = "";
+  let editDesc = "";
+  let editStops: { tid: string; title: string; url: string; note: string; buttonText: string }[] = [];
+  let editSaving = false;
+  let editError: string | null = null;
 
   function getWebsite(url: string) {
     return websites.find((w) => w.url === url);
@@ -39,16 +50,100 @@
     }
   }
 
-  // Keep these exports so Timeline.svelte doesn't break
-  export function toggleEdit() {}
-  export function getIsEditing() {
-    return false;
+  export function toggleEdit() {
+    if (showEditModal) {
+      showEditModal = false;
+    } else {
+      openEditModal();
+    }
   }
 
+  export function getIsEditing() {
+    return showEditModal;
+  }
+
+  function openEditModal() {
+    editTitle = trail.name || "";
+    editDesc = trail.startNote || "";
+    editStops = (trail.stops || []).map((s) => ({
+      tid: s.id || "",
+      title: s.title || "",
+      url: s.websiteUrl || "",
+      note: s.note || "",
+      buttonText: s.buttonText === "Next" ? "" : s.buttonText || "",
+    }));
+    if (editStops.length === 0) {
+      editStops = [{ tid: "", title: "", url: "", note: "", buttonText: "" }];
+    }
+    editError = null;
+    editSaving = false;
+    showEditModal = true;
+  }
+
+  async function handleEditSave(e: CustomEvent<any>) {
+    if (!trail) return;
+    editSaving = true;
+    editError = null;
+    try {
+      const { title, description, stops } = e.detail;
+      await chrome.runtime.sendMessage({
+        type: MessageRequest.UPDATE_TRAIL,
+        trailId: trail.id,
+        updates: {
+          name: title,
+          startNote: description,
+          stops: stops.map((s: any, i: number) => ({
+            id: s.tid || `stop-${i}`,
+            websiteUrl: s.url.trim(),
+            note: s.note.trim(),
+            title: s.title.trim(),
+            buttonText: s.buttonText.trim() || "Next",
+          })),
+        },
+      });
+      // Update local trail
+      trail.name = title;
+      trail.startNote = description;
+      trail.stops = stops.map((s: any, i: number) => ({
+        id: s.tid || `stop-${i}`,
+        websiteUrl: s.url.trim(),
+        note: s.note.trim(),
+        title: s.title.trim(),
+        buttonText: s.buttonText.trim() || "Next",
+      }));
+      showEditModal = false;
+      dispatch("save", { trail });
+    } catch (err: any) {
+      editError = err.message || "Failed to save";
+    } finally {
+      editSaving = false;
+    }
+  }
+
+  $: if (initialEditMode) openEditModal();
   $: startNoteEmpty = !trail.startNote || trail.startNote.trim() === "";
 </script>
 
-<div class="trail-nodes">
+<!-- Edit Modal -->
+{#if showEditModal}
+  <Modal isOpen={true} title="Edit Trail" on:close={() => (showEditModal = false)}>
+    <TrailForm
+      bind:title={editTitle}
+      bind:description={editDesc}
+      bind:stops={editStops}
+      isSaving={editSaving}
+      error={editError}
+      isEditing={true}
+      on:save={handleEditSave}
+      on:cancel={() => (showEditModal = false)}
+    />
+  </Modal>
+{/if}
+
+<div class="trail-header">
+    <button class="edit-btn" on:click={openEditModal}>Edit Trail</button>
+  </div>
+  <div class="trail-nodes">
   <!-- Start note -->
   <div class="note-node" class:highlight-required={startNoteEmpty}>
     {#if startNoteEmpty}
@@ -62,7 +157,7 @@
       bind:value={trail.startNote}
       on:blur={handleNoteBlur}
       rows={2}
-    />
+    ></textarea>
   </div>
 
   {#each trail.stops as stop, i}
@@ -85,7 +180,7 @@
         bind:value={stop.note}
         on:blur={handleNoteBlur}
         rows={2}
-      />
+      ></textarea>
     </div>
   {/each}
 
@@ -99,11 +194,33 @@
       bind:value={trail.endNote}
       on:blur={handleNoteBlur}
       rows={2}
-    />
+    ></textarea>
   </div>
 </div>
 
 <style>
+  .trail-header {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 16px;
+  }
+  .edit-btn {
+    padding: 8px 16px;
+    background: rgba(17, 133, 254, 0.1);
+    border: 1px solid rgba(17, 133, 254, 0.3);
+    border-radius: 8px;
+    color: #1185fe;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .edit-btn:hover {
+    background: rgba(17, 133, 254, 0.2);
+    border-color: #1185fe;
+  }
   .trail-nodes {
     display: flex;
     flex-direction: column;
