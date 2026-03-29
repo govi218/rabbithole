@@ -920,6 +920,7 @@
       on:openSemble={openSemble}
       on:publish={openPublishModal}
       on:deleteContainer={deleteContainer}
+      on:editTrail={() => trailViewRef?.toggleEdit()}
       on:startTrail={handleStartTrail}
       on:publishTrail={() => (showPublishTrailModal = true)}
     />

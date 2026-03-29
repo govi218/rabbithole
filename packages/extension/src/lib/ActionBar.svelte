@@ -10,6 +10,7 @@
     Home,
     Upload,
     Play,
+    Pencil1,
   } from "radix-icons-svelte";
 
   export let activeBurrowId: string | null = null;
@@ -52,7 +53,20 @@
   <div class="action-bar">
     <Group spacing="xs">
       {#if activeTrailId}
-        <!-- Trail mode: Start Trail + Publish + Delete -->
+        <!-- Trail mode: Edit + Start Trail + Publish + Delete -->
+        <Tooltip label="Edit trail" withArrow transition="fade">
+          <ActionIcon
+            size="lg"
+            radius="md"
+            color="blue"
+            on:click={() => dispatch("editTrail")}
+          >
+            <Pencil1 size={18} />
+          </ActionIcon>
+        </Tooltip>
+
+        <div class="action-divider"></div>
+
         <Tooltip label="Start Trail" withArrow transition="fade">
           <ActionIcon
             size="lg"

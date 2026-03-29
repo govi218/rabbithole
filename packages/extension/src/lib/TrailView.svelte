@@ -121,7 +121,6 @@
   }
 
   $: if (initialEditMode) openEditModal();
-  $: startNoteEmpty = !trail.startNote || trail.startNote.trim() === "";
 </script>
 
 <!-- Edit Modal -->
@@ -140,87 +139,55 @@
   </Modal>
 {/if}
 
-<div class="trail-header">
-    <button class="edit-btn" on:click={openEditModal}>Edit Trail</button>
-  </div>
-  <div class="trail-nodes">
+<div class="trail-nodes">
   <!-- Start note -->
-  <div class="note-node" class:highlight-required={startNoteEmpty}>
-    {#if startNoteEmpty}
-      <div class="required-label">
-        ✦ Add a starting note to begin your trail
-      </div>
-    {/if}
-    <textarea
-      class="note-input"
-      placeholder="Starting note..."
-      bind:value={trail.startNote}
-      on:blur={handleNoteBlur}
-      rows={2}
-    ></textarea>
-  </div>
+  {#if trail.startNote}
+    <div class="note-node">
+      <div class="note-label">Start</div>
+      <div class="note-text">{trail.startNote}</div>
+    </div>
+  {/if}
 
   {#each trail.stops as stop, i}
-    <div class="trail-edge"></div>
-    <div class="website-node">
-      {#if getWebsite(stop.websiteUrl)}
-        <TimelineCard
-          website={getWebsite(stop.websiteUrl)}
-          showDelete={false}
-        />
-      {:else}
-        <div class="missing-site">{stop.websiteUrl}</div>
+    {#if trail.startNote || i > 0}
+      <div class="trail-edge"></div>
+    {/if}
+    <div class="stop-block">
+      {#if stop.title}
+        <div class="stop-title">{stop.title}</div>
       {/if}
-    </div>
-    <div class="trail-edge"></div>
-    <div class="note-node">
-      <textarea
-        class="note-input"
-        placeholder="Add a note before the next stop..."
-        bind:value={stop.note}
-        on:blur={handleNoteBlur}
-        rows={2}
-      ></textarea>
+      <div class="website-node">
+        {#if getWebsite(stop.websiteUrl)}
+          <TimelineCard
+            website={getWebsite(stop.websiteUrl)}
+            showDelete={false}
+          />
+        {:else if stop.websiteUrl}
+          <div class="missing-site">{stop.websiteUrl}</div>
+        {:else}
+          <div class="concept-stop">
+            <span class="concept-icon">💡</span>
+            <span class="concept-label">Concept</span>
+          </div>
+        {/if}
+      </div>
+      {#if stop.note}
+        <div class="stop-note">{stop.note}</div>
+      {/if}
     </div>
   {/each}
 
   <!-- End note -->
-  <div class="trail-edge"></div>
-  <div class="note-node end-note-node">
-    <div class="end-note-label">🏁 Completion message</div>
-    <textarea
-      class="note-input"
-      placeholder="Add a completion message..."
-      bind:value={trail.endNote}
-      on:blur={handleNoteBlur}
-      rows={2}
-    ></textarea>
-  </div>
+  {#if trail.endNote}
+    <div class="trail-edge"></div>
+    <div class="note-node end-note">
+      <div class="note-label">🏁 Finish</div>
+      <div class="note-text">{trail.endNote}</div>
+    </div>
+  {/if}
 </div>
 
 <style>
-  .trail-header {
-    width: 100%;
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 16px;
-  }
-  .edit-btn {
-    padding: 8px 16px;
-    background: rgba(17, 133, 254, 0.1);
-    border: 1px solid rgba(17, 133, 254, 0.3);
-    border-radius: 8px;
-    color: #1185fe;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.15s;
-  }
-  .edit-btn:hover {
-    background: rgba(17, 133, 254, 0.2);
-    border-color: #1185fe;
-  }
   .trail-nodes {
     display: flex;
     flex-direction: column;
@@ -237,105 +204,96 @@
     border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 12px;
     padding: 12px 16px;
-    transition: all 0.2s;
   }
 
-  .note-node:focus-within {
-    border-color: #1185fe;
-    background: rgba(17, 133, 254, 0.03);
-    box-shadow: 0 0 0 2px rgba(17, 133, 254, 0.1);
-  }
-
-  .note-node.highlight-required {
-    border: 2px dashed #f59f00;
-    background: rgba(245, 159, 0, 0.07);
-    animation: pulse-border 1.8s ease-in-out infinite;
-  }
-
-  @keyframes pulse-border {
-    0% {
-      box-shadow: 0 0 0 0 rgba(245, 159, 0, 0.35);
-    }
-    50% {
-      box-shadow: 0 0 0 6px rgba(245, 159, 0, 0);
-    }
-    100% {
-      box-shadow: 0 0 0 0 rgba(245, 159, 0, 0);
-    }
-  }
-
-  .required-label {
+  .note-label {
     font-size: 11px;
     font-weight: 700;
-    color: #f59f00;
-    letter-spacing: 0.02em;
-    margin-bottom: 6px;
+    color: #868e96;
     text-transform: uppercase;
-    text-align: center;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
   }
 
-  .note-input {
-    width: 100%;
-    background: transparent;
-    border: none;
-    outline: none;
-    resize: none;
+  .note-text {
     font-size: 14px;
-    line-height: 1.5;
     color: #495057;
-    font-family: inherit;
-    box-sizing: border-box;
-    padding: 0;
-    text-align: center;
+    line-height: 1.5;
   }
 
-  .note-input::placeholder {
-    color: #adb5bd;
-    text-align: center;
+  .stop-block {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
   }
 
-  /* End note */
-  .end-note-node {
-    border-style: dashed;
-    border-color: rgba(64, 192, 87, 0.4);
-    background: rgba(64, 192, 87, 0.04);
-  }
-
-  .end-note-node:focus-within {
-    border-color: #40c057;
-    border-style: solid;
-    background: rgba(64, 192, 87, 0.07);
-    box-shadow: 0 0 0 2px rgba(64, 192, 87, 0.12);
-  }
-
-  .end-note-label {
-    font-size: 11px;
-    font-weight: 700;
-    color: #40c057;
-    letter-spacing: 0.02em;
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    text-align: center;
-  }
-
-  .trail-edge {
-    width: 2px;
-    height: 32px;
-    background: rgba(0, 0, 0, 0.12);
-    margin: 8px 0;
+  .stop-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1185fe;
+    background: rgba(17, 133, 254, 0.1);
+    padding: 4px 12px;
+    border-radius: 6px;
   }
 
   .website-node {
     width: 100%;
   }
 
+  .stop-note {
+    font-size: 13px;
+    color: #868e96;
+    font-style: italic;
+    text-align: center;
+    max-width: 80%;
+  }
+
+  .trail-edge {
+    width: 2px;
+    height: 24px;
+    background: rgba(0, 0, 0, 0.12);
+    margin: 4px 0;
+  }
+
   .missing-site {
-    padding: 24px;
+    padding: 16px;
     text-align: center;
     background: #fff5f5;
     color: #e03131;
     border-radius: 12px;
     border: 1px solid rgba(224, 49, 49, 0.2);
+    font-size: 13px;
+  }
+
+  .concept-stop {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px;
+    background: rgba(17, 133, 254, 0.05);
+    border: 1px solid rgba(17, 133, 254, 0.2);
+    border-radius: 12px;
+  }
+
+  .concept-icon {
+    font-size: 18px;
+  }
+
+  .concept-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1185fe;
+  }
+
+  .end-note {
+    border-color: rgba(64, 192, 87, 0.3);
+    background: rgba(64, 192, 87, 0.05);
+  }
+
+  .end-note .note-label {
+    color: #40c057;
   }
 
   /* Dark mode */
@@ -343,36 +301,18 @@
     background: #25262b;
     border-color: rgba(255, 255, 255, 0.12);
   }
-  :global(body.dark-mode) .note-node:focus-within {
-    border-color: #4dabf7;
-    background: rgba(77, 171, 247, 0.05);
-    box-shadow: 0 0 0 2px rgba(77, 171, 247, 0.12);
-  }
-  :global(body.dark-mode) .note-node.highlight-required {
-    border-color: #fab005;
-    background: rgba(250, 176, 5, 0.07);
-  }
-  :global(body.dark-mode) .required-label {
-    color: #fab005;
-  }
-  :global(body.dark-mode) .note-input {
-    color: #c1c2c5;
-  }
-  :global(body.dark-mode) .note-input::placeholder {
+  :global(body.dark-mode) .note-label {
     color: #5c5f66;
   }
-  :global(body.dark-mode) .end-note-node {
-    border-color: rgba(64, 192, 87, 0.3);
-    background: rgba(64, 192, 87, 0.04);
+  :global(body.dark-mode) .note-text {
+    color: #c1c2c5;
   }
-  :global(body.dark-mode) .end-note-node:focus-within {
-    border-color: #51cf66;
-    border-style: solid;
-    background: rgba(81, 207, 102, 0.07);
-    box-shadow: 0 0 0 2px rgba(81, 207, 102, 0.12);
+  :global(body.dark-mode) .stop-title {
+    color: #4dabf7;
+    background: rgba(77, 171, 247, 0.15);
   }
-  :global(body.dark-mode) .end-note-label {
-    color: #51cf66;
+  :global(body.dark-mode) .stop-note {
+    color: #868e96;
   }
   :global(body.dark-mode) .trail-edge {
     background: rgba(255, 255, 255, 0.14);
@@ -381,5 +321,19 @@
     background: rgba(224, 49, 49, 0.1);
     border-color: rgba(224, 49, 49, 0.2);
     color: #ff8787;
+  }
+  :global(body.dark-mode) .concept-stop {
+    background: rgba(77, 171, 247, 0.1);
+    border-color: rgba(77, 171, 247, 0.2);
+  }
+  :global(body.dark-mode) .concept-label {
+    color: #4dabf7;
+  }
+  :global(body.dark-mode) .end-note {
+    border-color: rgba(64, 192, 87, 0.3);
+    background: rgba(64, 192, 87, 0.08);
+  }
+  :global(body.dark-mode) .end-note .note-label {
+    color: #51cf66;
   }
 </style>
