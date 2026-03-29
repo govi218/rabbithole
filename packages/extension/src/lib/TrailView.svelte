@@ -29,7 +29,6 @@
   }
 
   export async function startTrail() {
-    // Start the trail walk directly and navigate to the first stop
     const walk = await chrome.runtime.sendMessage({
       type: MessageRequest.START_TRAIL_WALK,
       trailId: trail.id,
@@ -38,14 +37,12 @@
     const firstStop = trail.stops?.[0];
     if (!firstStop) return;
 
-    // Check if first stop is a concept stop (no URL)
     if (!firstStop.websiteUrl) {
       const trailPageUrl = chrome.runtime.getURL(
         `src/trail/trail.html?trailId=${trail.id}&concept=1`,
       );
       window.location.href = trailPageUrl;
     } else {
-      // Navigate directly to the first URL - the modal will auto-show if there's a note
       window.location.href = firstStop.websiteUrl;
     }
   }
@@ -101,7 +98,6 @@
           })),
         },
       });
-      // Update local trail
       trail.name = title;
       trail.startNote = description;
       trail.stops = stops.map((s: any, i: number) => ({
@@ -139,201 +135,257 @@
   </Modal>
 {/if}
 
-<div class="trail-nodes">
-  <!-- Start note -->
+<div class="trail-view">
+  <!-- Start note card -->
   {#if trail.startNote}
-    <div class="note-node">
-      <div class="note-label">Start</div>
-      <div class="note-text">{trail.startNote}</div>
+    <div class="note-card start-card">
+      <div class="note-badge">Start</div>
+      <div class="note-content">{trail.startNote}</div>
     </div>
   {/if}
 
+  <!-- Steps -->
   {#each trail.stops as stop, i}
-    {#if trail.startNote || i > 0}
-      <div class="trail-edge"></div>
-    {/if}
-    <div class="stop-block">
-      {#if stop.title}
-        <div class="stop-title">{stop.title}</div>
-      {/if}
-      <div class="website-node">
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-num">{i + 1}</div>
+        {#if stop.title}
+          <div class="step-title">{stop.title}</div>
+        {/if}
+      </div>
+      
+      <div class="step-content">
         {#if getWebsite(stop.websiteUrl)}
           <TimelineCard
             website={getWebsite(stop.websiteUrl)}
             showDelete={false}
           />
         {:else if stop.websiteUrl}
-          <div class="missing-site">{stop.websiteUrl}</div>
+          <a href={stop.websiteUrl} target="_blank" class="url-link">
+            {stop.websiteUrl}
+          </a>
         {:else}
-          <div class="concept-stop">
+          <div class="concept-block">
             <span class="concept-icon">💡</span>
-            <span class="concept-label">Concept</span>
+            <span>Concept step</span>
           </div>
         {/if}
       </div>
+
       {#if stop.note}
-        <div class="stop-note">{stop.note}</div>
+        <div class="step-note">{stop.note}</div>
       {/if}
     </div>
   {/each}
 
-  <!-- End note -->
+  <!-- End note card -->
   {#if trail.endNote}
-    <div class="trail-edge"></div>
-    <div class="note-node end-note">
-      <div class="note-label">🏁 Finish</div>
-      <div class="note-text">{trail.endNote}</div>
+    <div class="note-card end-card">
+      <div class="note-badge">🏁 Finish</div>
+      <div class="note-content">{trail.endNote}</div>
     </div>
   {/if}
 </div>
 
 <style>
-  .trail-nodes {
+  .trail-view {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    gap: 16px;
     width: 100%;
     max-width: 640px;
     margin: 0 auto;
     padding-bottom: 64px;
   }
 
-  .note-node {
-    width: 100%;
+  .note-card {
     background: #f8f9fa;
     border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 12px;
-    padding: 12px 16px;
+    padding: 16px;
   }
 
-  .note-label {
+  .note-badge {
+    display: inline-block;
     font-size: 11px;
     font-weight: 700;
     color: #868e96;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
+    background: rgba(0, 0, 0, 0.05);
+    padding: 2px 8px;
+    border-radius: 4px;
   }
 
-  .note-text {
+  .note-content {
     font-size: 14px;
     color: #495057;
     line-height: 1.5;
   }
 
-  .stop-block {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
+  .start-card {
+    border-left: 3px solid #1185fe;
   }
 
-  .stop-title {
-    font-size: 13px;
-    font-weight: 600;
+  .start-card .note-badge {
     color: #1185fe;
     background: rgba(17, 133, 254, 0.1);
-    padding: 4px 12px;
-    border-radius: 6px;
   }
 
-  .website-node {
-    width: 100%;
+  .end-card {
+    border-left: 3px solid #40c057;
+    background: rgba(64, 192, 87, 0.04);
   }
 
-  .stop-note {
-    font-size: 13px;
-    color: #868e96;
-    font-style: italic;
-    text-align: center;
-    max-width: 80%;
+  .end-card .note-badge {
+    color: #40c057;
+    background: rgba(64, 192, 87, 0.1);
   }
 
-  .trail-edge {
-    width: 2px;
-    height: 24px;
-    background: rgba(0, 0, 0, 0.12);
-    margin: 4px 0;
-  }
-
-  .missing-site {
-    padding: 16px;
-    text-align: center;
-    background: #fff5f5;
-    color: #e03131;
+  .step-card {
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 12px;
-    border: 1px solid rgba(224, 49, 49, 0.2);
-    font-size: 13px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   }
 
-  .concept-stop {
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .step-num {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1185fe;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 50%;
+  }
+
+  .step-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #212529;
+  }
+
+  .step-content {
+    margin-bottom: 8px;
+  }
+
+  .url-link {
+    display: block;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    color: #1185fe;
+    font-size: 13px;
+    text-decoration: none;
+    word-break: break-all;
+  }
+
+  .url-link:hover {
+    background: rgba(17, 133, 254, 0.1);
+  }
+
+  .concept-block {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 16px;
+    padding: 12px;
     background: rgba(17, 133, 254, 0.05);
-    border: 1px solid rgba(17, 133, 254, 0.2);
-    border-radius: 12px;
+    border-radius: 8px;
+    color: #1185fe;
+    font-size: 13px;
+    font-weight: 500;
   }
 
   .concept-icon {
-    font-size: 18px;
+    font-size: 16px;
   }
 
-  .concept-label {
+  .step-note {
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
     font-size: 13px;
-    font-weight: 600;
-    color: #1185fe;
-  }
-
-  .end-note {
-    border-color: rgba(64, 192, 87, 0.3);
-    background: rgba(64, 192, 87, 0.05);
-  }
-
-  .end-note .note-label {
-    color: #40c057;
+    color: #868e96;
+    font-style: italic;
+    line-height: 1.5;
   }
 
   /* Dark mode */
-  :global(body.dark-mode) .note-node {
+  :global(body.dark-mode) .note-card {
     background: #25262b;
     border-color: rgba(255, 255, 255, 0.12);
   }
-  :global(body.dark-mode) .note-label {
-    color: #5c5f66;
+
+  :global(body.dark-mode) .note-badge {
+    color: #868e96;
+    background: rgba(255, 255, 255, 0.05);
   }
-  :global(body.dark-mode) .note-text {
+
+  :global(body.dark-mode) .note-content {
     color: #c1c2c5;
   }
-  :global(body.dark-mode) .stop-title {
+
+  :global(body.dark-mode) .start-card {
+    border-left-color: #4dabf7;
+  }
+
+  :global(body.dark-mode) .start-card .note-badge {
     color: #4dabf7;
     background: rgba(77, 171, 247, 0.15);
   }
-  :global(body.dark-mode) .stop-note {
-    color: #868e96;
+
+  :global(body.dark-mode) .end-card {
+    border-left-color: #51cf66;
+    background: rgba(81, 207, 102, 0.05);
   }
-  :global(body.dark-mode) .trail-edge {
-    background: rgba(255, 255, 255, 0.14);
+
+  :global(body.dark-mode) .end-card .note-badge {
+    color: #51cf66;
+    background: rgba(81, 207, 102, 0.15);
   }
-  :global(body.dark-mode) .missing-site {
-    background: rgba(224, 49, 49, 0.1);
-    border-color: rgba(224, 49, 49, 0.2);
-    color: #ff8787;
+
+  :global(body.dark-mode) .step-card {
+    background: #25262b;
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: none;
   }
-  :global(body.dark-mode) .concept-stop {
-    background: rgba(77, 171, 247, 0.1);
-    border-color: rgba(77, 171, 247, 0.2);
+
+  :global(body.dark-mode) .step-num {
+    background: #4dabf7;
   }
-  :global(body.dark-mode) .concept-label {
+
+  :global(body.dark-mode) .step-title {
+    color: #e7e7e7;
+  }
+
+  :global(body.dark-mode) .url-link {
+    background: #373a40;
     color: #4dabf7;
   }
-  :global(body.dark-mode) .end-note {
-    border-color: rgba(64, 192, 87, 0.3);
-    background: rgba(64, 192, 87, 0.08);
+
+  :global(body.dark-mode) .url-link:hover {
+    background: rgba(77, 171, 247, 0.15);
   }
-  :global(body.dark-mode) .end-note .note-label {
-    color: #51cf66;
+
+  :global(body.dark-mode) .concept-block {
+    background: rgba(77, 171, 247, 0.1);
+    color: #4dabf7;
+  }
+
+  :global(body.dark-mode) .step-note {
+    background: #373a40;
+    color: #868e96;
   }
 </style>
