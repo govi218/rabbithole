@@ -29,22 +29,11 @@
   }
 
   export async function startTrail() {
-    const walk = await chrome.runtime.sendMessage({
-      type: MessageRequest.START_TRAIL_WALK,
-      trailId: trail.id,
-    });
-
-    const firstStop = trail.stops?.[0];
-    if (!firstStop) return;
-
-    if (!firstStop.websiteUrl) {
-      const trailPageUrl = chrome.runtime.getURL(
-        `src/trail/trail.html?trailId=${trail.id}&concept=1`,
-      );
-      window.location.href = trailPageUrl;
-    } else {
-      window.location.href = firstStop.websiteUrl;
-    }
+    // Navigate to TrailPage which handles starting the walk and showing notes
+    const trailPageUrl = chrome.runtime.getURL(
+      `src/trail/trail.html?trailId=${trail.id}`,
+    );
+    window.location.href = trailPageUrl;
   }
 
   export function toggleEdit() {

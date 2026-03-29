@@ -463,7 +463,7 @@
                     window.location.href = result.firstStopUrl;
                   } else {
                     window.location.href = chrome.runtime.getURL(
-                      `src/trail/trail.html?trailId=${result.trailId}`,
+                      `src/trail/trail.html?trailId=${result.trailId}&concept=1`,
                     );
                   }
                   await refreshHomeState();

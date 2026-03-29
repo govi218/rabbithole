@@ -106,7 +106,12 @@
   async function acknowledgeStartNote(): Promise<void> {
     showNoteModal = false;
     const firstStop: TrailStop | undefined = trail?.stops?.[0];
-    if (firstStop && firstStop.websiteUrl) {
+    if (!firstStop) return;
+    
+    if (!firstStop.websiteUrl) {
+      // Concept stop - show on trail page
+      window.location.href = `${window.location.pathname}?trailId=${trailId}&concept=1`;
+    } else {
       goToStop(firstStop.websiteUrl);
     }
   }
