@@ -20,6 +20,15 @@
     stops = [...stops, { tid: "", title: "", url: "", note: "", buttonText: "" }];
   }
 
+  function insertStop(afterIndex: number) {
+    const newStop = { tid: "", title: "", url: "", note: "", buttonText: "" };
+    stops = [
+      ...stops.slice(0, afterIndex + 1),
+      newStop,
+      ...stops.slice(afterIndex + 1),
+    ];
+  }
+
   function removeStop(i: number) {
     stops = stops.filter((_, idx) => idx !== i);
   }
@@ -108,6 +117,14 @@
             </div>
           </div>
         </div>
+
+        <!-- Insert stop button between stops -->
+        {#if i < stops.length - 1}
+          <button class="insert-stop-btn" on:click={() => insertStop(i)}>
+            <span class="insert-icon">+</span>
+            <span class="insert-text">Add stop here</span>
+          </button>
+        {/if}
       {/each}
       <button class="add-stop-btn" on:click={addStop}>+ Add stop</button>
     </div>
@@ -286,6 +303,44 @@
     color: #fa5252;
   }
 
+  .insert-stop-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: none;
+    border: 1px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 8px;
+    color: #868e96;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+    margin: -6px 0;
+  }
+
+  .insert-stop-btn:hover {
+    border-color: #228be6;
+    color: #228be6;
+    background: rgba(34, 139, 230, 0.05);
+  }
+
+  .insert-icon {
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .insert-text {
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .insert-stop-btn:hover .insert-text {
+    opacity: 1;
+  }
+
   .add-stop-btn {
     background: none;
     border: 1px dashed #dee2e6;
@@ -416,6 +471,19 @@
   :global(body.dark-mode) .remove-stop-btn:hover,
   :global(.dark) .remove-stop-btn:hover {
     color: #ff6b6b;
+  }
+
+  :global(body.dark-mode) .insert-stop-btn,
+  :global(.dark) .insert-stop-btn {
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #5c5f66;
+  }
+
+  :global(body.dark-mode) .insert-stop-btn:hover,
+  :global(.dark) .insert-stop-btn:hover {
+    border-color: #4dabf7;
+    color: #4dabf7;
+    background: rgba(77, 171, 247, 0.1);
   }
 
   :global(body.dark-mode) .add-stop-btn,
