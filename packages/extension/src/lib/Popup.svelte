@@ -42,9 +42,22 @@
   async function saveAllTabsToActiveProject() {
     isSyncingWindow = true;
     try {
-      await chrome.runtime.sendMessage({
-        type: MessageRequest.SAVE_WINDOW_TO_ACTIVE_BURROW,
+      const activeRabbithole = await chrome.runtime.sendMessage({
+        type: MessageRequest.GET_ACTIVE_RABBITHOLE,
       });
+      const activeBurrow = await chrome.runtime.sendMessage({
+        type: MessageRequest.GET_ACTIVE_BURROW,
+      });
+      if (activeBurrow?.id) {
+        await chrome.runtime.sendMessage({
+          type: MessageRequest.SAVE_WINDOW_TO_ACTIVE_BURROW,
+        });
+      } else {
+        await chrome.runtime.sendMessage({
+          type: MessageRequest.SAVE_WINDOW_TO_RABBITHOLE,
+          rabbitholeId: activeRabbithole.id,
+        });
+      }
       syncWindowSuccess = true;
       setTimeout(() => {
         syncWindowSuccess = false;

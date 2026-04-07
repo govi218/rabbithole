@@ -92,7 +92,10 @@
         lastSeenStopKey = stopKey;
       }
       // Check for stop-specific note/title
-      else if (currentStopData && (currentStopData.note || currentStopData.title)) {
+      else if (
+        currentStopData &&
+        (currentStopData.note || currentStopData.title)
+      ) {
         showStopNote = true;
         lastSeenStopKey = stopKey;
       } else {
@@ -200,8 +203,8 @@
     selectedBurrow = activeBurrow;
     selectedRabbithole = activeRabbithole;
 
-    orderBurrows(selectedBurrow?.id || null);
-    orderRabbitholes(selectedRabbithole?.id || null);
+    orderBurrows(selectedBurrow?.id ?? null);
+    orderRabbitholes(selectedRabbithole?.id ?? null);
   }
 
   async function refreshSettings(): Promise<void> {
@@ -510,7 +513,7 @@
           {/if}
         </div>
         {#if hasStopTitle || hasStopNote}
-          <button class="trail-info-btn" on:click={() => showStopNote = true}>
+          <button class="trail-info-btn" on:click={() => (showStopNote = true)}>
             ℹ️ View Info
           </button>
         {/if}
@@ -591,11 +594,17 @@
 {/if}
 
 {#if showStopNote && (visitedCount === 0 ? trail?.startNote : currentStop)}
-  <div class="stop-note-modal" on:click={() => showStopNote = false}>
+  <div class="stop-note-modal" on:click={() => (showStopNote = false)}>
     <div class="stop-note-content" on:click|stopPropagation={() => {}}>
       <div class="stop-note-header">
-        <div class="trail-step-label">{visitedCount === 0 ? "Starting Point" : `Stop ${visitedCount + 1} of ${totalStops}`}</div>
-        <button class="stop-note-close" on:click={() => showStopNote = false}>×</button>
+        <div class="trail-step-label">
+          {visitedCount === 0
+            ? "Starting Point"
+            : `Stop ${visitedCount + 1} of ${totalStops}`}
+        </div>
+        <button class="stop-note-close" on:click={() => (showStopNote = false)}
+          >×</button
+        >
       </div>
       {#if visitedCount === 0}
         <!-- Show starting note -->
@@ -614,7 +623,10 @@
           <p class="stop-note-text">{currentStop.note}</p>
         {/if}
       {/if}
-      <button class="trail-nav-btn primary" on:click={() => showStopNote = false}>
+      <button
+        class="trail-nav-btn primary"
+        on:click={() => (showStopNote = false)}
+      >
         Got it
       </button>
     </div>
@@ -877,7 +889,10 @@
 
   .stop-note-modal {
     position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(4px);
     display: flex;
@@ -914,7 +929,9 @@
     padding: 0;
     line-height: 1;
   }
-  .stop-note-close:hover { color: #c1c2c5; }
+  .stop-note-close:hover {
+    color: #c1c2c5;
+  }
   .stop-note-title {
     font-size: 18px;
     font-weight: 700;

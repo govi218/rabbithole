@@ -511,7 +511,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         throw new Error("trail required");
       }
       const actorTrail = req.trail as any;
-      
+
       // Get or create Sidetrails rabbithole for imported trails
       const SIDETRAILS_RH_TITLE = "Sidetrails";
       const allRh = await db.getAllRabbitholes();
@@ -519,7 +519,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (!rabbithole) {
         rabbithole = await db.createRabbithole(SIDETRAILS_RH_TITLE);
       }
-      
+
       // Build TrailStops from ActorTrail
       const stops = (actorTrail.stops || []).map((s: any, i: number) => ({
         tid: s.tid || `stop-${i}`,
@@ -534,26 +534,38 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const existingTrail = existingTrails.find((t: any) => {
         if (t.name !== actorTrail.title) return false;
         if (t.stops?.length !== stops.length) return false;
-        return t.stops.every((s: any, i: number) => s.websiteUrl === stops[i].websiteUrl);
+        return t.stops.every(
+          (s: any, i: number) => s.websiteUrl === stops[i].websiteUrl,
+        );
       });
 
       if (existingTrail) {
         // Reuse existing trail - just set as active
         await db.changeActiveTrail(existingTrail.id);
-        // Don't start walk here - let TrailPage handle it
-        return { trailId: existingTrail.id, needsStart: true };
+        await db.startTrailWalk(existingTrail.id);
+        await clearTrailWalkTab(); // Clear any previous tab registration
+        const firstStop = existingTrail.stops?.[0];
+        return {
+          trailId: existingTrail.id,
+          firstStopUrl: firstStop?.websiteUrl,
+        };
       }
 
-      const trail = await db.createTrail(rabbithole.id, actorTrail.title || "Imported Trail", stops);
+      const trail = await db.createTrail(
+        rabbithole.id,
+        actorTrail.title || "Imported Trail",
+        stops,
+      );
       await db.updateTrail(trail.id, {
         description: actorTrail.description || "",
         startNote: actorTrail.description || "",
       });
-      
+
       // Set as active trail (critical for overlay detection)
       await db.changeActiveTrail(trail.id);
-      // Don't start walk here - let TrailPage handle it
-      
+      await db.startTrailWalk(trail.id); // Start the walk so overlay can detect it
+      await clearTrailWalkTab(); // Clear any previous tab registration
+
       // Save website stubs for the trail URLs (needed for trail walk state)
       const urls = stops.map((s: any) => s.websiteUrl).filter(Boolean);
       if (urls.length > 0) {
@@ -566,8 +578,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         await db.saveWebsiteStubs(stubs);
         await db.addWebsitesToRabbitholeMeta(rabbithole.id, urls);
       }
-      
-      return { trailId: trail.id, needsStart: true };
+
+      const firstStop = trail.stops?.[0];
+      return { trailId: trail.id, firstStopUrl: firstStop?.websiteUrl };
     },
 
     [MessageRequest.PUBLISH_TRAIL]: async (req) => {
