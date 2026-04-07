@@ -40,7 +40,7 @@
   async function openAllBurrowHomeTabs(): Promise<void> {
     if (activeContainer?.activeTabs && activeContainer.activeTabs.length > 0) {
       await chrome.runtime.sendMessage({
-        type: "OPEN_TABS",
+        type: MessageRequest.OPEN_TABS,
         urls: activeContainer.activeTabs,
       });
     }
@@ -105,6 +105,7 @@
           <div class="card-wrap">
             <TimelineCard
               website={site}
+              fixedHeight={true}
               on:websiteDelete={() => removeFromBurrowHome(site.url)}
               on:websiteUpdate={handleWebsiteUpdate}
             />

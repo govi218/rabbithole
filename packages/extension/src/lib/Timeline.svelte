@@ -135,7 +135,7 @@
           rabbitholeId: activeRabbithole.id,
         });
       }
-      dispatch("refresh");
+      dispatch("refreshRabbithole");
     } catch (e) {
       Logger.error("Failed to update burrow home:", e);
     } finally {

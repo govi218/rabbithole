@@ -518,6 +518,7 @@
                 on:containerRename={renameContainer}
                 on:deleteContainer={handleDelete}
                 on:refresh={updateWebsites}
+                on:refreshRabbithole={refreshHomeState}
                 on:navigateUp={handleNavigation}
               />
             {:else}
