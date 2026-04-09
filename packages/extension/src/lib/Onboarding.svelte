@@ -1,30 +1,17 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from "svelte";
-  import {
-    ChevronLeft,
-    ChevronRight,
-    Cross2,
-    Sun,
-    Moon,
-  } from "radix-icons-svelte";
+  import { Sun, Moon } from "radix-icons-svelte";
   import { Loader } from "@svelteuidev/core";
   import { MessageRequest } from "../utils";
-  import tutorial1 from "../assets/tutorial-1-burrows-rabbitholes.mp4";
-  import tutorial2 from "../assets/tutorial-2-overlay-popup.mp4";
-  import tutorial3 from "../assets/tutorial-3-sync.mp4";
-  import tutorial4 from "../assets/tutorial-4-pinned.mp4";
-  import tutorial5 from "../assets/tutorial-5-search.mp4";
-  import tutorial6 from "../assets/tutorial-6-semble.mp4";
+  import logoStars from "@rabbithole/shared/assets/rabbithole-logo-stars.svg";
 
   const dispatch = createEventDispatcher();
 
-  let step: "tutorial" | "import" = "tutorial";
-  let currentSlide = 0;
-
+  let currentSlide = 0; // 0: welcome, 1: import
   let isImporting = false;
   let importBookmarks = true;
-  let importTabGroups = true;
   let isDark = false;
+  let hasInteractedWithTheme = false;
 
   onMount(async () => {
     const cachedDarkMode = localStorage.getItem("rabbithole-dark-mode");
@@ -40,6 +27,7 @@
   });
 
   async function toggleTheme() {
+    hasInteractedWithTheme = true;
     isDark = !isDark;
     document.body.classList.toggle("dark-mode", isDark);
     localStorage.setItem("rabbithole-dark-mode", String(isDark));
@@ -55,90 +43,18 @@
     }
   }
 
-  const slides = [
-    {
-      title: "Organize with Rabbitholes",
-      image: tutorial1,
-      content: `
-        <p><strong>Structure your research.</strong></p>
-        <p>Create <strong>Burrows</strong> for specific topics and group them into <strong>Rabbitholes</strong>. Keep your projects distinct and organized.</p>
-      `,
-    },
-    {
-      title: "Quick Access Overlay",
-      image: tutorial2,
-      content: `
-        <p><strong>Track without interruption.</strong></p>
-        <p>Use the <strong>Overlay</strong> or <strong>Popup</strong> to save pages to your active Burrow with one click, without leaving your current tab.</p>
-      `,
-    },
-    {
-      title: "Save Context Instantly",
-      image: tutorial3,
-      content: `
-        <p><strong>Close all the tabs you want without batting an eye.</strong></p>
-        <p>Click the <strong>Sync</strong> button to save all open tabs in your window to the active Burrow. Perfect for switching contexts without losing open pages.</p>
-      `,
-    },
-    {
-      title: "Pick Up Where You Left Off",
-      image: tutorial4,
-      content: `
-        <p><strong>Get right back into where you last were.</strong></p>
-        <p>Click the <strong>Home</strong> button to save all open tabs in your window as pinned websites for your Burrow. Whether you're in the depths of research or coming back to your desk after the weekend, you can keep track of the most important websites in your Burrow.</p>
-      `,
-    },
-    {
-      title: "Search Everywhere",
-      image: tutorial5,
-      content: `
-        <p><strong>Find anything, fast.</strong></p>
-        <p>Press <strong>Cmd+K</strong> (or Ctrl+K) to open the command palette. Search across all your Rabbitholes, Burrows, and saved websites instantly.</p>
-      `,
-    },
-    {
-      title: "Publish to Semble",
-      image: tutorial6,
-      content: `
-        <p><strong>Share your knowledge.</strong></p>
-        <p>Publish your Burrows as curated collections to <strong>Semble</strong> on the AT Protocol. Share your research trails with the world.</p>
-      `,
-    },
-  ];
-
-  function next() {
-    if (step === "tutorial") {
-      if (currentSlide < slides.length - 1) {
-        currentSlide++;
-      } else {
-        step = "import";
-      }
-    }
-  }
-
-  function prev() {
-    if (step === "tutorial") {
-      if (currentSlide > 0) {
-        currentSlide--;
-      }
-    } else if (step === "import") {
-      step = "tutorial";
-      currentSlide = slides.length - 1;
-    }
-  }
-
-  function skipTutorial() {
-    step = "import";
+  function goToImport() {
+    currentSlide = 1;
   }
 
   async function finish() {
-    if (importBookmarks || importTabGroups) {
+    if (importBookmarks) {
       isImporting = true;
       try {
         await chrome.runtime.sendMessage({
           type: MessageRequest.IMPORT_BROWSER_DATA,
-          importBookmarks,
-          importTabGroups,
+          importBookmarks: true,
+          importTabGroups: false,
         });
       } catch (e) {
         console.error(e);
@@ -157,6 +73,7 @@
   <div class="top-right-actions">
     <button
       class="theme-btn"
+      class:pulse={!hasInteractedWithTheme}
       on:click={toggleTheme}
       title={isDark ? "Switch to light mode" : "Switch to dark mode"}
     >
@@ -166,121 +83,82 @@
         <Moon size={16} />
       {/if}
     </button>
-
-    {#if step === "tutorial"}
-      <button class="skip-btn" on:click={skipTutorial}>
-        Skip Tutorial <Cross2 size={14} style="margin-left: 4px;" />
-      </button>
-    {:else if step === "import"}
-      <button class="skip-btn" on:click={skipImport} disabled={isImporting}>
-        Skip Import <Cross2 size={14} style="margin-left: 4px;" />
-      </button>
-    {/if}
   </div>
 
-  {#if step === "tutorial"}
+  {#if currentSlide === 0}
+    <!-- Welcome slide -->
     <div class="content-wrapper">
-      <h1 class="slide-title">{slides[currentSlide].title}</h1>
+      <img class="logo" alt="Rabbithole logo" src={logoStars} />
 
-      <div class="slide-image-container">
-        {#key currentSlide}
-          <video
-            src={slides[currentSlide].image}
-            class="slide-image"
-            autoplay
-            loop
-            muted
-            playsinline
-          >
-            Your browser does not support the video tag.
-          </video>
-        {/key}
-      </div>
+      <h1 class="slide-title">Welcome to Rabbithole</h1>
 
-      <div class="slide-content">
-        {@html slides[currentSlide].content}
-      </div>
+      <div class="welcome-content">
+        <p class="welcome-desc">
+          Rabbithole helps you track and share the online journeys you get into.
+        </p>
 
-      <div class="controls">
-        <button
-          class="nav-btn"
-          on:click={prev}
-          disabled={currentSlide === 0}
-          aria-label="Previous slide"
-        >
-          <ChevronLeft size={22} />
-        </button>
-
-        <div class="dots">
-          {#each slides as _, i}
-            <button
-              class="dot"
-              class:active={i === currentSlide}
-              on:click={() => (currentSlide = i)}
-              aria-label="Go to slide {i + 1}"
-            ></button>
-          {/each}
+        <div class="feature-list">
+          <div class="feature-item">
+            <span class="feature-icon">🕳️</span>
+            <div class="feature-text">
+              <strong>Rabbitholes</strong>
+              <span>Projects or topics to organize your research</span>
+            </div>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">🏠</span>
+            <div class="feature-text">
+              <strong>Burrows</strong>
+              <span>Unordered collections of links within a rabbithole</span>
+            </div>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">🥾</span>
+            <div class="feature-text">
+              <strong>Trails</strong>
+              <span>Ordered paths through content, like a guided tour</span>
+            </div>
+          </div>
         </div>
+      </div>
 
-        <button class="nav-btn" on:click={next} aria-label="Next slide">
-          <ChevronRight size={22} />
-        </button>
+      <div class="controls centered">
+        <button class="primary-btn" on:click={goToImport}> Get Started </button>
       </div>
     </div>
-  {:else if step === "import"}
+  {:else}
+    <!-- Import slide -->
     <div class="content-wrapper">
-      <h1 class="slide-title">Import Existing Data</h1>
+      <h1 class="slide-title">Import Bookmarks</h1>
 
       <div class="import-container">
         <p class="import-desc">
-          Get started quickly by importing your existing browser data into
-          Rabbithole.
+          Get started quickly by importing your browser bookmarks.
         </p>
 
-        <div class="import-options">
-          <label class="import-option">
-            <input
-              type="checkbox"
-              bind:checked={importBookmarks}
-              disabled={isImporting}
-            />
-            <div class="option-text">
-              <strong>Bookmarks</strong>
-              <span>Folders become Rabbitholes, subfolders become Burrows.</span
-              >
-            </div>
-          </label>
-
-          <label class="import-option">
-            <input
-              type="checkbox"
-              bind:checked={importTabGroups}
-              disabled={isImporting}
-            />
-            <div class="option-text">
-              <strong>Workspaces & Tab Groups</strong>
-              <span>Windows become Rabbitholes, tab groups become Burrows.</span
-              >
-            </div>
-          </label>
-        </div>
+        <label class="import-option">
+          <input
+            type="checkbox"
+            bind:checked={importBookmarks}
+            disabled={isImporting}
+          />
+          <div class="option-text">
+            <strong>Bookmarks</strong>
+            <span>Folders become Rabbitholes, subfolders become Burrows.</span>
+          </div>
+        </label>
 
         <div class="privacy-note">
           <p>
-            ️ <strong>Privacy First:</strong> Rabbithole does not collect any information
+            <strong>Privacy First:</strong> Rabbithole does not collect any information
             about you and all your data is stored locally on your device.
           </p>
         </div>
       </div>
 
-      <div class="controls import-controls">
-        <button
-          class="nav-btn"
-          on:click={prev}
-          disabled={isImporting}
-          aria-label="Back to tutorial"
-        >
-          <ChevronLeft size={22} />
+      <div class="controls">
+        <button class="skip-btn" on:click={skipImport} disabled={isImporting}>
+          Skip Import
         </button>
 
         <div class="spacer"></div>
@@ -289,9 +167,7 @@
           {#if isImporting}
             <Loader size="sm" color="white" />
           {:else}
-            {importBookmarks || importTabGroups
-              ? "Import & Continue"
-              : "Continue"}
+            Continue
           {/if}
         </button>
       </div>
@@ -356,45 +232,26 @@
     background: rgba(255, 255, 255, 0.15);
   }
 
-  .skip-btn {
-    display: flex;
-    align-items: center;
-    background: rgba(0, 0, 0, 0.05);
-    border: none;
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #495057;
-    cursor: pointer;
-    transition: background 0.2s;
+  .theme-btn.pulse {
+    animation: subtle-pulse 2s ease-in-out infinite;
   }
 
-  .skip-btn:hover:not(:disabled) {
-    background: rgba(0, 0, 0, 0.1);
-  }
-
-  .skip-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  :global(body.dark-mode) .skip-btn {
-    background: rgba(255, 255, 255, 0.08);
-    color: #c1c2c5;
-  }
-
-  :global(body.dark-mode) .skip-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.15);
+  @keyframes subtle-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgba(17, 133, 254, 0);
+    }
+    50% {
+      box-shadow: 0 0 0 4px rgba(17, 133, 254, 0.3);
+    }
   }
 
   .content-wrapper {
     width: 100%;
-    max-width: 1200px;
-    height: 100%;
-    max-height: 90vh;
+    max-width: 480px;
     display: flex;
     flex-direction: column;
+    align-items: center;
     animation: fadeIn 0.3s ease-out;
   }
 
@@ -416,76 +273,100 @@
     margin-top: 0;
     margin-bottom: 24px;
     color: #1a1b1e;
-    flex: 0 0 auto;
   }
 
   :global(body.dark-mode) .slide-title {
     color: #e7e7e7;
   }
 
-  .slide-image-container {
-    width: 100%;
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 24px;
-    background-color: rgba(0, 0, 0, 0.02);
-    border-radius: 16px;
-    padding: 16px;
-    box-sizing: border-box;
+  .logo {
+    width: 64px;
+    height: auto;
+    margin-bottom: 16px;
   }
 
-  :global(body.dark-mode) .slide-image-container {
-    background-color: rgba(255, 255, 255, 0.02);
+  :global(body.dark-mode) .logo {
+    filter: invert(1);
   }
 
-  .slide-image {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
-
-  .slide-content {
-    flex: 0 0 auto;
-    font-size: 15px;
-    line-height: 1.5;
-    color: #495057;
-    margin-bottom: 24px;
-    text-align: center;
-    padding: 0 16px;
-    max-width: 640px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  .slide-content :global(p) {
-    margin-bottom: 12px;
-  }
-
-  .slide-content :global(strong) {
-    color: #1a1b1e;
-    font-weight: 700;
-  }
-
-  :global(body.dark-mode) .slide-content {
-    color: #c1c2c5;
-  }
-
-  :global(body.dark-mode) .slide-content :global(strong) {
-    color: #e7e7e7;
-  }
-
-  .import-container {
-    flex: 1 1 auto;
+  .welcome-content {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .welcome-desc {
+    font-size: 15px;
+    color: #495057;
+    text-align: center;
+    margin-bottom: 32px;
+    line-height: 1.5;
+  }
+
+  :global(body.dark-mode) .welcome-desc {
+    color: #c1c2c5;
+  }
+
+  .feature-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    margin-bottom: 32px;
+  }
+
+  .feature-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 10px;
+  }
+
+  :global(body.dark-mode) .feature-item {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .feature-icon {
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .feature-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .feature-text strong {
+    font-size: 14px;
+    color: #1a1b1e;
+  }
+
+  .feature-text span {
+    font-size: 13px;
+    color: #868e96;
+    line-height: 1.4;
+  }
+
+  :global(body.dark-mode) .feature-text strong {
+    color: #e7e7e7;
+  }
+
+  :global(body.dark-mode) .feature-text span {
+    color: #909296;
+  }
+
+  .import-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     padding: 0 16px;
     margin-bottom: 24px;
-    overflow-y: auto;
+    width: 100%;
   }
 
   .import-desc {
@@ -493,21 +374,10 @@
     color: #495057;
     text-align: center;
     margin-bottom: 32px;
-    flex: 0 0 auto;
   }
 
   :global(body.dark-mode) .import-desc {
     color: #c1c2c5;
-  }
-
-  .import-options {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    width: 100%;
-    max-width: 480px;
-    margin-bottom: 32px;
-    flex: 0 0 auto;
   }
 
   .import-option {
@@ -520,6 +390,9 @@
     cursor: pointer;
     transition: all 0.2s;
     background: rgba(0, 0, 0, 0.01);
+    width: 100%;
+    max-width: 360px;
+    margin-bottom: 32px;
   }
 
   .import-option:hover {
@@ -575,8 +448,7 @@
     color: #495057;
     font-size: 13px;
     text-align: center;
-    max-width: 560px;
-    flex: 0 0 auto;
+    max-width: 360px;
   }
 
   :global(body.dark-mode) .privacy-note {
@@ -587,54 +459,46 @@
   .controls {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding-top: 20px;
-    flex: 0 0 auto;
-    max-width: 640px;
+    justify-content: flex-end;
     width: 100%;
-    margin: 0 auto;
+    max-width: 360px;
+    gap: 12px;
   }
 
-  .import-controls {
-    justify-content: flex-start;
+  .controls.centered {
+    justify-content: center;
   }
 
   .spacer {
     flex: 1;
   }
 
-  .nav-btn {
+  .skip-btn {
     background: transparent;
     border: none;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #868e96;
     cursor: pointer;
-    color: #228be6;
-    padding: 12px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.2s;
+    transition: color 0.2s;
   }
 
-  .nav-btn:hover:not(:disabled) {
-    background-color: rgba(34, 139, 230, 0.1);
+  .skip-btn:hover:not(:disabled) {
+    color: #495057;
   }
 
-  .nav-btn:disabled {
-    color: #adb5bd;
-    cursor: default;
+  .skip-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
-  :global(body.dark-mode) .nav-btn {
-    color: #4dabf7;
-  }
-
-  :global(body.dark-mode) .nav-btn:hover:not(:disabled) {
-    background-color: rgba(77, 171, 247, 0.15);
-  }
-
-  :global(body.dark-mode) .nav-btn:disabled {
+  :global(body.dark-mode) .skip-btn {
     color: #5c5f66;
+  }
+
+  :global(body.dark-mode) .skip-btn:hover:not(:disabled) {
+    color: #c1c2c5;
   }
 
   .primary-btn {
@@ -650,7 +514,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 160px;
+    min-width: 200px;
   }
 
   .primary-btn:hover:not(:disabled) {
@@ -660,43 +524,5 @@
   .primary-btn:disabled {
     opacity: 0.7;
     cursor: not-allowed;
-  }
-
-  .dots {
-    display: flex;
-    gap: 10px;
-  }
-
-  .dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background-color: #dee2e6;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .dot:hover:not(:disabled) {
-    background-color: #ced4da;
-    transform: scale(1.2);
-  }
-
-  .dot.active {
-    background-color: #228be6;
-    transform: scale(1.2);
-  }
-
-  :global(body.dark-mode) .dot {
-    background-color: #373a40;
-  }
-
-  :global(body.dark-mode) .dot:hover:not(:disabled) {
-    background-color: #5c5f66;
-  }
-
-  :global(body.dark-mode) .dot.active {
-    background-color: #4dabf7;
   }
 </style>

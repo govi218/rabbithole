@@ -6,6 +6,9 @@
   import Explore from "@rabbithole/shared/lib/Explore.svelte";
   import RabbitholeGrid from "src/lib/RabbitholeGrid.svelte";
   import Onboarding from "src/lib/Onboarding.svelte";
+  import CreateFirstRabbitholeModal from "src/lib/CreateFirstRabbitholeModal.svelte";
+  import ExploreWelcomeModal from "src/lib/ExploreWelcomeModal.svelte";
+  import OnboardingTour from "src/lib/OnboardingTour.svelte";
   import { MessageRequest } from "../utils";
   import { SvelteUIProvider, Loader, Text, AppShell } from "@svelteuidev/core";
   import type {
@@ -37,6 +40,38 @@
   let settings: Settings | null = null;
   let showOnboarding: boolean = false;
   let showExplore: boolean = false;
+
+  // Onboarding flow state
+  let showCreateFirstRabbithole: boolean = false;
+  let showExploreWelcome: boolean = false;
+  let showTour: boolean = false;
+
+  const tourSteps = [
+    {
+      selector: "#tour-sync-btn",
+      title: "Sync Open Tabs",
+      content:
+        "Save all tabs in your current window to this rabbithole. Perfect for quick cleanup.",
+    },
+    {
+      selector: "#tour-pinned-btn",
+      title: "Pinned Websites",
+      content:
+        "Mark important sites to pick up where you left off when you come back to this rabbithole.",
+    },
+    {
+      selector: "#tour-organize-btn",
+      title: "Organize",
+      content:
+        "Group your links into Burrows (collections) or Trails (ordered paths to follow).",
+    },
+    {
+      selector: "#tour-signin-btn",
+      title: "Sign In",
+      content:
+        "Sign in with your Atmosphere handle to publish your burrows and trails for others to discover.",
+    },
+  ];
 
   let importNotice: {
     trails: { count: number; names: string[] };
@@ -158,6 +193,46 @@
     });
 
     await refreshHomeState();
+
+    showCreateFirstRabbithole = true;
+  }
+
+  async function handleCreateFirstRabbithole(
+    event: CustomEvent<{ title: string }>,
+  ): Promise<void> {
+    const { title } = event.detail;
+    showCreateFirstRabbithole = false;
+
+    const result = await chrome.runtime.sendMessage({
+      type: MessageRequest.CREATE_NEW_RABBITHOLE,
+      title,
+    });
+
+    await refreshHomeState();
+
+    // Navigate to the new rabbithole
+    await selectRabbithole(result.id);
+
+    // Wait for DOM to update then show tour
+    await tick();
+    setTimeout(() => {
+      showTour = true;
+    }, 500);
+  }
+
+  function handleTourComplete(): void {
+    showTour = false;
+    // Go to Explore page with welcome modal
+    showExplore = true;
+    showExploreWelcome = true;
+  }
+
+  function handleTourSkip(): void {
+    showTour = false;
+  }
+
+  function handleExploreWelcomeClose(): void {
+    showExploreWelcome = false;
   }
 
   async function toggleTheme(): Promise<void> {
@@ -539,6 +614,27 @@
       </div>
     </AppShell>
   </SvelteUIProvider>
+
+  <!-- Create first rabbithole modal -->
+  <CreateFirstRabbitholeModal
+    isOpen={showCreateFirstRabbithole}
+    on:create={handleCreateFirstRabbithole}
+    on:close={() => (showCreateFirstRabbithole = false)}
+  />
+
+  <!-- Explore welcome modal -->
+  <ExploreWelcomeModal
+    isOpen={showExploreWelcome}
+    on:close={handleExploreWelcomeClose}
+  />
+
+  <!-- Onboarding tour -->
+  <OnboardingTour
+    isOpen={showTour}
+    steps={tourSteps}
+    on:complete={handleTourComplete}
+    on:skip={handleTourSkip}
+  />
 {/if}
 
 <Modal
