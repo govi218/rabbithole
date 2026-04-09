@@ -18,6 +18,7 @@
   } from "radix-icons-svelte";
   import SearchEverywhereModal from "src/lib/SearchEverywhereModal.svelte";
   import Modal from "src/lib/Modal.svelte";
+  import logoStars from "@rabbithole/shared/assets/rabbithole-logo-stars.svg";
   import Auth from "src/lib/Auth.svelte";
   import OnboardingModal from "src/lib/OnboardingModal.svelte";
   import { getSession, clearSession } from "../atproto/client";
@@ -281,7 +282,7 @@
 <nav class="navbar">
   <div class="navbar-left">
     <div class="logo-container">
-      <img class="logo" alt="Rabbithole logo" src="../assets/icons/logo.png" /><span class="alpha-badge">alpha</span>
+      <img class="logo" alt="Rabbithole logo" src={logoStars} /><span class="alpha-badge">alpha</span>
     </div>
     <Button
       variant="subtle"
@@ -461,7 +462,10 @@
   .logo {
     width: 38px;
     height: auto;
-    opacity: 0.95;
+  }
+
+  :global(body.dark-mode) .logo {
+    filter: invert(1);
   }
 
   .alpha-badge {

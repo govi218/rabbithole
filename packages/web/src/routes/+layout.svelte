@@ -7,6 +7,7 @@
   import { Agent } from "@atproto/api";
   import { getSession, clearSession } from "$lib/atproto/client";
   import logo from "$lib/assets/logo.png";
+  import logoStars from "@rabbithole/shared/assets/rabbithole-logo-stars.svg";
 
   inject({ mode: dev ? "development" : "production" });
 
@@ -60,8 +61,7 @@
 <header class="nav" class:scrolled>
   <div class="nav-inner">
     <a href="/" class="nav-logo">
-      <img src={logo} alt="Rabbithole" class="nav-logo-img" />
-      Rabbithole
+      <img src={logoStars} alt="Rabbithole" class="nav-logo-img" />
     </a>
     <nav class="nav-links">
       <a
@@ -176,10 +176,9 @@
   }
 
   .nav-logo-img {
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
-    object-fit: cover;
+    width: 48px;
+    height: 48px;
+    filter: invert(1);
   }
 
   .nav-links {

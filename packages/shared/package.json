@@ -7,7 +7,8 @@
     "./utils/og": "./src/utils/og.ts",
     "./atproto/http": "./src/atproto/http.ts",
     "./atproto/explore": "./src/atproto/explore.ts",
-    "./lib/*": "./src/lib/*.svelte"
+    "./lib/*": "./src/lib/*.svelte",
+    "./assets/*": "./src/assets/*"
   },
   "peerDependencies": {
     "svelte": ">=3.0.0"
