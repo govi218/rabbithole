@@ -7,7 +7,7 @@
     Rocket,
     Reload,
     Trash,
-    Home,
+    DrawingPin,
     Upload,
     Play,
     Pencil1,
@@ -137,30 +137,38 @@
           withArrow
           transition="fade"
         >
-          <ActionIcon
-            size="lg"
-            radius="md"
-            color="blue"
-            on:click={() => dispatch("saveWindow")}
-            loading={isSavingWindow}
-          >
-            <Reload size={18} />
-          </ActionIcon>
+          <div id="tour-sync-btn">
+            <ActionIcon
+              size="lg"
+              radius="md"
+              color="blue"
+              on:click={() => dispatch("saveWindow")}
+              loading={isSavingWindow}
+            >
+              <Reload size={18} />
+            </ActionIcon>
+          </div>
         </Tooltip>
 
         <div class="action-divider"></div>
 
         {#if !activeBurrowId && activeRabbitholeId}
-          <Tooltip label="Update pinned websites" withArrow transition="fade">
-            <ActionIcon
-              size="lg"
-              radius="md"
-              color="blue"
-              on:click={() => dispatch("updatePinnedWebsites")}
-              loading={isUpdatingPinnedWebsites}
-            >
-              <Home size={18} />
-            </ActionIcon>
+          <Tooltip
+            label="Update pinned websites"
+            withArrow
+            transition="fade"
+          >
+            <div id="tour-pinned-btn">
+              <ActionIcon
+                size="lg"
+                radius="md"
+                color="blue"
+                on:click={() => dispatch("updatePinnedWebsites")}
+                loading={isUpdatingPinnedWebsites}
+              >
+                <DrawingPin size={18} />
+              </ActionIcon>
+            </div>
           </Tooltip>
 
           <div class="action-divider"></div>
