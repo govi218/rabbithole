@@ -22,6 +22,7 @@
 <div class="grid">
   {#if allowCreate}
     <button
+      id="tour-organize-btn"
       type="button"
       class="card add-card"
       on:click={() => dispatch("organize")}

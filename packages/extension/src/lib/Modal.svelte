@@ -27,23 +27,27 @@
       <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="modal-overlay" on:click={close}>
     <div class="modal-content" on:click|stopPropagation>
-      <div class="modal-header">
-        {#if titleLink}
-          <h2 class="modal-title">
-            Sign in with <a
-              href={titleLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="modal-title-link">Internet Handle</a
-            >
-          </h2>
-        {:else}
-          <h2 class="modal-title">{title}</h2>
-        {/if}
+      <div class="modal-close">
         <ActionIcon on:click={close}>
           <Cross2 />
         </ActionIcon>
       </div>
+      {#if title}
+        <div class="modal-header">
+          {#if titleLink}
+            <h2 class="modal-title">
+              Sign in with <a
+                href={titleLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="modal-title-link">Internet Handle</a
+              >
+            </h2>
+          {:else}
+            <h2 class="modal-title">{title}</h2>
+          {/if}
+        </div>
+      {/if}
       <div class="modal-body">
         <slot />
       </div>
@@ -76,6 +80,7 @@
     max-height: 90vh;
     overflow-y: auto;
     animation: popIn 0.2s ease-out;
+    position: relative;
   }
 
   @keyframes popIn {
@@ -89,11 +94,19 @@
     }
   }
 
+  .modal-close {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    z-index: 1;
+  }
+
   .modal-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
     margin-bottom: 16px;
+    position: relative;
   }
 
   .modal-title {

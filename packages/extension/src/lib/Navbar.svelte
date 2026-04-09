@@ -386,7 +386,7 @@
         </Menu.Item>
       </Menu>
     {:else}
-      <div class="connect-container">
+      <div class="connect-container" id="tour-signin-btn">
         <Button variant="light" color="blue" size="sm" on:click={handleSignIn}>
           Sign in
         </Button>
