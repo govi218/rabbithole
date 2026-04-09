@@ -423,6 +423,8 @@
   </div>
 </nav>
 
+<OnboardingModal isOpen={showOnboardingModal} on:close={() => (showOnboardingModal = false)} />
+
 <style>
   .navbar {
     position: fixed;
