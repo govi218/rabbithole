@@ -4,6 +4,7 @@
   import Timeline from "src/lib/Timeline.svelte";
   import Navbar from "src/lib/Navbar.svelte";
   import Explore from "@rabbithole/shared/lib/Explore.svelte";
+  import { fetchCollectionByUri } from "@rabbithole/shared/atproto/explore";
   import RabbitholeGrid from "src/lib/RabbitholeGrid.svelte";
   import Onboarding from "src/lib/Onboarding.svelte";
   import CreateFirstRabbitholeModal from "src/lib/CreateFirstRabbitholeModal.svelte";
@@ -541,6 +542,28 @@
                       `src/trail/trail.html?trailId=${result.trailId}&concept=1`,
                     );
                   }
+                  await refreshHomeState();
+                }
+              }}
+              onBurrowClick={async (actorBurrow) => {
+                // Fetch full collection data (latest collections only have basic info)
+                const fullBurrow = await fetchCollectionByUri(actorBurrow.uri);
+                if (!fullBurrow) return;
+
+                const result = await chrome.runtime.sendMessage({
+                  type: MessageRequest.IMPORT_BURROW_FROM_EXPLORE,
+                  burrow: fullBurrow,
+                });
+                if (result?.burrowId) {
+                  showExplore = false;
+                  await chrome.runtime.sendMessage({
+                    type: MessageRequest.CHANGE_ACTIVE_RABBITHOLE,
+                    rabbitholeId: result.rabbitholeId,
+                  });
+                  await chrome.runtime.sendMessage({
+                    type: MessageRequest.CHANGE_ACTIVE_BURROW,
+                    burrowId: result.burrowId,
+                  });
                   await refreshHomeState();
                 }
               }}

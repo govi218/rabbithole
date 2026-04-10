@@ -56,6 +56,7 @@ export enum MessageRequest {
   REGISTER_TRAIL_WALK_TAB,
   IMPORT_BROWSER_DATA,
   IMPORT_TRAIL_FROM_EXPLORE,
+  IMPORT_BURROW_FROM_EXPLORE,
 }
 
 export type TrailWalkStatus = "ACTIVE" | "COMPLETED" | "ABANDONED";
