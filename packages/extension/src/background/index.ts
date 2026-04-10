@@ -583,6 +583,47 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return { trailId: trail.id, firstStopUrl: firstStop?.websiteUrl };
     },
 
+    [MessageRequest.IMPORT_BURROW_FROM_EXPLORE]: async (req) => {
+      if (!("burrow" in req)) {
+        throw new Error("burrow required");
+      }
+      const actorBurrow = req.burrow as any;
+
+      // Get or create Imported Burrows rabbithole
+      const IMPORTED_RH_TITLE = "Imported Burrows";
+      const allRh = await db.getAllRabbitholes();
+      let rabbithole = allRh.find((r) => r.title === IMPORTED_RH_TITLE);
+      if (!rabbithole) {
+        rabbithole = await db.createRabbithole(IMPORTED_RH_TITLE);
+      }
+
+      // Get URLs from cards (which have metadata)
+      const cards = actorBurrow.cards || [];
+      const urls = cards.map((c: any) => c.url).filter(Boolean);
+
+      const burrow = await db.createBurrow(
+        rabbithole.id,
+        actorBurrow.name || "Imported Burrow",
+        undefined,
+        urls,
+      );
+
+      // Save website stubs with card metadata
+      if (cards.length > 0) {
+        const stubs = cards.map((card: any) => ({
+          url: card.url,
+          name: card.title || card.url,
+          savedAt: Date.now(),
+          faviconUrl: "",
+          openGraphImageUrl: card.image || undefined,
+          description: card.description || undefined,
+        }));
+        await db.saveWebsiteStubs(stubs);
+      }
+
+      return { burrowId: burrow.id, rabbitholeId: rabbithole.id };
+    },
+
     [MessageRequest.PUBLISH_TRAIL]: async (req) => {
       if (!("trailId" in req)) {
         throw new Error("trailId required");
