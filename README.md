@@ -1,5 +1,5 @@
 <h1 align="center">
-<img src="https://raw.githubusercontent.com/DataXResearch/rabbithole/main/src/assets/icons/logo.png" alt="Rabbithole logo" title="Rabbithole logo" width="200">
+<img src="https://raw.githubusercontent.com/govi218/rabbithole/main/packages/shared/src/assets/rabbithole-social-logo.png" alt="Rabbithole logo" title="Rabbithole logo" width="200">
 <br>
 rabbithole
 </h1>
