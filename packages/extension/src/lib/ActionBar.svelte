@@ -154,7 +154,7 @@
 
         {#if !activeBurrowId && activeRabbitholeId}
           <Tooltip
-            label="Update pinned websites"
+            label="Pin all websites in this window"
             withArrow
             transition="fade"
           >

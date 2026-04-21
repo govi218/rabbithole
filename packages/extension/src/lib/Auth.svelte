@@ -112,7 +112,10 @@
 
       // Sync remote trails/collections and report what was imported
       isSyncing = true;
-      let imported = { trails: { count: 0, names: [] }, burrows: { count: 0, names: [] } };
+      let imported = {
+        trails: { count: 0, names: [] },
+        burrows: { count: 0, names: [] },
+      };
       try {
         const syncResult = await chrome.runtime.sendMessage({
           type: MessageRequest.SYNC_ATPROTO,
@@ -240,7 +243,10 @@
 
     {#if showWhyBluesky}
       <div class="why-bluesky-wrapper">
-        <CollapsibleContainer title="Why Internet Handle?" defaultOpen={false}>
+        <CollapsibleContainer
+          title="Why Atmosphere Account?"
+          defaultOpen={false}
+        >
           <div class="why-bluesky-content">
             <ul
               style="padding-left: 20px; margin-top: 10px; margin-bottom: 20px;"
