@@ -264,8 +264,8 @@
 
 <Modal
   isOpen={showAuthModal}
-  title="Sign in with Internet Handle"
-  titleLink="https://internethandle.org/"
+  title="Sign in with Atmosphere Account"
+  titleLink="https://atproto.com/articles/atproto-ethos"
   on:close={() => (showAuthModal = false)}
 >
   <Auth on:authSuccess={handleAuthSuccess} showWhyBluesky={true} />
@@ -282,7 +282,9 @@
 <nav class="navbar">
   <div class="navbar-left">
     <div class="logo-container">
-      <img class="logo" alt="Rabbithole logo" src={logoStars} /><span class="alpha-badge">alpha</span>
+      <img class="logo" alt="Rabbithole logo" src={logoStars} /><span
+        class="alpha-badge">alpha</span
+      >
     </div>
     <Button
       variant="subtle"
@@ -423,7 +425,10 @@
   </div>
 </nav>
 
-<OnboardingModal isOpen={showOnboardingModal} on:close={() => (showOnboardingModal = false)} />
+<OnboardingModal
+  isOpen={showOnboardingModal}
+  on:close={() => (showOnboardingModal = false)}
+/>
 
 <style>
   .navbar {
