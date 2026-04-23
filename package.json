@@ -6,6 +6,8 @@
     "dev:web": "pnpm --filter @rabbithole/web dev",
     "build": "pnpm -r build",
     "build:extension": "pnpm --filter @rabbithole/extension build",
+    "build:extension:chrome": "pnpm --filter @rabbithole/extension build:chrome",
+    "build:extension:firefox": "pnpm --filter @rabbithole/extension build:firefox",
     "build:web": "pnpm --filter @rabbithole/web build"
   },
   "devDependencies": {

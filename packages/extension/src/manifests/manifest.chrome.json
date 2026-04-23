@@ -3,18 +3,13 @@
   "description": "Track your internet rabbitholes!",
   "version": "4.9",
   "manifest_version": 3,
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "rabbithole@rabbithole.land",
-      "strict_min_version": "109.0"
-    }
-  },
   "icons": {
     "16": "src/assets/icons/logo16.png",
     "32": "src/assets/icons/logo32.png",
     "48": "src/assets/icons/logo48.png",
     "128": "src/assets/icons/logo128.png"
   },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnvpJ8y9KLfyS1BZ5QqWSAz8lxts6UDrWSQ9qfn9DRDhjOnw4XJjPTJBIvx7lCbGyxYPZWEseB7lwpjD96bD1NJCKL8z09R64dZr7sNvNkslP6b13p4OLkaTBZqXH7TJ5BJTCj4lzxZ+EuxikrAcSM8QHDZdzk5cDMnGlGVsF6DhNN/ZSlvzSzigKH/qt1qfFeaY+0V6XaWWkiwQF98gUzHaW8EqYJMjCbtlJaSlQIWjldkxsmvZ6M/znKRxKJuKi4dS1TpgVio7PkeCx8/BptbgTNxW6po2opRT3jFQWg8fDziq7/BDTIRKP00pHtcCgxvb2YjOGDgch65O2lSnRSwIDAQAB",
   "web_accessible_resources": [
     {
       "resources": [
@@ -38,8 +33,7 @@
     }
   ],
   "background": {
-    "scripts": ["src/background/index.ts"],
-    "type": "module"
+    "service_worker": "src/background/index.ts"
   },
   "options_page": "src/options/options.html",
   "action": {
