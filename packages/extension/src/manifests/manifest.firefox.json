@@ -10,15 +10,23 @@
     }
   },
   "icons": {
-    "16": "src/assets/icons/logo16.png",
-    "32": "src/assets/icons/logo32.png",
-    "48": "src/assets/icons/logo48.png",
-    "128": "src/assets/icons/logo128.png"
+    "16": "src/assets/icons/logo16-dark.png",
+    "32": "src/assets/icons/logo32-dark.png",
+    "48": "src/assets/icons/logo48-dark.png",
+    "128": "src/assets/icons/logo128-dark.png"
   },
   "web_accessible_resources": [
     {
       "resources": [
         "src/assets/icons/logo.png",
+        "src/assets/icons/logo16.png",
+        "src/assets/icons/logo32.png",
+        "src/assets/icons/logo48.png",
+        "src/assets/icons/logo128.png",
+        "src/assets/icons/logo16-dark.png",
+        "src/assets/icons/logo32-dark.png",
+        "src/assets/icons/logo48-dark.png",
+        "src/assets/icons/logo128-dark.png",
         "src/trail/trail.html",
         "*.js",
         "*.css",
@@ -44,10 +52,10 @@
   "options_page": "src/options/options.html",
   "action": {
     "default_icon": {
-      "16": "src/assets/icons/logo16.png",
-      "32": "src/assets/icons/logo32.png",
-      "48": "src/assets/icons/logo48.png",
-      "128": "src/assets/icons/logo128.png"
+      "16": "src/assets/icons/logo16-dark.png",
+      "32": "src/assets/icons/logo32-dark.png",
+      "48": "src/assets/icons/logo48-dark.png",
+      "128": "src/assets/icons/logo128-dark.png"
     },
     "default_popup": "src/popup/popup.html"
   },
