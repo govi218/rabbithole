@@ -4,16 +4,24 @@
   "version": "4.9",
   "manifest_version": 3,
   "icons": {
-    "16": "src/assets/icons/logo16.png",
-    "32": "src/assets/icons/logo32.png",
-    "48": "src/assets/icons/logo48.png",
-    "128": "src/assets/icons/logo128.png"
+    "16": "src/assets/icons/logo16-dark.png",
+    "32": "src/assets/icons/logo32-dark.png",
+    "48": "src/assets/icons/logo48-dark.png",
+    "128": "src/assets/icons/logo128-dark.png"
   },
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnvpJ8y9KLfyS1BZ5QqWSAz8lxts6UDrWSQ9qfn9DRDhjOnw4XJjPTJBIvx7lCbGyxYPZWEseB7lwpjD96bD1NJCKL8z09R64dZr7sNvNkslP6b13p4OLkaTBZqXH7TJ5BJTCj4lzxZ+EuxikrAcSM8QHDZdzk5cDMnGlGVsF6DhNN/ZSlvzSzigKH/qt1qfFeaY+0V6XaWWkiwQF98gUzHaW8EqYJMjCbtlJaSlQIWjldkxsmvZ6M/znKRxKJuKi4dS1TpgVio7PkeCx8/BptbgTNxW6po2opRT3jFQWg8fDziq7/BDTIRKP00pHtcCgxvb2YjOGDgch65O2lSnRSwIDAQAB",
   "web_accessible_resources": [
     {
       "resources": [
         "src/assets/icons/logo.png",
+        "src/assets/icons/logo16.png",
+        "src/assets/icons/logo32.png",
+        "src/assets/icons/logo48.png",
+        "src/assets/icons/logo128.png",
+        "src/assets/icons/logo16-dark.png",
+        "src/assets/icons/logo32-dark.png",
+        "src/assets/icons/logo48-dark.png",
+        "src/assets/icons/logo128-dark.png",
         "src/trail/trail.html",
         "*.js",
         "*.css",
@@ -38,10 +46,10 @@
   "options_page": "src/options/options.html",
   "action": {
     "default_icon": {
-      "16": "src/assets/icons/logo16.png",
-      "32": "src/assets/icons/logo32.png",
-      "48": "src/assets/icons/logo48.png",
-      "128": "src/assets/icons/logo128.png"
+      "16": "src/assets/icons/logo16-dark.png",
+      "32": "src/assets/icons/logo32-dark.png",
+      "48": "src/assets/icons/logo48-dark.png",
+      "128": "src/assets/icons/logo128-dark.png"
     },
     "default_popup": "src/popup/popup.html"
   },
