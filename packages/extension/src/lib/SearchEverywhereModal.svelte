@@ -13,6 +13,7 @@
   import TimelineCard from "src/lib/TimelineCard.svelte";
   import RabbitholeGrid from "src/lib/RabbitholeGrid.svelte";
   import BurrowGrid from "src/lib/BurrowGrid.svelte";
+  import WebsiteGrid from "src/lib/WebsiteGrid.svelte";
   import CollapsibleContainer from "src/lib/CollapsibleContainer.svelte";
   import { MessageRequest, Logger } from "../utils";
   import type { Burrow, Rabbithole, Trail, Website } from "src/utils/types";
@@ -270,11 +271,12 @@
                   open={sectionStates.websites}
                   on:toggle={(e) => handleToggleSection("websites", e)}
                 >
-                  <Stack spacing="md">
-                    {#each websiteResults as website}
-                      <TimelineCard {website} showDelete={false} />
-                    {/each}
-                  </Stack>
+                  <WebsiteGrid
+                    websites={websiteResults}
+                    onSelect={(url) => {
+                      window.open(url, "_blank");
+                    }}
+                  />
                 </CollapsibleContainer>
               {/if}
             </Stack>
