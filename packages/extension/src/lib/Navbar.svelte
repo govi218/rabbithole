@@ -265,7 +265,7 @@
 <Modal
   isOpen={showAuthModal}
   title="Sign in with Atmosphere Account"
-  titleLink="https://atproto.com/articles/atproto-ethos"
+  titleLink="https://atmosphereaccount.com"
   on:close={() => (showAuthModal = false)}
 >
   <Auth on:authSuccess={handleAuthSuccess} showWhyBluesky={true} />
