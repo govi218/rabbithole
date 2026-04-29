@@ -208,7 +208,7 @@
           <button class="secondary-btn" on:click={walkAgain}>
             Walk Again
           </button>
-          <button class="primary-btn" on:click={() => window.close()}>
+          <button class="primary-btn" on:click={() => window.location.href = `${window.location.pathname}?trailId=${trailId}`}>
             Done
           </button>
         </div>

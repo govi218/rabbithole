@@ -12,7 +12,14 @@
   import Options from "./Options.svelte";
   import ContainerSelector from "src/lib/ContainerSelector.svelte";
   import { MessageRequest, NotificationDuration, Logger } from "../utils";
-  import { Move, EyeNone, Update, Check, Cross2 } from "radix-icons-svelte";
+  import {
+    Move,
+    EyeNone,
+    EyeOpen,
+    Update,
+    Check,
+    Cross2,
+  } from "radix-icons-svelte";
   import type {
     Burrow,
     Rabbithole,
@@ -151,7 +158,17 @@
   }
 
   async function abandonTrail(): Promise<void> {
-    if (!trail) return;
+    if (!trail) {
+      return;
+    }
+    // If trail is completed, navigate to trail overview instead of abandoning
+    if (walk?.completed) {
+      const trailPageUrl = chrome.runtime.getURL(
+        `src/trail/trail.html?trailId=${trail.id}&completed=1`,
+      );
+      window.location.href = trailPageUrl;
+      return;
+    }
     await chrome.runtime.sendMessage({
       type: MessageRequest.ABANDON_TRAIL_WALK,
       trailId: trail.id,
@@ -473,13 +490,20 @@
               </ActionIcon>
             </Tooltip>
           {:else}
-            <Tooltip label="Abandon trail" withArrow>
+            <Tooltip
+              label={walk?.completed ? "View trail" : "Abandon trail"}
+              withArrow
+            >
               <ActionIcon
                 on:click={abandonTrail}
                 size="sm"
-                class="rabbithole-icon header-icon abandon-icon"
+                class="rabbithole-icon header-icon"
               >
-                <Cross2 />
+                {#if walk?.completed}
+                  <EyeOpen />
+                {:else}
+                  <Cross2 />
+                {/if}
               </ActionIcon>
             </Tooltip>
           {/if}
@@ -534,6 +558,17 @@
       {:else if trailMode && (!walk || walk?.completed)}
         <div class="trail-done">
           <div class="trail-step-label">Trail complete 🎉</div>
+          <button
+            class="trail-nav-btn primary"
+            on:click={() => {
+              const trailPageUrl = chrome.runtime.getURL(
+                `src/trail/trail.html?trailId=${trail?.id}&completed=1`,
+              );
+              window.location.href = trailPageUrl;
+            }}
+          >
+            View Trail
+          </button>
         </div>
       {/if}
 
