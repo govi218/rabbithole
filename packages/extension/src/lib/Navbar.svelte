@@ -247,10 +247,6 @@
   function handleSearchSelectTrail(event: CustomEvent<any>): void {
     dispatch("selectTrail", event.detail);
   }
-
-  async function handleOnboardingClose(): Promise<void> {
-    showOnboardingModal = false;
-  }
 </script>
 
 <svelte:window on:click={handleWindowClick} />
