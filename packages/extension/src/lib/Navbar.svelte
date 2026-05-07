@@ -15,6 +15,7 @@
     FileText,
     EyeNone,
     EyeOpen,
+    Globe,
   } from "radix-icons-svelte";
   import SearchEverywhereModal from "src/lib/SearchEverywhereModal.svelte";
   import Modal from "src/lib/Modal.svelte";
@@ -35,6 +36,10 @@
   let showSearchModal: boolean = false;
   let showAuthModal: boolean = false;
   let showOnboardingModal: boolean = false;
+  let showImportModal: boolean = false;
+  let importSyncing: boolean = false;
+  let importResult: string | null = null;
+  let importError: string | null = null;
   let showHelpTooltip: boolean = false;
   let isMac = navigator.userAgent.includes("Mac");
   let isLoggedIn: boolean = false;
@@ -233,6 +238,41 @@
   }
 
   function triggerImport(): void {
+    if (isLoggedIn) {
+      showImportModal = true;
+    } else {
+      fileInput.click();
+    }
+  }
+
+  async function importFromAtmosphere(): Promise<void> {
+    importSyncing = true;
+    importResult = null;
+    importError = null;
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: MessageRequest.SYNC_ATPROTO,
+      });
+      if (response?.imported) {
+        const { trails, burrows } = response.imported;
+        const parts = [];
+        if (trails?.count) parts.push(`${trails.count} trail(s)`);
+        if (burrows?.count) parts.push(`${burrows.count} collection(s)`);
+        importResult = parts.length
+          ? `Imported ${parts.join(" and ")} from Atmosphere.`
+          : "No new data found on Atmosphere.";
+      }
+      onBurrowsClick();
+    } catch (e) {
+      Logger.error("Atmosphere import failed", e);
+      importError = "Failed to import: " + e.message;
+    } finally {
+      importSyncing = false;
+    }
+  }
+
+  function importFromFile(): void {
+    showImportModal = false;
     fileInput.click();
   }
 
@@ -265,6 +305,67 @@
   on:close={() => (showAuthModal = false)}
 >
   <Auth on:authSuccess={handleAuthSuccess} showWhyBluesky={true} />
+</Modal>
+
+<Modal
+  isOpen={showImportModal}
+  title="Import Data"
+  on:close={() => {
+    showImportModal = false;
+    importResult = null;
+    importError = null;
+  }}
+>
+  {#if importSyncing}
+    <div class="import-syncing">
+      <span class="import-syncing-text">Syncing from Atmosphere...</span>
+    </div>
+  {:else if importResult}
+    <p class="import-result">{importResult}</p>
+    <div style="text-align: right; margin-top: 16px;">
+      <Button
+        on:click={() => {
+          showImportModal = false;
+          importResult = null;
+        }}>Done</Button
+      >
+    </div>
+  {:else if importError}
+    <p class="import-error">{importError}</p>
+    <div style="text-align: right; margin-top: 16px;">
+      <Button
+        variant="subtle"
+        color="gray"
+        on:click={() => {
+          importError = null;
+        }}>Back</Button
+      >
+    </div>
+  {:else}
+    <p style="margin-bottom: 16px; color: #868e96; font-size: 14px;">
+      Where would you like to import from?
+    </p>
+
+    <div class="import-options">
+      <button class="import-option" on:click={importFromFile}>
+        <div class="import-option-icon"><Upload size={20} /></div>
+        <div class="import-option-text">
+          <div class="import-option-title">From File</div>
+          <div class="import-option-desc">Import a JSON backup file</div>
+        </div>
+      </button>
+
+      <button class="import-option" on:click={importFromAtmosphere}>
+        <div class="import-option-icon"><Globe size={20} /></div>
+        <div class="import-option-text">
+          <div class="import-option-title">From Atmosphere</div>
+          <div class="import-option-desc">
+            Sync your Semble collections and Sidetrails
+          </div>
+        </div>
+      </button>
+    </div>
+  {/if}
 </Modal>
 
 <input
@@ -427,6 +528,108 @@
 />
 
 <style>
+  .import-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .import-option {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 10px;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+    font-family: inherit;
+  }
+
+  .import-option:hover {
+    background: #f8f9fa;
+    border-color: #1185fe59;
+  }
+
+  .import-option-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: #1185fe0d;
+    border: 1px solid rgba(17, 133, 254, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1185fe;
+    flex-shrink: 0;
+  }
+
+  .import-option-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1b1e;
+  }
+
+  .import-option-desc {
+    font-size: 12px;
+    color: #868e96;
+    margin-top: 2px;
+  }
+
+  :global(body.dark-mode) .import-option {
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  :global(body.dark-mode) .import-option:hover {
+    background: #ffffff0a;
+    border-color: #4dabf773;
+  }
+
+  :global(body.dark-mode) .import-option-icon {
+    background: #4dabf714;
+    border-color: rgba(77, 171, 247, 0.2);
+    color: #4dabf7;
+  }
+
+  :global(body.dark-mode) .import-option-title {
+    color: #e7e7e7;
+  }
+
+  .import-syncing {
+    display: flex;
+    justify-content: center;
+    padding: 20px 0;
+  }
+
+  .import-syncing-text {
+    font-size: 14px;
+    color: #868e96;
+  }
+
+  .import-result {
+    font-size: 14px;
+    color: #2b8a3e;
+    margin: 0;
+  }
+
+  .import-error {
+    font-size: 14px;
+    color: #e03131;
+    margin: 0;
+  }
+
+  :global(body.dark-mode) .import-result {
+    color: #69db7c;
+  }
+
+  :global(body.dark-mode) .import-error {
+    color: #ff6b6b;
+  }
+
   .navbar {
     position: fixed;
     top: 0;
