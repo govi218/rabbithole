@@ -61,8 +61,6 @@
   $: currentStop = (trail?.stops?.[visitedCount] ?? null) as TrailStop | null;
   $: totalStops = trail?.stops?.length ?? 0;
 
-
-
   function getWebsite(url: string): Website | undefined {
     return websites.find((w) => w.url === url);
   }
@@ -107,7 +105,7 @@
     showNoteModal = false;
     const firstStop: TrailStop | undefined = trail?.stops?.[0];
     if (!firstStop) return;
-    
+
     if (!firstStop.websiteUrl) {
       // Concept stop - show on trail page
       window.location.href = `${window.location.pathname}?trailId=${trailId}&concept=1`;
@@ -118,9 +116,10 @@
 
   async function advance(): Promise<void> {
     if (!currentStop || !trail) return;
-    
+
     // For concept stops, mark as visited without URL
-    const urlToMark = currentStop.websiteUrl || `concept:${currentStop.tid || visitedCount}`;
+    const urlToMark =
+      currentStop.websiteUrl || `concept:${currentStop.tid || visitedCount}`;
     walk = await chrome.runtime.sendMessage({
       type: MessageRequest.ADVANCE_TRAIL_WALK,
       trailId,
@@ -198,7 +197,10 @@
             <div class="completion-stop">
               <div class="stop-check">✓</div>
               <div class="stop-name">
-                {stop.title || getWebsite(stop.websiteUrl)?.name || stop.websiteUrl || "Concept stop"}
+                {stop.title ||
+                  getWebsite(stop.websiteUrl)?.name ||
+                  stop.websiteUrl ||
+                  "Concept stop"}
               </div>
             </div>
           {/each}
@@ -208,7 +210,11 @@
           <button class="secondary-btn" on:click={walkAgain}>
             Walk Again
           </button>
-          <button class="primary-btn" on:click={() => window.location.href = `${window.location.pathname}?trailId=${trailId}`}>
+          <button
+            class="primary-btn"
+            on:click={() =>
+              (window.location.href = `${window.location.pathname}?trailId=${trailId}`)}
+          >
             Done
           </button>
         </div>
@@ -222,7 +228,8 @@
           {#each trail.stops as stop, i}
             <div
               class="dot"
-              class:visited={walk?.visitedStops.includes(stop.websiteUrl) || (i < visitedCount)}
+              class:visited={walk?.visitedStops.includes(stop.websiteUrl) ||
+                i < visitedCount}
               class:current={i === visitedCount}
             ></div>
           {/each}
@@ -257,7 +264,10 @@
           <div class="stop-row">
             <div class="stop-num">{i + 1}</div>
             <div class="stop-name">
-              {stop.title || getWebsite(stop.websiteUrl)?.name || stop.websiteUrl || "Concept stop"}
+              {stop.title ||
+                getWebsite(stop.websiteUrl)?.name ||
+                stop.websiteUrl ||
+                "Concept stop"}
             </div>
           </div>
         {/each}

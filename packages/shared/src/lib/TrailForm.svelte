@@ -17,7 +17,10 @@
   const dispatch = createEventDispatcher();
 
   function addStop() {
-    stops = [...stops, { tid: "", title: "", url: "", note: "", buttonText: "" }];
+    stops = [
+      ...stops,
+      { tid: "", title: "", url: "", note: "", buttonText: "" },
+    ];
   }
 
   function insertStop(afterIndex: number) {
@@ -54,11 +57,7 @@
 <div class="trail-form">
   <div class="form-group">
     <label class="form-label">Title</label>
-    <input
-      class="form-input"
-      placeholder="My trail"
-      bind:value={title}
-    />
+    <input class="form-input" placeholder="My trail" bind:value={title} />
   </div>
 
   <div class="form-group">
@@ -110,7 +109,7 @@
                 bind:value={stop.buttonText}
                 style="width: {Math.max(
                   4,
-                  (stop.buttonText || 'Next').length
+                  (stop.buttonText || 'Next').length,
                 )}ch"
               />
               <span class="btn-preview-arrow">→</span>
@@ -185,7 +184,9 @@
     font-family: inherit;
     width: 100%;
     box-sizing: border-box;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
   }
 
   .form-input::placeholder {
@@ -351,7 +352,9 @@
     font-weight: 500;
     cursor: pointer;
     font-family: inherit;
-    transition: border-color 0.15s, color 0.15s;
+    transition:
+      border-color 0.15s,
+      color 0.15s;
   }
 
   .add-stop-btn:hover {
@@ -398,7 +401,9 @@
     cursor: pointer;
     color: #495057;
     font-family: inherit;
-    transition: border-color 0.15s, color 0.15s;
+    transition:
+      border-color 0.15s,
+      color 0.15s;
   }
 
   .ghost-btn:hover {

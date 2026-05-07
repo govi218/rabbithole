@@ -157,7 +157,6 @@
   }
 
   function handleSelectTrail(trail: Trail): void {
-    
     close();
     dispatch("selectTrail", trail);
   }

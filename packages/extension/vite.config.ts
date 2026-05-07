@@ -11,11 +11,16 @@ const sharedDir = resolve(__dirname, "../../packages/shared/src");
 
 // Pick manifest based on BROWSER env var (set by scripts/build.js)
 const browser = process.env.BROWSER || "chrome";
-const manifestPath = resolve(__dirname, `src/manifests/manifest.${browser}.json`);
+const manifestPath = resolve(
+  __dirname,
+  `src/manifests/manifest.${browser}.json`,
+);
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 
 // Inject version from package.json
-const pkg = JSON.parse(readFileSync(resolve(__dirname, "package.json"), "utf8"));
+const pkg = JSON.parse(
+  readFileSync(resolve(__dirname, "package.json"), "utf8"),
+);
 manifest.version = pkg.version;
 
 export default defineConfig({
@@ -25,7 +30,10 @@ export default defineConfig({
       src: srcDir,
       "@rabbithole/shared/lib": resolve(sharedDir, "lib"),
       "@rabbithole/shared/atproto/http": resolve(sharedDir, "atproto/http.ts"),
-      "@rabbithole/shared/atproto/explore": resolve(sharedDir, "atproto/explore.ts"),
+      "@rabbithole/shared/atproto/explore": resolve(
+        sharedDir,
+        "atproto/explore.ts",
+      ),
       "@rabbithole/shared/types": resolve(sharedDir, "utils/types.ts"),
     },
   },

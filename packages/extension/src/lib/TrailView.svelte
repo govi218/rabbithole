@@ -16,7 +16,13 @@
   let showEditModal = false;
   let editTitle = "";
   let editDesc = "";
-  let editStops: { tid: string; title: string; url: string; note: string; buttonText: string }[] = [];
+  let editStops: {
+    tid: string;
+    title: string;
+    url: string;
+    note: string;
+    buttonText: string;
+  }[] = [];
   let editSaving = false;
   let editError: string | null = null;
 
@@ -110,7 +116,11 @@
 
 <!-- Edit Modal -->
 {#if showEditModal}
-  <Modal isOpen={true} title="Edit Trail" on:close={() => (showEditModal = false)}>
+  <Modal
+    isOpen={true}
+    title="Edit Trail"
+    on:close={() => (showEditModal = false)}
+  >
     <TrailForm
       bind:title={editTitle}
       bind:description={editDesc}
@@ -142,7 +152,7 @@
           <div class="step-title">{stop.title}</div>
         {/if}
       </div>
-      
+
       <div class="step-content">
         {#if getWebsite(stop.websiteUrl)}
           <TimelineCard

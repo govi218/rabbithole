@@ -60,14 +60,23 @@
 
 <svelte:head>
   <title>Rabbithole</title>
-  <meta name="description" content="Track your internet rabbitholes and hold onto the knowledge you discover" />
+  <meta
+    name="description"
+    content="Track your internet rabbitholes and hold onto the knowledge you discover"
+  />
   <meta property="og:title" content="Rabbithole" />
-  <meta property="og:description" content="Track your internet rabbitholes and hold onto the knowledge you discover" />
+  <meta
+    property="og:description"
+    content="Track your internet rabbitholes and hold onto the knowledge you discover"
+  />
   <meta property="og:image" content="/favicon.png" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="Rabbithole" />
-  <meta name="twitter:description" content="Track your internet rabbitholes and hold onto the knowledge you discover" />
+  <meta
+    name="twitter:description"
+    content="Track your internet rabbitholes and hold onto the knowledge you discover"
+  />
   <meta name="twitter:image" content="/favicon.png" />
 </svelte:head>
 

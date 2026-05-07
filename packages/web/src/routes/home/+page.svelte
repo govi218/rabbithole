@@ -71,8 +71,8 @@
     try {
       const res = await fetch(
         `https://public.api.bsky.app/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(
-          q
-        )}&limit=6`
+          q,
+        )}&limit=6`,
       );
       if (!res.ok) return;
       const data = await res.json();
@@ -225,13 +225,13 @@
           "app.sidetrail.trail",
           rkey,
           record,
-          editingTrail.cid
+          editingTrail.cid,
         );
       } else {
         await recordOps.createRecord(
           session.did,
           "app.sidetrail.trail",
-          record
+          record,
         );
       }
       showCreateTrail = false;
@@ -264,7 +264,7 @@
               $type: "network.cosmik.collection",
               name: burrowName.trim(),
               accessType: "CLOSED",
-            }
+            },
           );
         }
         collectionUri = editingBurrow.uri;
@@ -272,14 +272,14 @@
 
         const existing = new Map(editingBurrow.cards.map((c) => [c.url, c]));
         const toRemove = editingBurrow.cards.filter(
-          (c) => !newUrls.includes(c.url)
+          (c) => !newUrls.includes(c.url),
         );
         const toAdd = newUrls.filter((u) => !existing.has(u));
 
         await Promise.all(
           toRemove.map((c) =>
-            removeCardFromBurrow(session!.did, c.cardUri, c.linkUri)
-          )
+            removeCardFromBurrow(session!.did, c.cardUri, c.linkUri),
+          ),
         );
         for (const url of toAdd) {
           await addCardToBurrow(session.did, collectionUri, collectionCid, url);
@@ -292,7 +292,7 @@
             $type: "network.cosmik.collection",
             name: burrowName.trim(),
             accessType: "CLOSED",
-          }
+          },
         );
         collectionUri = res.uri;
         collectionCid = res.cid;
@@ -618,8 +618,8 @@
           {isSaving
             ? "Saving..."
             : editingBurrow
-            ? "Save Changes"
-            : "Create Burrow"}
+              ? "Save Changes"
+              : "Create Burrow"}
         </button>
       </div>
     </div>
@@ -631,8 +631,8 @@
     max-width: 860px;
     margin: 80px auto 40px;
     padding: 0 24px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-      sans-serif;
+    font-family:
+      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
 
   h1 {
@@ -832,7 +832,9 @@
     cursor: pointer;
     color: #4dabf7;
     font-family: inherit;
-    transition: background 0.15s, border-color 0.15s;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
   }
   .create-btn:hover {
     background: rgba(17, 133, 254, 0.2);
@@ -848,7 +850,9 @@
     cursor: pointer;
     color: #909296;
     font-family: inherit;
-    transition: border-color 0.15s, color 0.15s;
+    transition:
+      border-color 0.15s,
+      color 0.15s;
   }
   .logout-btn:hover {
     border-color: rgba(255, 255, 255, 0.25);
@@ -895,7 +899,9 @@
     border-radius: 14px;
     padding: 14px;
     cursor: pointer;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -934,7 +940,9 @@
     border-radius: 14px;
     padding: 16px;
     cursor: pointer;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -1002,7 +1010,9 @@
     color: #5c5f66;
     cursor: pointer;
     font-family: inherit;
-    transition: color 0.15s, border-color 0.15s;
+    transition:
+      color 0.15s,
+      border-color 0.15s;
   }
   .icon-btn:hover {
     color: #c1c2c5;
@@ -1203,7 +1213,9 @@
     padding: 8px 16px;
     border-radius: 8px;
     font-family: inherit;
-    transition: color 0.15s, background 0.15s;
+    transition:
+      color 0.15s,
+      background 0.15s;
   }
   .abandon-btn:hover {
     color: #ff6b6b;
@@ -1466,7 +1478,9 @@
     font-weight: 500;
     cursor: pointer;
     font-family: inherit;
-    transition: border-color 0.15s, color 0.15s;
+    transition:
+      border-color 0.15s,
+      color 0.15s;
   }
   .add-stop-btn:hover {
     border-color: #4dabf7;
@@ -1490,7 +1504,9 @@
     cursor: pointer;
     color: #909296;
     font-family: inherit;
-    transition: border-color 0.15s, color 0.15s;
+    transition:
+      border-color 0.15s,
+      color 0.15s;
   }
   .ghost-btn:hover {
     border-color: rgba(255, 255, 255, 0.25);

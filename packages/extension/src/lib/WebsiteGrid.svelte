@@ -33,11 +33,7 @@
 
 <div class="grid">
   {#each websites as website (website.url)}
-    <button
-      type="button"
-      class="card"
-      on:click={() => onSelect(website.url)}
-    >
+    <button type="button" class="card" on:click={() => onSelect(website.url)}>
       <div class="card-image-wrapper">
         {#if website.openGraphImageUrl && !imageErrors.has(website.url)}
           <img

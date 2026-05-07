@@ -6,7 +6,7 @@ export interface TrailStop {
   tid: string;
   title: string;
   note: string;
-  url: string;        // empty string if no external URI
+  url: string; // empty string if no external URI
   buttonText: string;
 }
 
@@ -42,7 +42,9 @@ export interface ActorCollection {
 export async function resolveHandle(handleOrDid: string): Promise<string> {
   if (handleOrDid.startsWith("did:")) return handleOrDid;
   const agent = new Agent("https://public.api.bsky.app");
-  const handle = handleOrDid.startsWith("@") ? handleOrDid.slice(1) : handleOrDid;
+  const handle = handleOrDid.startsWith("@")
+    ? handleOrDid.slice(1)
+    : handleOrDid;
   const res = await agent.resolveHandle({ handle });
   if (!res.success) throw new Error("Could not resolve handle");
   return res.data.did;
@@ -73,7 +75,8 @@ export async function resolvePds(did: string): Promise<string> {
     if (res.ok) {
       const doc = await res.json();
       const svc = doc.service?.find(
-        (s: any) => s.id === "#atproto_pds" || s.type === "AtprotoPersonalDataServer",
+        (s: any) =>
+          s.id === "#atproto_pds" || s.type === "AtprotoPersonalDataServer",
       );
       if (svc) return svc.serviceEndpoint;
     }
@@ -92,7 +95,16 @@ export async function fetchActorTrails(did: string): Promise<ActorTrail[]> {
       url: s.external?.uri ?? "",
       buttonText: s.buttonText ?? "Next",
     }));
-    return { uri: r.uri, cid: r.cid, title: v.title ?? "Untitled", description: v.description ?? "", accentColor: v.accentColor, backgroundColor: v.backgroundColor, stops, createdAt: v.createdAt };
+    return {
+      uri: r.uri,
+      cid: r.cid,
+      title: v.title ?? "Untitled",
+      description: v.description ?? "",
+      accentColor: v.accentColor,
+      backgroundColor: v.backgroundColor,
+      stops,
+      createdAt: v.createdAt,
+    };
   });
 }
 
@@ -103,8 +115,12 @@ export interface ActorCollectionWithAuthor extends ActorCollection {
   createdAt?: string;
 }
 
-export async function fetchLatestCollections(): Promise<ActorCollectionWithAuthor[]> {
-  const res = await fetch(`${UFOS_API}/records?collection=network.cosmik.collection`);
+export async function fetchLatestCollections(): Promise<
+  ActorCollectionWithAuthor[]
+> {
+  const res = await fetch(
+    `${UFOS_API}/records?collection=network.cosmik.collection`,
+  );
   if (!res.ok) throw new Error("Failed to fetch latest collections");
   const records: any[] = await res.json();
 
@@ -113,12 +129,15 @@ export async function fetchLatestCollections(): Promise<ActorCollectionWithAutho
   const agent = new Agent("https://public.api.bsky.app");
   const chunks = [];
   for (let i = 0; i < dids.length; i += 25) chunks.push(dids.slice(i, i + 25));
-  await Promise.all(chunks.map(async (chunk) => {
-    try {
-      const res = await agent.getProfiles({ actors: chunk });
-      for (const p of res.data.profiles) profileMap.set(p.did, { handle: p.handle, avatar: p.avatar });
-    } catch {}
-  }));
+  await Promise.all(
+    chunks.map(async (chunk) => {
+      try {
+        const res = await agent.getProfiles({ actors: chunk });
+        for (const p of res.data.profiles)
+          profileMap.set(p.did, { handle: p.handle, avatar: p.avatar });
+      } catch {}
+    }),
+  );
 
   return records.map((r) => {
     const profile = profileMap.get(r.did);
@@ -147,14 +166,16 @@ export async function fetchLatestTrails(): Promise<ActorTrail[]> {
   const agent = new Agent("https://public.api.bsky.app");
   const chunks = [];
   for (let i = 0; i < dids.length; i += 25) chunks.push(dids.slice(i, i + 25));
-  await Promise.all(chunks.map(async (chunk) => {
-    try {
-      const res = await agent.getProfiles({ actors: chunk });
-      for (const p of res.data.profiles) {
-        profileMap.set(p.did, { handle: p.handle, avatar: p.avatar });
-      }
-    } catch {}
-  }));
+  await Promise.all(
+    chunks.map(async (chunk) => {
+      try {
+        const res = await agent.getProfiles({ actors: chunk });
+        for (const p of res.data.profiles) {
+          profileMap.set(p.did, { handle: p.handle, avatar: p.avatar });
+        }
+      } catch {}
+    }),
+  );
 
   return records.map((r) => {
     const profile = profileMap.get(r.did);
@@ -163,8 +184,13 @@ export async function fetchLatestTrails(): Promise<ActorTrail[]> {
       cid: "",
       title: r.record.title ?? "Untitled",
       description: r.record.description ?? "",
-      stops: (r.record.stops ?? [])
-        .map((s: any, i: number) => ({ tid: s.tid ?? `stop-${i}`, title: s.title ?? "", note: s.content ?? "", url: s.external?.uri ?? "", buttonText: s.buttonText ?? "Next" })),
+      stops: (r.record.stops ?? []).map((s: any, i: number) => ({
+        tid: s.tid ?? `stop-${i}`,
+        title: s.title ?? "",
+        note: s.content ?? "",
+        url: s.external?.uri ?? "",
+        buttonText: s.buttonText ?? "Next",
+      })),
       accentColor: r.record.accentColor,
       backgroundColor: r.record.backgroundColor,
       authorDid: r.did,
@@ -193,15 +219,23 @@ export async function fetchTrailByUri(uri: string): Promise<ActorTrail | null> {
   let authorAvatar: string | undefined;
   try {
     const profileRes = await agent.getProfile({ actor: did });
-    if (profileRes.success) { authorHandle = profileRes.data.handle; authorAvatar = profileRes.data.avatar; }
+    if (profileRes.success) {
+      authorHandle = profileRes.data.handle;
+      authorAvatar = profileRes.data.avatar;
+    }
   } catch {}
   return {
     uri,
     cid: r.cid ?? "",
     title: v.title ?? "Untitled",
     description: v.description ?? "",
-    stops: (v.stops ?? [])
-      .map((s: any, i: number) => ({ tid: s.tid ?? `stop-${i}`, title: s.title ?? "", note: s.content ?? "", url: s.external?.uri ?? "", buttonText: s.buttonText ?? "Next" })),
+    stops: (v.stops ?? []).map((s: any, i: number) => ({
+      tid: s.tid ?? `stop-${i}`,
+      title: s.title ?? "",
+      note: s.content ?? "",
+      url: s.external?.uri ?? "",
+      buttonText: s.buttonText ?? "Next",
+    })),
     accentColor: v.accentColor,
     backgroundColor: v.backgroundColor,
     authorDid: did,
@@ -211,7 +245,9 @@ export async function fetchTrailByUri(uri: string): Promise<ActorTrail | null> {
   };
 }
 
-export async function fetchCollectionByUri(uri: string): Promise<ActorCollection | null> {
+export async function fetchCollectionByUri(
+  uri: string,
+): Promise<ActorCollection | null> {
   const match = uri.match(/^at:\/\/(did:[^/]+)\/[^/]+\/([^/]+)$/);
   if (!match) return null;
   const [, did, rkey] = match;
@@ -234,12 +270,13 @@ export async function fetchCollectionByUri(uri: string): Promise<ActorCollection
   for (const card of cardsRes) {
     const content = (card.value as any).content;
     const url = content?.url as string | undefined;
-    if (url) cardMap.set(card.uri, {
-      url,
-      title: content?.metadata?.title ?? undefined,
-      image: content?.metadata?.imageUrl ?? undefined,
-      description: content?.metadata?.description ?? undefined,
-    });
+    if (url)
+      cardMap.set(card.uri, {
+        url,
+        title: content?.metadata?.title ?? undefined,
+        image: content?.metadata?.imageUrl ?? undefined,
+        description: content?.metadata?.description ?? undefined,
+      });
   }
 
   const cards: ActorCollectionCard[] = [];
@@ -251,10 +288,18 @@ export async function fetchCollectionByUri(uri: string): Promise<ActorCollection
     if (card) cards.push(card);
   }
 
-  return { uri, cid: collData.cid ?? "", name: collData.value?.name ?? "Untitled", urls: cards.map(c => c.url), cards };
+  return {
+    uri,
+    cid: collData.cid ?? "",
+    name: collData.value?.name ?? "Untitled",
+    urls: cards.map((c) => c.url),
+    cards,
+  };
 }
 
-export async function fetchActorCollections(did: string): Promise<ActorCollection[]> {
+export async function fetchActorCollections(
+  did: string,
+): Promise<ActorCollection[]> {
   const [collectionsRes, linksRes, cardsRes] = await Promise.all([
     listPublicRecords(did, "network.cosmik.collection"),
     listPublicRecords(did, "network.cosmik.collectionLink"),
@@ -265,12 +310,13 @@ export async function fetchActorCollections(did: string): Promise<ActorCollectio
   for (const card of cardsRes) {
     const content = (card.value as any).content;
     const url = content?.url as string | undefined;
-    if (url) cardMap.set(card.uri, {
-      url,
-      title: content?.metadata?.title ?? undefined,
-      image: content?.metadata?.imageUrl ?? undefined,
-      description: content?.metadata?.description ?? undefined,
-    });
+    if (url)
+      cardMap.set(card.uri, {
+        url,
+        title: content?.metadata?.title ?? undefined,
+        image: content?.metadata?.imageUrl ?? undefined,
+        description: content?.metadata?.description ?? undefined,
+      });
   }
 
   const collectionCards = new Map<string, ActorCollectionCard[]>();
@@ -286,6 +332,12 @@ export async function fetchActorCollections(did: string): Promise<ActorCollectio
 
   return collectionsRes.map((r) => {
     const cards = collectionCards.get(r.uri) ?? [];
-    return { uri: r.uri, cid: r.cid, name: (r.value as any).name ?? "Untitled", urls: cards.map(c => c.url), cards };
+    return {
+      uri: r.uri,
+      cid: r.cid,
+      name: (r.value as any).name ?? "Untitled",
+      urls: cards.map((c) => c.url),
+      cards,
+    };
   });
 }

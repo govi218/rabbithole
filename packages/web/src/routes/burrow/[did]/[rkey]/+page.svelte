@@ -78,7 +78,11 @@
           session.did,
           "network.cosmik.collection",
           rkey,
-          { $type: "network.cosmik.collection", name: editName.trim(), accessType: "CLOSED" },
+          {
+            $type: "network.cosmik.collection",
+            name: editName.trim(),
+            accessType: "CLOSED",
+          },
         );
         collectionCid = updated.cid;
       }
@@ -88,7 +92,9 @@
       const toAdd = newUrls.filter((u) => !existing.has(u));
 
       await Promise.all(
-        toRemove.map((c) => removeCardFromBurrow(session!.did, c.cardUri, c.linkUri)),
+        toRemove.map((c) =>
+          removeCardFromBurrow(session!.did, c.cardUri, c.linkUri),
+        ),
       );
       for (const url of toAdd) {
         await addCardToBurrow(session.did, burrow.uri, collectionCid, url);
@@ -142,7 +148,11 @@
           ),
       );
       const rkey = burrow.uri.split("/").pop()!;
-      await recordOps.deleteRecord(session.did, "network.cosmik.collection", rkey);
+      await recordOps.deleteRecord(
+        session.did,
+        "network.cosmik.collection",
+        rkey,
+      );
       goto("/home");
     } catch (e: any) {
       deleteError = e.message ?? "Failed to delete burrow.";
@@ -171,7 +181,8 @@
 </script>
 
 <svelte:head>
-  <title>{burrow ? `${burrow.name} — Rabbithole` : "Burrow — Rabbithole"}</title>
+  <title>{burrow ? `${burrow.name} — Rabbithole` : "Burrow — Rabbithole"}</title
+  >
 </svelte:head>
 
 <main class="page">
@@ -187,13 +198,18 @@
       <h1>{burrow.name}</h1>
       <div class="burrow-stats">
         <span class="url-count"
-          >{burrow.cards.length} link{burrow.cards.length !== 1 ? "s" : ""}</span
+          >{burrow.cards.length} link{burrow.cards.length !== 1
+            ? "s"
+            : ""}</span
         >
       </div>
       {#if isOwner}
         <div class="owner-actions">
           <button class="edit-btn" on:click={openEdit}>Edit ✎</button>
-          <button class="delete-btn" on:click={() => (showConfirmDelete = true)}>
+          <button
+            class="delete-btn"
+            on:click={() => (showConfirmDelete = true)}
+          >
             Delete
           </button>
         </div>
@@ -233,7 +249,11 @@
       <h2>Edit Burrow</h2>
       <div class="form-group">
         <label class="form-label">Name</label>
-        <input class="form-input" placeholder="My burrow" bind:value={editName} />
+        <input
+          class="form-input"
+          placeholder="My burrow"
+          bind:value={editName}
+        />
       </div>
       <div class="form-group">
         <label class="form-label">Links</label>
@@ -245,7 +265,11 @@
               bind:value={editUrls[i]}
             />
             {#if editUrls.length > 1}
-              <button class="remove-btn" on:click={() => removeEditUrl(i)} title="Remove">✕</button>
+              <button
+                class="remove-btn"
+                on:click={() => removeEditUrl(i)}
+                title="Remove">✕</button
+              >
             {/if}
           </div>
         {/each}
@@ -253,7 +277,9 @@
       </div>
       {#if saveError}<p class="save-error">{saveError}</p>{/if}
       <div class="modal-actions">
-        <button class="ghost-btn" on:click={() => (showEdit = false)}>Cancel</button>
+        <button class="ghost-btn" on:click={() => (showEdit = false)}
+          >Cancel</button
+        >
         <button
           class="primary-btn"
           on:click={saveEdit}
@@ -271,11 +297,22 @@
   <div class="modal-overlay" on:click|self={() => (showConfirmDelete = false)}>
     <div class="modal confirm-modal">
       <h2>Delete burrow?</h2>
-      <p class="confirm-body">This will permanently delete <strong>{burrow?.name}</strong> and all its links. This cannot be undone.</p>
+      <p class="confirm-body">
+        This will permanently delete <strong>{burrow?.name}</strong> and all its links.
+        This cannot be undone.
+      </p>
       {#if deleteError}<p class="save-error">{deleteError}</p>{/if}
       <div class="modal-actions">
-        <button class="ghost-btn" on:click={() => (showConfirmDelete = false)} disabled={isDeleting}>Cancel</button>
-        <button class="danger-btn" on:click={deleteBurrow} disabled={isDeleting}>
+        <button
+          class="ghost-btn"
+          on:click={() => (showConfirmDelete = false)}
+          disabled={isDeleting}>Cancel</button
+        >
+        <button
+          class="danger-btn"
+          on:click={deleteBurrow}
+          disabled={isDeleting}
+        >
           {isDeleting ? "Deleting…" : "Delete"}
         </button>
       </div>
@@ -365,7 +402,9 @@
     cursor: pointer;
     color: #909296;
     font-family: inherit;
-    transition: border-color 0.15s, color 0.15s;
+    transition:
+      border-color 0.15s,
+      color 0.15s;
   }
   .edit-btn:hover {
     border-color: rgba(255, 255, 255, 0.25);
@@ -382,7 +421,9 @@
     cursor: pointer;
     color: #ff6b6b;
     font-family: inherit;
-    transition: border-color 0.15s, background 0.15s;
+    transition:
+      border-color 0.15s,
+      background 0.15s;
   }
   .delete-btn:hover {
     background: rgba(255, 107, 107, 0.08);
@@ -510,7 +551,9 @@
     font-weight: 500;
     cursor: pointer;
     font-family: inherit;
-    transition: border-color 0.15s, color 0.15s;
+    transition:
+      border-color 0.15s,
+      color 0.15s;
   }
   .add-btn:hover {
     border-color: #4dabf7;
@@ -555,7 +598,9 @@
     cursor: pointer;
     color: #909296;
     font-family: inherit;
-    transition: border-color 0.15s, color 0.15s;
+    transition:
+      border-color 0.15s,
+      color 0.15s;
   }
   .ghost-btn:hover {
     border-color: rgba(255, 255, 255, 0.25);
