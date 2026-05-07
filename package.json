@@ -8,7 +8,8 @@
     "build:extension": "pnpm --filter @rabbithole/extension build",
     "build:extension:chrome": "pnpm --filter @rabbithole/extension build:chrome",
     "build:extension:firefox": "pnpm --filter @rabbithole/extension build:firefox",
-    "build:web": "pnpm --filter @rabbithole/web build"
+    "build:web": "pnpm --filter @rabbithole/web build",
+    "format": "prettier --write '**/*.{js,jsx,ts,tsx,json,css,scss,md,svelte}'"
   },
   "devDependencies": {
     "prettier": "^3.8.1",
