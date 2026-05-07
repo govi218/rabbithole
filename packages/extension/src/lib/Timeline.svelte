@@ -87,10 +87,15 @@
   let showCreateTrailModal: boolean = false;
   let createTrailTitle: string = "";
   let createTrailDesc: string = "";
-  let createTrailStops: { tid: string; title: string; url: string; note: string; buttonText: string }[] = [{ tid: "", title: "", url: "", note: "", buttonText: "" }];
+  let createTrailStops: {
+    tid: string;
+    title: string;
+    url: string;
+    note: string;
+    buttonText: string;
+  }[] = [{ tid: "", title: "", url: "", note: "", buttonText: "" }];
   let createTrailError: string | null = null;
   let createTrailSaving: boolean = false;
-
 
   let trailViewRef: TrailView = null;
 
@@ -579,7 +584,9 @@
         buttonText: "",
       }));
       if (createTrailStops.length === 0) {
-        createTrailStops = [{ tid: "", title: "", url: "", note: "", buttonText: "" }];
+        createTrailStops = [
+          { tid: "", title: "", url: "", note: "", buttonText: "" },
+        ];
       }
       createTrailError = null;
       createTrailSaving = false;
@@ -602,7 +609,6 @@
     dispatch("refresh");
   }
 
-
   async function handleCreateTrailFromForm(e: CustomEvent<any>) {
     if (!activeRabbithole) return;
     createTrailSaving = true;
@@ -613,7 +619,7 @@
         type: MessageRequest.CREATE_TRAIL,
         rabbitholeId: activeRabbithole.id,
         name: title,
-        websites: stops.filter(s => s.url.trim()).map(s => s.url.trim()),
+        websites: stops.filter((s) => s.url.trim()).map((s) => s.url.trim()),
       });
       const trailId = await chrome.runtime
         .sendMessage({ type: MessageRequest.GET_ACTIVE_TRAIL })
@@ -793,7 +799,11 @@
 
 <!-- Create Trail Modal -->
 {#if showCreateTrailModal}
-  <Modal isOpen={true} title="New Trail" on:close={() => (showCreateTrailModal = false)}>
+  <Modal
+    isOpen={true}
+    title="New Trail"
+    on:close={() => (showCreateTrailModal = false)}
+  >
     <TrailForm
       bind:title={createTrailTitle}
       bind:description={createTrailDesc}

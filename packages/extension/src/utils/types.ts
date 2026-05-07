@@ -88,11 +88,11 @@ export interface Burrow {
 }
 
 export interface TrailStop {
-  tid: string;           // unique stop ID
-  title: string;         // stop title (required)
+  tid: string; // unique stop ID
+  title: string; // stop title (required)
   websiteUrl: string;
   note: string;
-  buttonText?: string;   // default "Next"
+  buttonText?: string; // default "Next"
 }
 
 export interface Trail {
@@ -102,7 +102,7 @@ export interface Trail {
   rabbitholeId: string;
   stops: TrailStop[];
   startNote: string;
-  description?: string;  // trail description
+  description?: string; // trail description
   endNote?: string;
   sidetrailUri?: string;
   sidetrailCid?: string;

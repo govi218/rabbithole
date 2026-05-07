@@ -304,8 +304,11 @@ export class WebsiteStore {
                     if (!stop.tid) stop.tid = `stop-${i}`;
                     if (!stop.title) {
                       // Extract domain from URL as default title
-                      try { stop.title = new URL(stop.websiteUrl).hostname; }
-                      catch { stop.title = `Stop ${i + 1}`; }
+                      try {
+                        stop.title = new URL(stop.websiteUrl).hostname;
+                      } catch {
+                        stop.title = `Stop ${i + 1}`;
+                      }
                     }
                     if (!stop.buttonText) stop.buttonText = "Next";
                     return stop;
@@ -1393,7 +1396,7 @@ export class WebsiteStore {
   async createTrail(
     rabbitholeId: string,
     name: string,
-    stops: (string | TrailStop)[],  // Accept URLs or full TrailStop objects
+    stops: (string | TrailStop)[], // Accept URLs or full TrailStop objects
   ): Promise<Trail> {
     const db = await this.getDb();
 
@@ -1402,9 +1405,18 @@ export class WebsiteStore {
         // URL string - create TrailStop with defaults
         const url = stop;
         let title: string;
-        try { title = new URL(url).hostname; }
-        catch { title = `Stop ${i + 1}`; }
-        return { tid: `stop-${i}`, title, websiteUrl: url, note: "", buttonText: "Next" };
+        try {
+          title = new URL(url).hostname;
+        } catch {
+          title = `Stop ${i + 1}`;
+        }
+        return {
+          tid: `stop-${i}`,
+          title,
+          websiteUrl: url,
+          note: "",
+          buttonText: "Next",
+        };
       } else {
         // Already a TrailStop object
         return {

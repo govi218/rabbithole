@@ -86,13 +86,7 @@ export async function advanceSidetrailWalk(
     visitedStops,
   };
 
-  return await putRecord(
-    did,
-    "app.sidetrail.walk",
-    walkRkey,
-    record,
-    walkCid,
-  );
+  return await putRecord(did, "app.sidetrail.walk", walkRkey, record, walkCid);
 }
 
 /**

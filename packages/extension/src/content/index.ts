@@ -53,15 +53,16 @@ async function resolveTrailMode(): Promise<boolean> {
     const normalizeUrl = (url: string) => {
       try {
         const u = new URL(url);
-        return u.origin + u.pathname.replace(/\/+$/, '');
+        return u.origin + u.pathname.replace(/\/+$/, "");
       } catch {
-        return url.replace(/\/+$/, '');
+        return url.replace(/\/+$/, "");
       }
     };
 
     const normalizedCurrent = normalizeUrl(currentUrl);
     const isTrailStop = activeTrail.stops?.some(
-      (s: any) => s.websiteUrl && normalizeUrl(s.websiteUrl) === normalizedCurrent,
+      (s: any) =>
+        s.websiteUrl && normalizeUrl(s.websiteUrl) === normalizedCurrent,
     );
 
     if (!isTrailStop) {

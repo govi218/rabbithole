@@ -111,7 +111,10 @@
   <div class="tour-overlay" on:click={skip}></div>
 
   <!-- Tooltip -->
-  <div class="tour-tooltip" style="top: {position.top}px; left: {position.left}px;">
+  <div
+    class="tour-tooltip"
+    style="top: {position.top}px; left: {position.left}px;"
+  >
     <div class="tour-header">
       <span class="tour-step">{currentStep + 1} / {steps.length}</span>
       <span class="tour-title">{steps[currentStep].title}</span>
@@ -126,7 +129,10 @@
           <button
             class="tour-dot"
             class:active={i === currentStep}
-            on:click={() => { currentStep = i; updatePosition(); }}
+            on:click={() => {
+              currentStep = i;
+              updatePosition();
+            }}
           ></button>
         {/each}
       </div>

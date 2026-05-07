@@ -125,7 +125,7 @@ async function importSembleCollections(
   const rh = await getOrCreateRabbithole(db, SEMBLE_RH_TITLE);
 
   const names: string[] = [];
-  
+
   for (const record of missing) {
     const value = record.value as any;
     const name = value.name ?? "Imported Collection";
@@ -160,7 +160,10 @@ async function importSembleCollections(
 export async function syncFromAtproto(
   did: string,
   db: WebsiteStore,
-): Promise<{ trails: { count: number; names: string[] }; burrows: { count: number; names: string[] } }> {
+): Promise<{
+  trails: { count: number; names: string[] };
+  burrows: { count: number; names: string[] };
+}> {
   const [trails, collections] = await Promise.all([
     importSidetrailTrails(did, db).catch(() => {
       Logger.warn("Sidetrail import failed:", err);

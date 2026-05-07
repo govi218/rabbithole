@@ -299,11 +299,11 @@
             />
           {/if}
           <a
-            href="https://bsky.app/profile/{trail.authorHandle ?? trail.authorDid}"
+            href="https://bsky.app/profile/{trail.authorHandle ??
+              trail.authorDid}"
             target="_blank"
             rel="noopener noreferrer"
-            class="author-handle"
-            >@{trail.authorHandle ?? trail.authorDid}</a
+            class="author-handle">@{trail.authorHandle ?? trail.authorDid}</a
           >
         </div>
 
@@ -333,7 +333,10 @@
           {/if}
           {#if isOwner}
             <button class="edit-btn" on:click={openEdit}>Edit ✎</button>
-            <button class="delete-btn" on:click={() => (showConfirmDelete = true)}>
+            <button
+              class="delete-btn"
+              on:click={() => (showConfirmDelete = true)}
+            >
               Delete
             </button>
           {/if}
@@ -446,10 +449,17 @@
   <div class="modal-overlay" on:click|self={() => (showConfirmDelete = false)}>
     <div class="modal confirm-modal">
       <h2>Delete trail?</h2>
-      <p class="confirm-body">This will permanently delete <strong>{trail?.title}</strong>. This cannot be undone.</p>
+      <p class="confirm-body">
+        This will permanently delete <strong>{trail?.title}</strong>. This
+        cannot be undone.
+      </p>
       {#if deleteError}<p class="save-error">{deleteError}</p>{/if}
       <div class="modal-actions">
-        <button class="ghost-btn" on:click={() => (showConfirmDelete = false)} disabled={isDeleting}>Cancel</button>
+        <button
+          class="ghost-btn"
+          on:click={() => (showConfirmDelete = false)}
+          disabled={isDeleting}>Cancel</button
+        >
         <button class="danger-btn" on:click={deleteTrail} disabled={isDeleting}>
           {isDeleting ? "Deleting…" : "Delete"}
         </button>
@@ -1065,7 +1075,9 @@
     cursor: pointer;
     color: #ff6b6b;
     font-family: inherit;
-    transition: border-color 0.15s, background 0.15s;
+    transition:
+      border-color 0.15s,
+      background 0.15s;
   }
   .delete-btn:hover {
     background: rgba(255, 107, 107, 0.08);

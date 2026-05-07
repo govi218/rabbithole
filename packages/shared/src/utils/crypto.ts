@@ -28,7 +28,9 @@ export async function generateDpopKeyPair(): Promise<CryptoKeyPair> {
   return keyPair;
 }
 
-export async function exportPublicKeyJwk(publicKey: CryptoKey): Promise<JsonWebKey> {
+export async function exportPublicKeyJwk(
+  publicKey: CryptoKey,
+): Promise<JsonWebKey> {
   const { kty, crv, x, y } = await crypto.subtle.exportKey("jwk", publicKey);
   return { kty, crv, x, y };
 }
@@ -50,8 +52,12 @@ export async function createDpopProof(
   };
   if (nonce) payload.nonce = nonce;
   if (ath) payload.ath = ath;
-  const encodedHeader = base64UrlEncode(new TextEncoder().encode(JSON.stringify(header)));
-  const encodedPayload = base64UrlEncode(new TextEncoder().encode(JSON.stringify(payload)));
+  const encodedHeader = base64UrlEncode(
+    new TextEncoder().encode(JSON.stringify(header)),
+  );
+  const encodedPayload = base64UrlEncode(
+    new TextEncoder().encode(JSON.stringify(payload)),
+  );
   const signingInput = `${encodedHeader}.${encodedPayload}`;
   const signature = await crypto.subtle.sign(
     { name: "ECDSA", hash: "SHA-256" },
