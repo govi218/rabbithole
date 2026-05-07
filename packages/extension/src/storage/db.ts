@@ -334,7 +334,7 @@ export class WebsiteStore {
               const newUser: User = {
                 id: uuid(),
                 settings: {
-                  show: true,
+                  show: false,
                   alignment: "right",
                   darkMode: false,
                   hasSeenOnboarding: false,
