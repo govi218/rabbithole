@@ -3,7 +3,6 @@
   import { Group, Tooltip, ActionIcon, TextInput } from "@svelteuidev/core";
   import {
     MagnifyingGlass,
-    Globe,
     Rocket,
     Reload,
     Trash,
@@ -11,18 +10,21 @@
     Upload,
     Play,
     Pencil1,
+    Update,
   } from "radix-icons-svelte";
+  import sembleIcon from "src/assets/icons/semble.svg";
 
   export let activeBurrowId: string | null = null;
   export let activeTrailId: string | null = null;
   export let activeRabbitholeId: string | null = null;
   export let sembleUrl: string | null = null;
+  export let syncEnabled: boolean = false;
   export let trailPublished: boolean = false;
   export let isSavingWindow: boolean = false;
   export let isUpdatingPinnedWebsites: boolean = false;
-  export let isPublishing: boolean = false;
   export let isPublishingTrail: boolean = false;
   export let isDeleting: boolean = false;
+  export let isTogglingSync: boolean = false;
 
   const dispatch = createEventDispatcher();
 
@@ -175,44 +177,40 @@
         {/if}
 
         {#if activeBurrowId}
-          {#if sembleUrl}
-            <Tooltip label="View on Semble" withArrow transition="fade">
+          <div class="sync-group">
+            <Tooltip
+              label={syncEnabled
+                ? "Synced — click to pause"
+                : sembleUrl
+                  ? "Sync paused — click to resume"
+                  : "Publish to Semble"}
+              withArrow
+              transition="fade"
+            >
               <ActionIcon
                 size="lg"
                 radius="md"
-                color="cyan"
-                on:click={() => dispatch("openSemble")}
+                color={syncEnabled ? "orange" : "gray"}
+                on:click={() => dispatch("toggleSync")}
+                loading={isTogglingSync}
+                class={syncEnabled ? "sync-active" : ""}
               >
-                <Globe size={18} />
+                <Update size={18} class={syncEnabled ? "sync-pulse" : ""} />
               </ActionIcon>
             </Tooltip>
-
-            <div class="action-divider"></div>
-
-            <Tooltip label="Update on Semble" withArrow transition="fade">
-              <ActionIcon
-                size="lg"
-                radius="md"
-                color="orange"
-                on:click={() => dispatch("publish")}
-                loading={isPublishing}
-              >
-                <Upload size={18} />
-              </ActionIcon>
-            </Tooltip>
-          {:else}
-            <Tooltip label="Publish to Semble" withArrow transition="fade">
-              <ActionIcon
-                size="lg"
-                radius="md"
-                color="grape"
-                on:click={() => dispatch("publish")}
-                loading={isPublishing}
-              >
-                <Rocket size={18} />
-              </ActionIcon>
-            </Tooltip>
-          {/if}
+            {#if sembleUrl}
+              <Tooltip label="View on Semble" withArrow transition="fade">
+                <ActionIcon
+                  size="lg"
+                  radius="md"
+                  color="cyan"
+                  on:click={() => dispatch("openSemble")}
+                >
+                  <img class="semble-icon" src={sembleIcon} alt="Semble" />
+                </ActionIcon>
+              </Tooltip>
+            {/if}
+          </div>
           <div class="action-divider"></div>
         {/if}
 
@@ -293,5 +291,31 @@
     background-color: #25262b;
     border-color: #373a40;
     color: #c1c2c5;
+  }
+
+  .semble-icon {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+  }
+
+  .sync-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .sync-pulse {
+    animation: sync-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes sync-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
   }
 </style>

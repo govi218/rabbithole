@@ -22,7 +22,7 @@
   import TrailView from "src/lib/TrailView.svelte";
   import { TrailForm } from "@rabbithole/shared/lib";
   import NameInputModal from "src/lib/NameInputModal.svelte";
-  import { ChevronLeft, ListBullet, Grid, Update } from "radix-icons-svelte";
+  import { ChevronLeft, ListBullet, Grid } from "radix-icons-svelte";
   import { getSession } from "../atproto/client";
   import {
     createCollection,
@@ -53,7 +53,7 @@
   let showPublishModal: boolean = false;
   let isPublishingTrail: boolean = false;
   let showPublishTrailModal: boolean = false;
-  let isSyncing: boolean = false;
+  let isLoggedIn: boolean = false;
 
   let hoveredTimestamp: number = null;
   let hoverX: number = 0;
@@ -121,6 +121,9 @@
         });
 
   onMount(async () => {
+    const session = await getSession();
+    isLoggedIn = !!session;
+
     if (autoFocusTitle) {
       await tick();
       const input = document.querySelector(
@@ -331,6 +334,12 @@
         if (response && response.error) throw new Error(response.error);
         activeBurrow.sembleCollectionUri = collectionData.uri;
         activeBurrow.lastSembleSync = timestamp;
+        activeBurrow.syncEnabled = true;
+        await chrome.runtime.sendMessage({
+          type: MessageRequest.TOGGLE_BURROW_SYNC,
+          burrowId: activeBurrow.id,
+          enabled: true,
+        });
         alert(
           `Rabbithole published successfully! Created collection and ${successCount} cards.`,
         );
@@ -349,27 +358,30 @@
     }
   }
 
-  async function syncBurrow(): Promise<void> {
-    const uri = activeBurrow?.sembleCollectionUri;
-    if (!uri) return;
+  let isTogglingSync = false;
 
-    isSyncing = true;
+  async function toggleBurrowSync(enabled: boolean): Promise<void> {
+    if (!activeBurrow) return;
+
+    // First-time publish needs to go through the UI (ATProto OAuth needs document)
+    if (enabled && !activeBurrow.sembleCollectionUri) {
+      showPublishModal = true;
+      return;
+    }
+
+    isTogglingSync = true;
     try {
       const response = await chrome.runtime.sendMessage({
-        type: MessageRequest.SYNC_BURROW,
+        type: MessageRequest.TOGGLE_BURROW_SYNC,
         burrowId: activeBurrow.id,
+        enabled,
       });
-
-      if (response.error) {
-        throw new Error(response.error);
-      }
-
-      activeBurrow.lastSembleSync = response.timestamp;
+      if (response.error) throw new Error(response.error);
+      activeBurrow.syncEnabled = enabled;
     } catch (e) {
-      Logger.error("Sync failed:", e);
-      alert("Sync failed: " + e.message);
+      Logger.error("Toggle sync failed:", e);
     } finally {
-      isSyncing = false;
+      isTogglingSync = false;
     }
   }
 
@@ -702,14 +714,12 @@
 
 <Modal
   isOpen={showPublishModal}
-  title={sembleUrl ? "Update on Semble" : "Publish to Semble"}
+  title="Publish to Semble"
   on:close={() => (showPublishModal = false)}
 >
   <p>
-    {sembleUrl
-      ? "Update this collection on Semble with the latest changes?"
-      : "Publish this rabbithole as a collection on Semble?"} Note that it might take
-    a few minutes for your changes to show up.
+    Publish this rabbithole as a collection on Semble? Note that it might take a
+    few minutes for your changes to show up.
   </p>
 
   <div style="margin: 20px 0;">
@@ -753,9 +763,7 @@
       color="gray"
       on:click={() => (showPublishModal = false)}>Cancel</Button
     >
-    <Button on:click={confirmPublish} loading={isPublishing}>
-      {sembleUrl ? "Update" : "Publish"}
-    </Button>
+    <Button on:click={confirmPublish} loading={isPublishing}>Publish</Button>
   </Group>
 </Modal>
 
@@ -890,35 +898,15 @@
           </Tooltip>
         </div>
       {/if}
-
-      {#if sembleUrl}
-        <div class="sync-indicator">
-          <Tooltip
-            label={activeBurrow?.lastSembleSync
-              ? `Last synced: ${formatDateTime(activeBurrow.lastSembleSync)}. Click to sync.`
-              : "Click to sync"}
-            withArrow
-          >
-            <ActionIcon
-              variant="transparent"
-              color="orange"
-              size="md"
-              on:click={syncBurrow}
-              loading={isSyncing}
-            >
-              <Update size={16} />
-            </ActionIcon>
-          </Tooltip>
-        </div>
-      {/if}
     </div>
 
     <ActionBar
       {sembleUrl}
-      {isPublishing}
       {isPublishingTrail}
       {isSavingWindow}
       {isUpdatingPinnedWebsites}
+      syncEnabled={activeBurrow?.syncEnabled ?? false}
+      {isTogglingSync}
       activeBurrowId={activeBurrow?.id}
       activeTrailId={activeTrail?.id}
       activeRabbitholeId={activeRabbithole?.id}
@@ -928,7 +916,7 @@
       on:updatePinnedWebsites={updatePinnedWebsites}
       on:search={handleSearch}
       on:openSemble={openSemble}
-      on:publish={openPublishModal}
+      on:toggleSync={() => toggleBurrowSync(!activeBurrow?.syncEnabled)}
       on:deleteContainer={deleteContainer}
       on:editTrail={() => trailViewRef?.toggleEdit()}
       on:startTrail={handleStartTrail}
@@ -1164,13 +1152,6 @@
 
   .tooltip-wrapper :global(> *) {
     width: 100%;
-  }
-
-  .sync-indicator {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
   }
 
   :global(.project-name-input),
