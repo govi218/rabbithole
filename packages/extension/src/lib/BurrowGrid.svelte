@@ -56,7 +56,12 @@
         </button>
       {/if}
 
-      <div class="card-title">{burrow.name || "Untitled"}</div>
+      <div class="card-title">
+        {burrow.name || "Untitled"}
+        {#if burrow.syncEnabled}
+          <span class="sync-dot" title="Synced with Semble"></span>
+        {/if}
+      </div>
       <div class="card-meta">
         <div class="meta-item">
           Burrow • {burrow.websites?.length || 0} site{(burrow.websites
@@ -141,6 +146,17 @@
     color: #1a1b1e;
     margin-bottom: 11px;
     line-height: 1.2;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .sync-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #40c057;
+    flex-shrink: 0;
   }
 
   .card-meta {
