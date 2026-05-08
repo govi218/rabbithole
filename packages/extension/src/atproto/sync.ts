@@ -89,24 +89,17 @@ async function importSembleCollections(
     listRecords(did, "network.cosmik.card"),
   ]);
 
-  if (!collectionsRes.records.length) return { count: 0, names: [] };
-
-  const localBurrows = await db.getAllBurrows();
-  const publishedUris = new Set(
-    localBurrows.map((b) => b.sembleCollectionUri).filter(Boolean),
-  );
-
-  const missing = collectionsRes.records.filter(
-    (r) => !publishedUris.has(r.uri),
-  );
-  if (!missing.length) return { count: 0, names: [] };
+  if (!collectionsRes.records.length) {
+    return { count: 0, names: [] };
+  }
 
   // card URI → { url, name }
   const cardMap = new Map<string, { url: string; name: string }>();
   for (const card of cardsRes.records) {
-    const url = (card.value as any).url as string | undefined;
+    const value = card.value as any;
+    const url = value.url || value.content?.url;
     if (!url) continue;
-    const name = (card.value as any).content?.metadata?.title ?? url;
+    const name = value.content?.metadata?.title ?? url;
     cardMap.set(card.uri, { url, name });
   }
 
@@ -124,13 +117,18 @@ async function importSembleCollections(
 
   const rh = await getOrCreateRabbithole(db, SEMBLE_RH_TITLE);
 
+  const localBurrows = await db.getAllBurrows();
+  const burrowByUri = new Map(
+    localBurrows
+      .filter((b) => b.sembleCollectionUri)
+      .map((b) => [b.sembleCollectionUri, b]),
+  );
+
   const names: string[] = [];
 
-  for (const record of missing) {
+  for (const record of collectionsRes.records) {
     const value = record.value as any;
     const name = value.name ?? "Imported Collection";
-    names.push(name);
-
     const items = collectionItems.get(record.uri) ?? [];
     const urls = items.map((i) => i.url);
 
@@ -144,17 +142,19 @@ async function importSembleCollections(
     await db.saveWebsiteStubs(stubs);
     if (urls.length) await db.addWebsitesToRabbitholeMeta(rh.id, urls);
 
-    await db.createBurrow(
-      rh.id,
-      value.name ?? "Imported Collection",
-      record.uri,
-      urls,
-    );
+    const existing = burrowByUri.get(record.uri);
+    if (existing) {
+      await db.updateBurrowWebsites(existing.id, urls);
+      Logger.info(`Updated Semble collection: ${value.name}`);
+    } else {
+      await db.createBurrow(rh.id, name, record.uri, urls);
+      Logger.info(`Imported Semble collection: ${value.name}`);
+    }
 
-    Logger.info(`Imported Semble collection: ${value.name}`);
+    names.push(name);
   }
 
-  return { count: missing.length, names };
+  return { count: collectionsRes.records.length, names };
 }
 
 export async function syncFromAtproto(
