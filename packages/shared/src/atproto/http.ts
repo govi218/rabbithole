@@ -218,11 +218,22 @@ export function createRecordOps(
       collection: string,
     ): Promise<{ records: { uri: string; cid: string; value: any }[] }> {
       const pdsUrl = await getPdsUrl();
-      const url = new URL(`${pdsUrl}/xrpc/com.atproto.repo.listRecords`);
-      url.searchParams.set("repo", repo);
-      url.searchParams.set("collection", collection);
-      url.searchParams.set("limit", "100");
-      return authenticatedFetch(url.toString(), "GET");
+      const allRecords: { uri: string; cid: string; value: any }[] = [];
+      let cursor: string | undefined;
+
+      do {
+        const url = new URL(`${pdsUrl}/xrpc/com.atproto.repo.listRecords`);
+        url.searchParams.set("repo", repo);
+        url.searchParams.set("collection", collection);
+        url.searchParams.set("limit", "100");
+        if (cursor) url.searchParams.set("cursor", cursor);
+
+        const page = await authenticatedFetch(url.toString(), "GET");
+        if (page.records) allRecords.push(...page.records);
+        cursor = page.cursor;
+      } while (cursor);
+
+      return { records: allRecords };
     },
 
     async deleteRecord(

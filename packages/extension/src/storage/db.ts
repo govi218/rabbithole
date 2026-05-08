@@ -1033,6 +1033,38 @@ export class WebsiteStore {
     });
   }
 
+  async updateBurrowWebsites(
+    burrowId: string,
+    websites: string[],
+  ): Promise<void> {
+    const db = await this.getDb();
+
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(["burrows"], "readwrite");
+      const store = tx.objectStore("burrows");
+      const getRequest = store.get(burrowId);
+
+      getRequest.onsuccess = () => {
+        const burrow = getRequest.result;
+        if (!burrow) {
+          reject(new Error(`Burrow not found: ${burrowId}`));
+          return;
+        }
+        burrow.websites = [...new Set(websites)];
+        store.put(burrow);
+      };
+
+      tx.oncomplete = () => resolve();
+      tx.onerror = (event) => {
+        reject(
+          new Error(
+            `Failed to update burrow websites: ${(event.target as IDBRequest).error}`,
+          ),
+        );
+      };
+    });
+  }
+
   async deleteBurrow(burrowId: string): Promise<void> {
     const db = await this.getDb();
 
