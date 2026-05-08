@@ -9,9 +9,10 @@ import type {
   Trail,
   TrailStop,
   TrailWalk,
+  SyncOp,
 } from "../utils/types";
 
-const version = 13;
+const version = 14;
 
 export class WebsiteStore {
   factory: IDBFactory;
@@ -314,6 +315,35 @@ export class WebsiteStore {
                     return stop;
                   });
                   cursor.update(trail);
+                }
+                cursor.continue();
+              }
+            };
+          }
+
+          if (event.oldVersion < 14) {
+            if (!txn.objectStoreNames.contains("syncOps")) {
+              const syncOpsStore = db.createObjectStore("syncOps", {
+                keyPath: "id",
+              });
+              syncOpsStore.createIndex("burrowId", "burrowId", {
+                unique: false,
+              });
+              syncOpsStore.createIndex("syncedAt", "syncedAt", {
+                unique: false,
+              });
+            }
+
+            // Add syncEnabled to existing burrows
+            const burrowStore = txn.objectStore("burrows");
+            const burrowReq = burrowStore.openCursor();
+            burrowReq.onsuccess = (e) => {
+              const cursor = (e.target as IDBRequest).result;
+              if (cursor) {
+                const burrow = cursor.value;
+                if (burrow.syncEnabled === undefined) {
+                  burrow.syncEnabled = !!burrow.sembleCollectionUri;
+                  cursor.update(burrow);
                 }
                 cursor.continue();
               }
@@ -1065,6 +1095,150 @@ export class WebsiteStore {
     });
   }
 
+  async setBurrowSyncEnabled(
+    burrowId: string,
+    enabled: boolean,
+  ): Promise<void> {
+    const db = await this.getDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(["burrows"], "readwrite");
+      const store = tx.objectStore("burrows");
+      const getRequest = store.get(burrowId);
+
+      getRequest.onsuccess = () => {
+        const burrow = getRequest.result;
+        if (!burrow) {
+          reject(new Error(`Burrow not found: ${burrowId}`));
+          return;
+        }
+        burrow.syncEnabled = enabled;
+        store.put(burrow);
+      };
+
+      tx.oncomplete = () => resolve();
+      tx.onerror = (event) => {
+        reject(
+          new Error(
+            `Failed to set burrow sync: ${(event.target as IDBRequest).error}`,
+          ),
+        );
+      };
+    });
+  }
+
+  async getSyncedBurrows(): Promise<Burrow[]> {
+    const all = await this.getAllBurrows();
+    return all.filter((b) => b.syncEnabled && b.sembleCollectionUri);
+  }
+
+  async queueSyncOp(
+    burrowId: string,
+    type: SyncOp["type"],
+    payload: SyncOp["payload"],
+  ): Promise<void> {
+    const db = await this.getDb();
+    const op: SyncOp = {
+      id: crypto.randomUUID(),
+      burrowId,
+      type,
+      payload,
+      createdAt: Date.now(),
+    };
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(["syncOps"], "readwrite");
+      tx.objectStore("syncOps").add(op);
+      tx.oncomplete = () => resolve();
+      tx.onerror = (event) => {
+        reject(
+          new Error(
+            `Failed to queue sync op: ${(event.target as IDBRequest).error}`,
+          ),
+        );
+      };
+    });
+  }
+
+  async getPendingSyncOps(burrowId: string): Promise<SyncOp[]> {
+    const db = await this.getDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(["syncOps"], "readonly");
+      const index = tx.objectStore("syncOps").index("burrowId");
+      const request = index.getAll(burrowId);
+
+      request.onsuccess = () => {
+        const ops: SyncOp[] = request.result;
+        resolve(ops.filter((op) => !op.syncedAt));
+      };
+
+      request.onerror = (event) => {
+        reject(
+          new Error(
+            `Failed to get pending sync ops: ${(event.target as IDBRequest).error}`,
+          ),
+        );
+      };
+    });
+  }
+
+  async markSyncOpsSynced(opIds: string[]): Promise<void> {
+    if (!opIds.length) return;
+    const db = await this.getDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(["syncOps"], "readwrite");
+      const store = tx.objectStore("syncOps");
+
+      for (const id of opIds) {
+        const getRequest = store.get(id);
+        getRequest.onsuccess = () => {
+          const op = getRequest.result;
+          if (op) {
+            op.syncedAt = Date.now();
+            store.put(op);
+          }
+        };
+      }
+
+      tx.oncomplete = () => resolve();
+      tx.onerror = (event) => {
+        reject(
+          new Error(
+            `Failed to mark sync ops: ${(event.target as IDBRequest).error}`,
+          ),
+        );
+      };
+    });
+  }
+
+  async purgeSyncedOps(olderThanMs: number): Promise<void> {
+    const db = await this.getDb();
+    const cutoff = Date.now() - olderThanMs;
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(["syncOps"], "readwrite");
+      const store = tx.objectStore("syncOps");
+      const request = store.openCursor();
+
+      request.onsuccess = (e) => {
+        const cursor = (e.target as IDBRequest).result;
+        if (cursor) {
+          const op: SyncOp = cursor.value;
+          if (op.syncedAt && op.syncedAt < cutoff) {
+            cursor.delete();
+          }
+          cursor.continue();
+        }
+      };
+
+      tx.oncomplete = () => resolve();
+      tx.onerror = (event) => {
+        reject(
+          new Error(
+            `Failed to purge sync ops: ${(event.target as IDBRequest).error}`,
+          ),
+        );
+      };
+    });
+  }
+
   async deleteBurrow(burrowId: string): Promise<void> {
     const db = await this.getDb();
 
@@ -1695,6 +1869,7 @@ export class WebsiteStore {
       name,
       websites: [...new Set(websites)],
       sembleCollectionUri,
+      syncEnabled: !!sembleCollectionUri,
     };
     return new Promise((resolve, reject) => {
       const tx = db.transaction(["burrows", "rabbitholes"], "readwrite");

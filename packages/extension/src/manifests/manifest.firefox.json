@@ -59,7 +59,14 @@
     },
     "default_popup": "src/popup/popup.html"
   },
-  "permissions": ["tabs", "storage", "identity", "bookmarks", "tabGroups"],
+  "permissions": [
+    "tabs",
+    "storage",
+    "identity",
+    "bookmarks",
+    "tabGroups",
+    "alarms"
+  ],
   "host_permissions": [
     "*://*/*",
     "https://*.bsky.social/*",

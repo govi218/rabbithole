@@ -44,8 +44,80 @@ function handle(
     });
 }
 
+// Debounced sync flush — batches ops and pushes after 5s of inactivity
+const flushTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function scheduleFlush(burrowId: string) {
+  if (flushTimers.has(burrowId)) {
+    clearTimeout(flushTimers.get(burrowId));
+  }
+  flushTimers.set(
+    burrowId,
+    setTimeout(async () => {
+      flushTimers.delete(burrowId);
+      try {
+        const db = new WebsiteStore(indexedDB);
+        const burrow = await db.getBurrow(burrowId);
+        if (!burrow?.syncEnabled || !burrow.sembleCollectionUri) return;
+
+        const session = await getSession();
+        if (!session) return;
+
+        const ops = await db.getPendingSyncOps(burrowId);
+        if (!ops.length) return;
+
+        const websites = await db.getAllWebsitesForBurrow(burrowId);
+        await syncBurrowToCollection(
+          session.did,
+          burrow.sembleCollectionUri,
+          websites,
+        );
+        await db.markSyncOpsSynced(ops.map((op) => op.id));
+        await db.updateBurrowSembleInfo(
+          burrowId,
+          burrow.sembleCollectionUri,
+          Date.now(),
+        );
+      } catch {
+        // Next startup/alarm will pick up
+      }
+    }, 5000),
+  );
+}
+
+// Periodic pull sync — hourly
+const SYNC_ALARM_NAME = "sembleSync";
+const SYNC_INTERVAL_MINUTES = 10;
+
+async function pullSync() {
+  const session = await getSession();
+  if (!session) return;
+
+  const db = new WebsiteStore(indexedDB);
+  try {
+    await syncFromAtproto(session.did, db);
+    await db.purgeSyncedOps(24 * 60 * 60 * 1000);
+  } catch (err) {
+    Logger.error("Periodic sync failed", err);
+  }
+}
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === SYNC_ALARM_NAME) {
+    pullSync();
+  }
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  WebsiteStore.init(indexedDB);
+  pullSync();
+});
+
 chrome.runtime.onInstalled.addListener(async () => {
   WebsiteStore.init(indexedDB);
+  chrome.alarms.create(SYNC_ALARM_NAME, {
+    periodInMinutes: SYNC_INTERVAL_MINUTES,
+  });
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -286,7 +358,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         throw new Error("burrowId and url required");
       }
       await db.deleteWebsiteFromBurrow(req.burrowId, req.url);
-      return { success: true };
+
+      // Queue sync op if burrow is synced
+      const burrow = await db.getBurrow(req.burrowId);
+      if (burrow.syncEnabled && burrow.sembleCollectionUri) {
+        await db.queueSyncOp(req.burrowId, "REMOVE_URL", { url: req.url });
+        scheduleFlush(req.burrowId);
+      }
     },
 
     [MessageRequest.PUBLISH_BURROW]: async (req) => {
@@ -381,7 +459,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (!("burrowId" in req) || !("urls" in req)) {
         throw new Error("burrowId and urls required");
       }
-      return db.addWebsitesToBurrow(req.burrowId, req.urls);
+      await db.addWebsitesToBurrow(req.burrowId, req.urls);
+
+      // Queue sync ops if burrow is synced
+      const burrow = await db.getBurrow(req.burrowId);
+      if (burrow.syncEnabled && burrow.sembleCollectionUri) {
+        for (const url of req.urls) {
+          await db.queueSyncOp(req.burrowId, "ADD_URL", { url });
+        }
+        // Debounced flush
+        scheduleFlush(req.burrowId);
+      }
     },
 
     [MessageRequest.DELETE_WEBSITE_FROM_RABBITHOLE_META]: async (req) => {
@@ -395,40 +483,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (!("url" in req)) {
         throw new Error("url required");
       }
-      return db.updateWebsite(req.url, req.name, req.description);
-    },
+      await db.updateWebsite(req.url, req.name, req.description);
 
-    [MessageRequest.SYNC_BURROW]: async (req) => {
-      if (!("burrowId" in req)) {
-        throw new Error("burrowId required");
-      }
-
-      const burrow = await db.getBurrow(req.burrowId);
-      if (!burrow.sembleCollectionUri) {
-        throw new Error("Burrow is not published");
-      }
-
-      const websites = await db.getAllWebsitesForBurrow(req.burrowId);
-      const session = await getSession();
-      if (!session) {
-        throw new Error("Not logged in");
-      }
-
-      await syncBurrowToCollection(
-        session.did,
-        burrow.sembleCollectionUri,
-        websites,
+      // Queue sync op for any synced burrows containing this URL
+      const allBurrows = await db.getAllBurrows();
+      const syncedBurrowsWithUrl = allBurrows.filter(
+        (b) =>
+          b.syncEnabled &&
+          b.sembleCollectionUri &&
+          b.websites.includes(req.url),
       );
-
-      // Update last sync time
-      const timestamp = Date.now();
-      await db.updateBurrowSembleInfo(
-        burrow.id,
-        burrow.sembleCollectionUri,
-        timestamp,
-      );
-
-      return { success: true, timestamp };
+      for (const b of syncedBurrowsWithUrl) {
+        await db.queueSyncOp(b.id, "UPDATE_URL", {
+          url: req.url,
+          name: req.name,
+          description: req.description,
+        });
+        scheduleFlush(b.id);
+      }
     },
 
     [MessageRequest.REMOVE_FROM_ACTIVE_TABS]: async (req) => {
@@ -961,6 +1033,77 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         await importTabGroupsFromBrowser(db);
       }
       return { success: true };
+    },
+
+    [MessageRequest.TOGGLE_BURROW_SYNC]: async (req) => {
+      if (!("burrowId" in req) || !("enabled" in req)) {
+        throw new Error("burrowId and enabled required");
+      }
+
+      const burrow = await db.getBurrow(req.burrowId);
+
+      if (req.enabled) {
+        if (burrow.sembleCollectionUri) {
+          // Already published — just do a full push to catch up
+          const session = await getSession();
+          if (!session) {
+            throw new Error("Not logged in");
+          }
+          const websites = await db.getAllWebsitesForBurrow(req.burrowId);
+          await syncBurrowToCollection(
+            session.did,
+            burrow.sembleCollectionUri,
+            websites,
+          );
+          await db.updateBurrowSembleInfo(
+            req.burrowId,
+            burrow.sembleCollectionUri,
+            Date.now(),
+          );
+        }
+        // If no sembleCollectionUri, the UI will handle the publish flow
+      }
+
+      await db.setBurrowSyncEnabled(req.burrowId, req.enabled);
+      return { success: true };
+    },
+
+    [MessageRequest.FLUSH_SYNC_OPS]: async (req) => {
+      if (!("burrowId" in req)) {
+        throw new Error("burrowId required");
+      }
+
+      const burrow = await db.getBurrow(req.burrowId);
+      if (!burrow.syncEnabled || !burrow.sembleCollectionUri) {
+        return { success: true, opsProcessed: 0 };
+      }
+
+      const session = await getSession();
+      if (!session) {
+        throw new Error("Not logged in");
+      }
+
+      const ops = await db.getPendingSyncOps(req.burrowId);
+      if (!ops.length) {
+        return { success: true, opsProcessed: 0 };
+      }
+
+      // Fallback to full sync — incremental is a future optimization
+      const websites = await db.getAllWebsitesForBurrow(req.burrowId);
+      await syncBurrowToCollection(
+        session.did,
+        burrow.sembleCollectionUri,
+        websites,
+      );
+
+      await db.markSyncOpsSynced(ops.map((op) => op.id));
+      await db.updateBurrowSembleInfo(
+        req.burrowId,
+        burrow.sembleCollectionUri,
+        Date.now(),
+      );
+
+      return { success: true, opsProcessed: ops.length };
     },
   };
 
