@@ -32,7 +32,6 @@ export enum MessageRequest {
   GET_ALL_RABBITHOLES,
   FETCH_RABBITHOLE_FOR_BURROW,
   UPDATE_WEBSITE,
-  SYNC_BURROW,
   OPEN_TABS,
   REMOVE_FROM_ACTIVE_TABS,
   IMPORT_DATA,
@@ -57,6 +56,8 @@ export enum MessageRequest {
   IMPORT_BROWSER_DATA,
   IMPORT_TRAIL_FROM_EXPLORE,
   IMPORT_BURROW_FROM_EXPLORE,
+  TOGGLE_BURROW_SYNC,
+  FLUSH_SYNC_OPS,
 }
 
 export type TrailWalkStatus = "ACTIVE" | "COMPLETED" | "ABANDONED";
@@ -85,6 +86,7 @@ export interface Burrow {
   name: string;
   sembleCollectionUri?: string;
   lastSembleSync?: number;
+  syncEnabled?: boolean;
 }
 
 export interface TrailStop {
@@ -142,4 +144,15 @@ export interface User {
   currentBurrow: string;
   currentTrail?: string;
   settings: Settings;
+}
+
+export type SyncOpType = "ADD_URL" | "REMOVE_URL" | "UPDATE_URL";
+
+export interface SyncOp {
+  id: string;
+  burrowId: string;
+  type: SyncOpType;
+  payload: { url: string; name?: string; description?: string };
+  createdAt: number;
+  syncedAt?: number;
 }
