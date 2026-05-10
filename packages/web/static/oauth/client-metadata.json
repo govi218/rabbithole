@@ -7,7 +7,8 @@
     "https://rabbithole.land/oauth/callback",
     "http://127.0.0.1:5173/oauth/callback",
     "https://nbklhnbdhfhbcojfbhncgkdlppbkiaec.chromiumapp.org/callback",
-    "https://lmjlomngicapdikpnodgohfhhhfpeidp.chromiumapp.org/callback"
+    "https://lmjlomngicapdikpnodgohfhhhfpeidp.chromiumapp.org/callback",
+    "https://e6624407d8ea88571f6b849ccb3b9eef3cb85ec5.extensions.allizom.org/callback"
   ],
   "scope": "atproto repo:network.cosmik.collectionLink repo:network.cosmik.collection repo:network.cosmik.card repo:app.sidetrail.trail repo:app.sidetrail.walk repo:app.sidetrail.completion",
   "grant_types": ["authorization_code", "refresh_token"],
