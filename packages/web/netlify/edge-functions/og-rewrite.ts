@@ -13,6 +13,9 @@ export default async (request: Request, context: Context) => {
   const [, handle, rkey] = match;
   const isTrail = !!trailMatch;
 
+  // Debug: verify edge function is running
+  console.log(`og-rewrite: path=${path} handle=${handle} rkey=${rkey} isTrail=${isTrail}`);
+
   try {
     // Fetch the record directly from the AppView (accepts handles)
     const collection = isTrail
@@ -58,7 +61,7 @@ export default async (request: Request, context: Context) => {
 
     return new Response(rewritten, {
       status: response.status,
-      headers: response.headers,
+      headers: { ...Object.fromEntries(response.headers), "x-og-rewrite": "hit" },
     });
   } catch {
     // On any error, just serve the original page
