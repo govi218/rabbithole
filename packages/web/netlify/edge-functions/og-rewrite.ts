@@ -94,5 +94,3 @@ function escapeAttr(s: string): string {
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
-
-export const config = { path: "/*" };
