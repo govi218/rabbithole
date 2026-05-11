@@ -1,0 +1,11 @@
+[build]
+  command = "pnpm build:web"
+  publish = "packages/web/build"
+
+[[edge_functions]]
+  function = "og-rewrite"
+  path = "/trail/*"
+
+[[edge_functions]]
+  function = "og-rewrite"
+  path = "/burrow/*"
