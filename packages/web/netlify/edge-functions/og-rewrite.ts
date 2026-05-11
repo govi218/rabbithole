@@ -22,6 +22,7 @@ export default async (request: Request, context: Context) => {
       ? "app.sidetrail.trail"
       : "network.cosmik.collection";
     const record = await fetchRecord(handle, collection, rkey);
+    console.log(`og-rewrite: record=${record ? JSON.stringify(record).slice(0, 200) : "null"}`);
     if (!record) return context.next();
 
     // Get the original HTML
@@ -63,8 +64,9 @@ export default async (request: Request, context: Context) => {
       status: response.status,
       headers: { ...Object.fromEntries(response.headers), "x-og-rewrite": "hit" },
     });
-  } catch {
+  } catch (e) {
     // On any error, just serve the original page
+    console.log(`og-rewrite: error=${e}`);
     return context.next();
   }
 };
