@@ -1,6 +1,6 @@
 [build]
-  command = "cd ../.. && pnpm build:web"
-  publish = "build"
+  command = "pnpm build:web"
+  publish = "packages/web/build"
 
 [[edge_functions]]
   function = "og-rewrite"
