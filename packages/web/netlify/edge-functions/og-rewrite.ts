@@ -4,9 +4,9 @@ export default async (request: Request, context: Context) => {
   const url = new URL(request.url);
   const path = url.pathname;
 
-  // Match /trail/@handle/rkey or /burrow/@handle/rkey
-  const trailMatch = path.match(/^\/trail\/@([^/]+)\/([^/]+)$/);
-  const burrowMatch = path.match(/^\/burrow\/@([^/]+)\/([^/]+)$/);
+  // Match /trail/@handle/rkey or /burrow/@handle/rkey (optional trailing slash)
+  const trailMatch = path.match(/^\/trail\/@([^/]+)\/([^/]+)\/?$/);
+  const burrowMatch = path.match(/^\/burrow\/@([^/]+)\/([^/]+)\/?$/);
   const match = trailMatch || burrowMatch;
   if (!match) return context.next();
 
