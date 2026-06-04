@@ -3,13 +3,15 @@
   import { Sun, Moon } from "radix-icons-svelte";
   import { Loader } from "@svelteuidev/core";
   import { MessageRequest } from "../utils";
+  import { initPostHog } from "../utils/posthog";
   import logoStars from "@rabbithole/shared/assets/rabbithole-logo-stars.svg";
 
   const dispatch = createEventDispatcher();
 
-  let currentSlide = 0; // 0: welcome, 1: import
+  let currentSlide = 0; // 0: welcome, 1: import, 2: analytics
   let isImporting = false;
   let importBookmarks = true;
+  let analyticsEnabled = false;
   let isDark = false;
   let hasInteractedWithTheme = false;
 
@@ -47,7 +49,11 @@
     currentSlide = 1;
   }
 
-  async function finish() {
+  function goToAnalytics() {
+    currentSlide = 2;
+  }
+
+  async function doImport() {
     if (importBookmarks) {
       isImporting = true;
       try {
@@ -61,10 +67,32 @@
       }
       isImporting = false;
     }
-    dispatch("complete");
+    goToAnalytics();
   }
 
   function skipImport() {
+    goToAnalytics();
+  }
+
+  async function finish() {
+    // Save analytics preference
+    const settings = await chrome.runtime.sendMessage({
+      type: MessageRequest.GET_SETTINGS,
+    });
+    if (settings) {
+      await chrome.runtime.sendMessage({
+        type: MessageRequest.UPDATE_SETTINGS,
+        settings: { ...settings, analyticsEnabled },
+      });
+      if (analyticsEnabled) {
+        initPostHog();
+      }
+    }
+
+    dispatch("complete");
+  }
+
+  function skipAnalytics() {
     dispatch("complete");
   }
 </script>
@@ -126,7 +154,7 @@
         <button class="primary-btn" on:click={goToImport}> Get Started </button>
       </div>
     </div>
-  {:else}
+  {:else if currentSlide === 1}
     <!-- Import slide -->
     <div class="content-wrapper">
       <h1 class="slide-title">Import Bookmarks</h1>
@@ -147,13 +175,6 @@
             <span>Folders become Rabbitholes, subfolders become Burrows.</span>
           </div>
         </label>
-
-        <div class="privacy-note">
-          <p>
-            <strong>Privacy First:</strong> Rabbithole does not collect any information
-            about you and all your data is stored locally on your device.
-          </p>
-        </div>
       </div>
 
       <div class="controls">
@@ -163,9 +184,53 @@
 
         <div class="spacer"></div>
 
-        <button class="primary-btn" on:click={finish} disabled={isImporting}>
+        <button class="primary-btn" on:click={doImport} disabled={isImporting}>
           {#if isImporting}
             <Loader size="sm" color="white" />
+          {:else}
+            Continue
+          {/if}
+        </button>
+      </div>
+    </div>
+  {:else}
+    <!-- Analytics slide -->
+    <div class="content-wrapper">
+      <h1 class="slide-title">Help Improve Rabbithole</h1>
+
+      <div class="import-container">
+        <p class="import-desc">
+          Send anonymous usage data to help us understand how people use Rabbithole and make it better.
+        </p>
+
+        <label class="import-option">
+          <input
+            type="checkbox"
+            bind:checked={analyticsEnabled}
+          />
+          <div class="option-text">
+            <strong>Enable Analytics</strong>
+            <span>Help us improve Rabbithole for everyone.</span>
+          </div>
+        </label>
+
+        <div class="privacy-note">
+          <p>
+            <strong>Privacy First:</strong> Analytics are completely anonymous. We don't collect any personal information, and your browsing data never leaves your device. You can turn this off anytime in settings.
+          </p>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="skip-btn" on:click={skipAnalytics}>
+          Skip
+        </button>
+
+        <div class="spacer"></div>
+
+        <button class="primary-btn" on:click={finish}>
+          {#if analyticsEnabled}
+            Enable & Continue
           {:else}
             Continue
           {/if}

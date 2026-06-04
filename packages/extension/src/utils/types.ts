@@ -67,6 +67,7 @@ export interface Settings {
   show: boolean;
   darkMode: boolean;
   hasSeenOnboarding: boolean;
+  analyticsEnabled?: boolean;
 }
 
 export interface Website {

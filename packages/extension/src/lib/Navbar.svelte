@@ -24,6 +24,7 @@
   import OnboardingModal from "src/lib/OnboardingModal.svelte";
   import { getSession, clearSession } from "../atproto/client";
   import { MessageRequest, Logger } from "../utils";
+  import { initPostHog, stopPostHog } from "../utils/posthog";
   import type { Settings } from "src/utils/types";
 
   export let onRabbitholesClick = () => {};
@@ -49,6 +50,8 @@
 
   let settings: Settings | null = null;
   let showOverlay: boolean = true;
+  let analyticsEnabled: boolean = false;
+  let showAnalyticsNudge: boolean = false;
 
   function dismissHelpTooltip() {
     if (showHelpTooltip) {
@@ -66,6 +69,8 @@
       type: MessageRequest.GET_SETTINGS,
     });
     showOverlay = settings?.show ?? true;
+    analyticsEnabled = settings?.analyticsEnabled ?? false;
+    showAnalyticsNudge = settings?.hasSeenOnboarding && !settings?.analyticsEnabled;
 
     const session = await getSession();
     if (session) {
@@ -131,6 +136,23 @@
         type: MessageRequest.UPDATE_SETTINGS,
         settings,
       });
+    }
+  }
+
+  async function handleToggleAnalytics(): Promise<void> {
+    analyticsEnabled = !analyticsEnabled;
+    showAnalyticsNudge = false;
+    if (settings) {
+      settings.analyticsEnabled = analyticsEnabled;
+      await chrome.runtime.sendMessage({
+        type: MessageRequest.UPDATE_SETTINGS,
+        settings,
+      });
+      if (analyticsEnabled) {
+        initPostHog();
+      } else {
+        stopPostHog();
+      }
     }
   }
 
@@ -446,59 +468,26 @@
     </ActionIcon>
 
     {#if isLoggedIn}
-      <Menu placement="end" withArrow>
-        <ActionIcon
-          slot="control"
-          variant="light"
-          color="blue"
-          size="lg"
-          radius="xl"
-          title={userHandle}
-          style="overflow: hidden; padding: {userAvatar ? '0' : ''};"
-        >
-          {#if userAvatar}
-            <img
-              src={userAvatar}
-              alt={userHandle}
-              style="width: 100%; height: 100%; object-fit: cover;"
-            />
-          {:else}
-            <Person size={18} />
-          {/if}
-        </ActionIcon>
-
-        <Menu.Item
-          icon={showOverlay ? EyeNone : EyeOpen}
-          on:click={handleToggleOverlay}
-        >
-          {showOverlay ? "Hide Overlay" : "Show Overlay"}
-        </Menu.Item>
-        <Menu.Item icon={Upload} on:click={triggerImport}>
-          Import Data
-        </Menu.Item>
-        <Menu.Item icon={Download} on:click={exportData}>Export Data</Menu.Item>
-        <Menu.Item icon={FileText} on:click={handleDownloadLogs}>
-          Download Logs
-        </Menu.Item>
-        <Menu.Item icon={Exit} color="red" on:click={handleSignOut}>
-          Sign Out
-        </Menu.Item>
-      </Menu>
-    {:else}
-      <div class="connect-container" id="tour-signin-btn">
-        <Button variant="light" color="blue" size="sm" on:click={handleSignIn}>
-          Sign in
-        </Button>
+      <div class="profile-btn-wrapper">
         <Menu placement="end" withArrow>
           <ActionIcon
             slot="control"
-            variant="filled"
-            color="gray"
+            variant="light"
+            color="blue"
             size="lg"
             radius="xl"
-            title="Settings"
+            title={userHandle}
+            style="overflow: hidden; padding: {userAvatar ? '0' : ''};"
           >
-            <Gear size={18} />
+            {#if userAvatar}
+              <img
+                src={userAvatar}
+                alt={userHandle}
+                style="width: 100%; height: 100%; object-fit: cover;"
+              />
+            {:else}
+              <Person size={18} />
+            {/if}
           </ActionIcon>
 
           <Menu.Item
@@ -507,16 +496,75 @@
           >
             {showOverlay ? "Hide Overlay" : "Show Overlay"}
           </Menu.Item>
+          <Menu.Item icon={BarChart} on:click={handleToggleAnalytics} class={showAnalyticsNudge ? 'analytics-nudge-item' : ''}>
+            <span class="analytics-menu-item">
+              <span>{analyticsEnabled ? "Disable" : "Enable"} Analytics</span>
+              {#if showAnalyticsNudge}
+                <span class="analytics-nudge-text">Help us improve!</span>
+              {/if}
+            </span>
+          </Menu.Item>
           <Menu.Item icon={Upload} on:click={triggerImport}>
             Import Data
           </Menu.Item>
-          <Menu.Item icon={Download} on:click={exportData}>
-            Export Data
-          </Menu.Item>
+          <Menu.Item icon={Download} on:click={exportData}>Export Data</Menu.Item>
           <Menu.Item icon={FileText} on:click={handleDownloadLogs}>
             Download Logs
           </Menu.Item>
+          <Menu.Item icon={Exit} color="red" on:click={handleSignOut}>
+            Sign Out
+          </Menu.Item>
         </Menu>
+        {#if showAnalyticsNudge}
+          <div class="analytics-nudge-badge"></div>
+        {/if}
+      </div>
+    {:else}
+      <div class="connect-container" id="tour-signin-btn">
+        <Button variant="light" color="blue" size="sm" on:click={handleSignIn}>
+          Sign in
+        </Button>
+        <div class="profile-btn-wrapper">
+          <Menu placement="end" withArrow>
+            <ActionIcon
+              slot="control"
+              variant="filled"
+              color="gray"
+              size="lg"
+              radius="xl"
+              title="Settings"
+            >
+              <Gear size={18} />
+            </ActionIcon>
+
+            <Menu.Item icon={BarChart} on:click={handleToggleAnalytics} class={showAnalyticsNudge ? 'analytics-nudge-item' : ''}>
+              <span class="analytics-menu-item">
+                <span>{analyticsEnabled ? "Disable" : "Enable"} Analytics</span>
+                {#if showAnalyticsNudge}
+                  <span class="analytics-nudge-text">Help us improve!</span>
+                {/if}
+              </span>
+            </Menu.Item>
+            <Menu.Item
+              icon={showOverlay ? EyeNone : EyeOpen}
+              on:click={handleToggleOverlay}
+            >
+              {showOverlay ? "Hide Overlay" : "Show Overlay"}
+            </Menu.Item>
+            <Menu.Item icon={Upload} on:click={triggerImport}>
+              Import Data
+            </Menu.Item>
+            <Menu.Item icon={Download} on:click={exportData}>
+              Export Data
+            </Menu.Item>
+            <Menu.Item icon={FileText} on:click={handleDownloadLogs}>
+              Download Logs
+            </Menu.Item>
+          </Menu>
+          {#if showAnalyticsNudge}
+            <div class="analytics-nudge-badge"></div>
+          {/if}
+        </div>
       </div>
     {/if}
   </div>
@@ -746,6 +794,49 @@
     display: flex;
     align-items: center;
     gap: 8px;
+  }
+
+  .profile-btn-wrapper {
+    position: relative;
+    display: inline-flex;
+  }
+
+  .analytics-nudge-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 10px;
+    height: 10px;
+    background: #fa5252;
+    border: 2px solid white;
+    border-radius: 50%;
+    z-index: 1;
+  }
+
+  :global(body.dark-mode) .analytics-nudge-badge {
+    border-color: #25262b;
+  }
+
+  .analytics-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .analytics-nudge-text {
+    font-size: 10px;
+    color: #fa5252;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  :global(.analytics-nudge-item) {
+    background: rgba(250, 82, 82, 0.06) !important;
+  }
+
+  :global(body.dark-mode .analytics-nudge-item) {
+    background: rgba(250, 82, 82, 0.1) !important;
   }
 
   /* Dark mode */

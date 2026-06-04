@@ -1,4 +1,6 @@
 import Rabbithole from "src/lib/Rabbithole.svelte";
+import { initPostHog } from "src/utils/posthog";
+import { MessageRequest } from "src/utils";
 
 // global styles
 import "./styles.css";
@@ -11,4 +13,13 @@ function render() {
   });
 }
 
-document.addEventListener("DOMContentLoaded", render);
+document.addEventListener("DOMContentLoaded", async () => {
+  // Check if analytics is enabled before initializing PostHog
+  const response = await chrome.runtime.sendMessage({
+    type: MessageRequest.GET_SETTINGS,
+  });
+  if (response?.analyticsEnabled) {
+    initPostHog();
+  }
+  render();
+});

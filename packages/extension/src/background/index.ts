@@ -24,11 +24,33 @@ import {
   broadcastTrailWalkUpdated,
   focusOrOpenTrailTab,
 } from "../utils/trails";
+import { initPostHog, capture, getPostHog } from "../utils/posthog";
 
 type Handler = (
   request: any,
   sender: chrome.runtime.MessageSender,
 ) => Promise<any>;
+
+// Read-only message types — skip analytics for these
+const AnalyticsDisabledRequests = new Set([
+  MessageRequest.GET_SETTINGS,
+  MessageRequest.GET_ALL_ITEMS,
+  MessageRequest.GET_ALL_BURROWS,
+  MessageRequest.GET_BURROW_WEBSITES,
+  MessageRequest.GET_ACTIVE_BURROW,
+  MessageRequest.GET_BURROW,
+  MessageRequest.GET_ACTIVE_RABBITHOLE,
+  MessageRequest.GET_ALL_RABBITHOLES,
+  MessageRequest.FETCH_RABBITHOLE_FOR_BURROW,
+  MessageRequest.GET_RABBITHOLE_WEBSITES,
+  MessageRequest.GET_ALL_TRAILS,
+  MessageRequest.GET_TRAIL,
+  MessageRequest.GET_ACTIVE_TRAIL,
+  MessageRequest.GET_TRAIL_WALK_STATE,
+  MessageRequest.GET_TRAIL_WALK_TAB,
+  MessageRequest.GET_CURRENT_TAB_ID,
+  MessageRequest.REGISTER_TRAIL_WALK_TAB,
+]);
 
 function handle(
   sendResponse: (response?: any) => void,
@@ -37,7 +59,13 @@ function handle(
   sender: chrome.runtime.MessageSender,
 ) {
   fn(request, sender)
-    .then((res) => sendResponse(res))
+    .then((res) => {
+      sendResponse(res);
+      // Capture every write action by its MessageRequest name
+      if (!AnalyticsDisabledRequests.has(request.type)) {
+        capture(MessageRequest[request.type] || "unknown");
+      }
+    })
     .catch((err) => {
       Logger.error("Handler failed", err);
       sendResponse({ error: err?.message || "Unknown error" });
@@ -108,8 +136,27 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
 });
 
-chrome.runtime.onStartup.addListener(() => {
+// Ensure PostHog is initialized when the service worker wakes up
+// (onStartup only fires on browser start, not on service worker restart)
+async function ensureAnalyticsInit() {
+  if (getPostHog() !== null) {
+    return;
+  }
+  try {
+    WebsiteStore.init(indexedDB);
+    const db = new WebsiteStore(indexedDB);
+    const settings = await db.getSettings();
+    if (settings?.analyticsEnabled) {
+      await initPostHog({ persistence: "memory" });
+    }
+  } catch (err) {
+    Logger.warn("Analytics init failed, events will be lost until next restart", err);
+  }
+}
+
+chrome.runtime.onStartup.addListener(async () => {
   WebsiteStore.init(indexedDB);
+  ensureAnalyticsInit();
   pullSync();
 });
 
@@ -1109,7 +1156,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   const handler = handlers[request.type as MessageRequest];
   if (handler) {
-    handle(sendResponse, handler, request, sender);
+    // Ensure PostHog is initialized (service worker may have restarted)
+    ensureAnalyticsInit().then(() => {
+      handle(sendResponse, handler, request, sender);
+    });
   } else {
     Logger.warn(`Unknown message type: ${request.type}`);
   }

@@ -11,6 +11,7 @@
   import ExploreWelcomeModal from "src/lib/ExploreWelcomeModal.svelte";
   import OnboardingTour from "src/lib/OnboardingTour.svelte";
   import { MessageRequest } from "../utils";
+  import { capture } from "../utils/posthog";
   import { SvelteUIProvider, Loader, Text, AppShell } from "@svelteuidev/core";
   import type {
     Burrow,
@@ -334,6 +335,7 @@
 
   function goExplore(): void {
     showExplore = true;
+    capture("EXPLORE_OPENED");
   }
 
   async function goHome(): Promise<void> {
