@@ -8,7 +8,7 @@
     Loader,
     Button,
   } from "@svelteuidev/core";
-  import { Cross2, MagnifyingGlass, Plus } from "radix-icons-svelte";
+  import { Cross2, MagnifyingGlass, Plus } from "svelte-radix";
   import Fuse from "fuse.js";
   import CollapsibleContainer from "./CollapsibleContainer.svelte";
   import { MessageRequest, Logger } from "../utils";

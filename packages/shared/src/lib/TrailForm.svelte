@@ -72,6 +72,7 @@
   </div>
 
   <div class="form-group">
+    <!-- svelte-ignore a11y-label-has-associated-control -->
     <label class="form-label">Stops</label>
     <div class="stops-form">
       {#each stops as stop, i}

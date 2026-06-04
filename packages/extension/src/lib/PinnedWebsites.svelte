@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import { Button } from "@svelteuidev/core";
-  import { OpenInNewWindow } from "radix-icons-svelte";
+  import { OpenInNewWindow } from "svelte-radix";
   import TimelineCard from "src/lib/TimelineCard.svelte";
   import CollapsibleContainer from "src/lib/CollapsibleContainer.svelte";
   import { MessageRequest } from "../utils";

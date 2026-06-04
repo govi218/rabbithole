@@ -16,7 +16,8 @@
     EyeNone,
     EyeOpen,
     Globe,
-  } from "radix-icons-svelte";
+    BarChart,
+  } from "svelte-radix";
   import SearchEverywhereModal from "src/lib/SearchEverywhereModal.svelte";
   import Modal from "src/lib/Modal.svelte";
   import logoStars from "@rabbithole/shared/assets/rabbithole-logo-stars.svg";

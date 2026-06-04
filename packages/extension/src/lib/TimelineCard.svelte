@@ -8,7 +8,7 @@
     Menu,
     ActionIcon,
   } from "@svelteuidev/core";
-  import { Trash, DotsHorizontal, Plus, Copy } from "radix-icons-svelte";
+  import { Trash, DotsHorizontal, Plus, Copy } from "svelte-radix";
   import type { Website } from "src/utils/types";
   import default1 from "../assets/rabbit-default-1.jpg";
 

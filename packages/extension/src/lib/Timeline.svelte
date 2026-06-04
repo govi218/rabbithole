@@ -22,7 +22,7 @@
   import TrailView from "src/lib/TrailView.svelte";
   import { TrailForm } from "@rabbithole/shared/lib";
   import NameInputModal from "src/lib/NameInputModal.svelte";
-  import { ChevronLeft, ListBullet, Grid } from "radix-icons-svelte";
+  import { ChevronLeft, ListBullet, Grid } from "svelte-radix";
   import { getSession } from "../atproto/client";
   import {
     createCollection,

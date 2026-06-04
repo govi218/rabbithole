@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Burrow, Trail } from "src/utils/types";
   import { createEventDispatcher } from "svelte";
-  import { Trash } from "radix-icons-svelte";
+  import { Trash } from "svelte-radix";
 
   export let burrows: Burrow[] = [];
   export let trails: Trail[] = [];

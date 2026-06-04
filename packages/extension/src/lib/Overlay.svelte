@@ -19,7 +19,7 @@
     Update,
     Check,
     Cross2,
-  } from "radix-icons-svelte";
+  } from "svelte-radix";
   import type {
     Burrow,
     Rabbithole,
@@ -629,7 +629,11 @@
 {/if}
 
 {#if showStopNote && (visitedCount === 0 ? trail?.startNote : currentStop)}
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="stop-note-modal" on:click={() => (showStopNote = false)}>
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div class="stop-note-content" on:click|stopPropagation={() => {}}>
       <div class="stop-note-header">
         <div class="trail-step-label">

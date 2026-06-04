@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import { ChevronLeft, ChevronRight, Check } from "radix-icons-svelte";
+  import { ChevronLeft, ChevronRight, Check } from "svelte-radix";
   import Modal from "./Modal.svelte";
   import tutorial1 from "../assets/tutorial-1-burrows-rabbitholes.mp4";
   import tutorial2 from "../assets/tutorial-2-overlay-popup.mp4";

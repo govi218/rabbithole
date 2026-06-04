@@ -588,6 +588,8 @@
                   — stop {(activeTrailWalk.walk?.visitedStops?.length ?? 0) + 1}
                   of {activeTrailWalk.trail?.stops?.length ?? 0}
                 </span>
+                <!-- svelte-ignore a11y-click-events-have-key-events -->
+                <!-- svelte-ignore a11y-no-static-element-interactions -->
                 <span
                   class="trail-walk-cta"
                   on:click|stopPropagation={abandonTrailWalk}>Abandon</span
@@ -671,6 +673,8 @@
     <p style="margin-bottom: 16px;">Imported from your Bluesky account:</p>
     {#if importNotice?.trails?.count > 0}
       <div class="import-section">
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div
           class="import-header"
           on:click={() => (trailsExpanded = !trailsExpanded)}
@@ -693,6 +697,8 @@
     {/if}
     {#if importNotice?.burrows?.count > 0}
       <div class="import-section">
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div
           class="import-header"
           on:click={() => (burrowsExpanded = !burrowsExpanded)}

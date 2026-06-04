@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from "svelte";
-  import { Sun, Moon } from "radix-icons-svelte";
+  import { Sun, Moon } from "svelte-radix";
   import { Loader } from "@svelteuidev/core";
   import { MessageRequest } from "../utils";
   import { initPostHog } from "../utils/posthog";

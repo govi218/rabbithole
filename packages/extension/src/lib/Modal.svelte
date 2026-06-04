@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import { ActionIcon } from "@svelteuidev/core";
-  import { Cross2 } from "radix-icons-svelte";
+  import { Cross2 } from "svelte-radix";
 
   export let isOpen: boolean = false;
   export let title: string = "";

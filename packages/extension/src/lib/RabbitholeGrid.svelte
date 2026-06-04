@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import { Trash } from "radix-icons-svelte";
+  import { Trash } from "svelte-radix";
   import type { Rabbithole, Burrow } from "src/utils/types";
 
   export let rabbitholes: Rabbithole[] = [];

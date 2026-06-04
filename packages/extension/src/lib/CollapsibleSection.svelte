@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Text, ActionIcon } from "@svelteuidev/core";
-  import { ChevronDown, ChevronUp } from "radix-icons-svelte";
+  import { ChevronDown, ChevronUp } from "svelte-radix";
   import { slide } from "svelte/transition";
 
   export let title: string = "";

@@ -7,7 +7,7 @@
     Stack,
     Loader,
   } from "@svelteuidev/core";
-  import { Cross2, MagnifyingGlass, Trash } from "radix-icons-svelte";
+  import { Cross2, MagnifyingGlass, Trash } from "svelte-radix";
   import Fuse from "fuse.js";
   import { MessageRequest, Logger } from "../utils";
   import type { Burrow, Rabbithole } from "src/utils/types";

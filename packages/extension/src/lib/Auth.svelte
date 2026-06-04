@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from "svelte";
   import { Agent } from "@atproto/api";
-  import { InfoCircled } from "radix-icons-svelte";
+  import { InfoCircled } from "svelte-radix";
   import CollapsibleContainer from "./CollapsibleContainer.svelte";
   import {
     getSession,
@@ -464,21 +464,16 @@
     cursor: not-allowed;
   }
 
-  .auth-button.login,
-  .auth-button.logout {
+  .auth-button.login {
     background-color: #1185fe;
     color: white;
-  }
-
-  .auth-button.login {
     display: flex;
     align-items: center;
     justify-content: center;
     min-width: 120px;
   }
 
-  .auth-button.login:hover:not(:disabled),
-  .auth-button.logout:hover {
+  .auth-button.login:hover:not(:disabled) {
     background-color: #0070e0;
   }
 
@@ -505,14 +500,6 @@
   }
 
   /* Dark mode */
-  :global(body.dark-mode) .user-handle {
-    color: #a0a0a0;
-  }
-
-  :global(body.dark-mode) .user-avatar {
-    border-color: #3a3b3c;
-  }
-
   :global(body.dark-mode) .bluesky-info {
     color: #c1c2c5;
   }

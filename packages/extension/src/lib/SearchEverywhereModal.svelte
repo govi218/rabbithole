@@ -8,7 +8,7 @@
     Stack,
     Loader,
   } from "@svelteuidev/core";
-  import { Cross2, MagnifyingGlass } from "radix-icons-svelte";
+  import { Cross2, MagnifyingGlass } from "svelte-radix";
   import Fuse from "fuse.js";
   import TimelineCard from "src/lib/TimelineCard.svelte";
   import RabbitholeGrid from "src/lib/RabbitholeGrid.svelte";
@@ -382,36 +382,6 @@
 
   .results-container::-webkit-scrollbar-thumb:hover {
     background: #868e96;
-  }
-
-  .trail-result {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    padding: 8px 12px;
-    background: rgba(0, 0, 0, 0.03);
-    border: 1px solid transparent;
-    border-radius: 6px;
-    cursor: pointer;
-    text-align: left;
-    font-size: 14px;
-    color: #495057;
-    transition: all 0.2s;
-  }
-
-  .trail-result:hover {
-    background: rgba(17, 133, 254, 0.1);
-    color: #1185fe;
-  }
-
-  .trail-name {
-    font-weight: 500;
-  }
-
-  .trail-meta {
-    font-size: 12px;
-    color: #868e96;
   }
 
   /* Dark mode styles */

@@ -11,7 +11,7 @@
     Play,
     Pencil1,
     Update,
-  } from "radix-icons-svelte";
+  } from "svelte-radix";
   import sembleIcon from "src/assets/icons/semble.svg";
 
   export let activeBurrowId: string | null = null;
@@ -305,7 +305,7 @@
     gap: 2px;
   }
 
-  .sync-pulse {
+  :global(.sync-pulse) {
     animation: sync-pulse 2s ease-in-out infinite;
   }
 
