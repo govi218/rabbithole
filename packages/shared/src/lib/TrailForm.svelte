@@ -56,15 +56,21 @@
 
 <div class="trail-form">
   <div class="form-group">
-    <label class="form-label">Title</label>
-    <input class="form-input" placeholder="My trail" bind:value={title} />
+    <label class="form-label" for="trail-title">Title</label>
+    <input
+      id="trail-title"
+      class="form-input"
+      placeholder="My trail"
+      bind:value={title}
+    />
   </div>
 
   <div class="form-group">
-    <label class="form-label"
+    <label class="form-label" for="trail-description"
       >Starting note <span class="optional">optional</span></label
     >
     <input
+      id="trail-description"
       class="form-input"
       placeholder="Context shown before the first stop..."
       bind:value={description}

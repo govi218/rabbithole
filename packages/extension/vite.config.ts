@@ -39,9 +39,25 @@ export default defineConfig({
   },
   build: {
     outDir: resolve(__dirname, `dist-${browser}`),
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       input: {
         trail: resolve(__dirname, "src/trail/trail.html"),
+      },
+      onwarn(warning, defaultHandler) {
+        // Suppress "overwrites a previously emitted file" for icons (CRXJS + Vite both emit them)
+        if (
+          warning.code === "FILE_NAME_CONFLICT" &&
+          warning.message.includes("dark.png")
+        )
+          return;
+        defaultHandler(warning);
+      },
+      output: {
+        manualChunks(id) {
+          // Keep svelteui modules in the same chunk to avoid circular dependency issues
+          if (id.includes("node_modules/@svelteuidev")) return "svelteui";
+        },
       },
     },
   },
