@@ -31,6 +31,7 @@
     "@atproto/api": "^0.18.7",
     "@rabbithole/shared": "workspace:*",
     "@vercel/analytics": "^0.1.8",
+    "posthog-js": "^1.379.0",
     "svelte-scrollto": "^0.2.0"
   }
 }

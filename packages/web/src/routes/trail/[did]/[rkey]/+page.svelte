@@ -11,6 +11,7 @@
   } from "@rabbithole/shared/atproto/explore";
   import { getSession, recordOps } from "$lib/atproto/client";
   import { walks, completions } from "$lib/store/pds";
+  import { capture } from "$lib/posthog";
   import type { ATProtoSession } from "@rabbithole/shared/types";
 
   let session: ATProtoSession | null = null;
@@ -94,6 +95,7 @@
       trail = await fetchTrailByUri(
         `at://${did}/app.sidetrail.trail/${$page.params.rkey}`,
       );
+      capture("trail_updated", { stop_count: stops.length });
       showEdit = false;
     } catch (e: any) {
       saveError = e.message;
@@ -111,6 +113,7 @@
     try {
       const rkey = trail.uri.split("/").pop()!;
       await recordOps.deleteRecord(session.did, "app.sidetrail.trail", rkey);
+      capture("trail_deleted");
       goto("/home");
     } catch (e: any) {
       deleteError = e.message ?? "Failed to delete trail.";
@@ -191,6 +194,7 @@
       walkVisitedTids = [firstTid];
       currentStopIndex = 0;
       walkPhase = "walking";
+      capture("trail_walk_started", { stop_count: trail.stops.length });
     } catch (e: any) {
       walkError = e.message;
     } finally {

@@ -10,6 +10,7 @@
   import LinkCard from "@rabbithole/shared/lib/LinkCard.svelte";
   import { getSession, recordOps } from "$lib/atproto/client";
   import { addCardToBurrow, removeCardFromBurrow } from "$lib/atproto/cosmik";
+  import { capture } from "$lib/posthog";
   import type { ATProtoSession } from "@rabbithole/shared/types";
 
   let session: ATProtoSession | null = null;
@@ -104,6 +105,7 @@
       burrow = await fetchCollectionByUri(
         `at://${did}/network.cosmik.collection/${$page.params.rkey}`,
       );
+      capture("burrow_updated", { url_count: newUrls.length });
       showEdit = false;
     } catch (e: any) {
       saveError = e.message;
@@ -153,6 +155,7 @@
         "network.cosmik.collection",
         rkey,
       );
+      capture("burrow_deleted");
       goto("/home");
     } catch (e: any) {
       deleteError = e.message ?? "Failed to delete burrow.";

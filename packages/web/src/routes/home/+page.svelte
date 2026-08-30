@@ -8,6 +8,7 @@
     clearSession,
     recordOps,
   } from "$lib/atproto/client";
+  import { capture } from "$lib/posthog";
   import {
     collections,
     trails,
@@ -122,6 +123,7 @@
   async function signIn() {
     authError = null;
     isSigningIn = true;
+    capture("sign_in_started");
     try {
       await startAuthFlow(handleInput);
     } catch (e: any) {
@@ -227,12 +229,14 @@
           record,
           editingTrail.cid,
         );
+        capture("trail_updated", { stop_count: stops.length });
       } else {
         await recordOps.createRecord(
           session.did,
           "app.sidetrail.trail",
           record,
         );
+        capture("trail_created", { stop_count: stops.length });
       }
       showCreateTrail = false;
       await loadUserData(session);
@@ -284,6 +288,7 @@
         for (const url of toAdd) {
           await addCardToBurrow(session.did, collectionUri, collectionCid, url);
         }
+        capture("burrow_updated", { url_count: newUrls.length });
       } else {
         const res = await recordOps.createRecord(
           session.did,
@@ -299,6 +304,7 @@
         for (const url of newUrls) {
           await addCardToBurrow(session.did, collectionUri, collectionCid, url);
         }
+        capture("burrow_created", { url_count: newUrls.length });
       }
 
       showCreateBurrow = false;

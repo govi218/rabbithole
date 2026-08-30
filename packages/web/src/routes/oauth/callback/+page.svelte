@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { browser } from "$app/environment";
   import { handleCallback } from "$lib/atproto/client";
+  import { capture } from "$lib/posthog";
   import { goto } from "$app/navigation";
 
   let status = "Completing sign in...";
@@ -12,9 +13,11 @@
     try {
       const params = new URLSearchParams(window.location.search);
       await handleCallback(params);
+      capture("sign_in_completed");
       status = "Signed in! Redirecting...";
       setTimeout(() => goto("/home"), 500);
     } catch (e: any) {
+      capture("sign_in_failed");
       error = e.message;
       status = "";
     }

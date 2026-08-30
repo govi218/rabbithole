@@ -6,6 +6,8 @@
   import { onMount } from "svelte";
   import { Agent } from "@atproto/api";
   import { getSession, clearSession } from "$lib/atproto/client";
+  import { initPostHog, capture, resetPostHog, getConsent, setConsent } from "$lib/posthog";
+  import AnalyticsBanner from "$lib/AnalyticsBanner.svelte";
   import logo from "$lib/assets/logo.png";
   import logoStars from "@rabbithole/shared/assets/rabbithole-logo-stars.svg";
 
@@ -16,8 +18,15 @@
   let userAvatar = "";
   let userHandle = "";
   let showUserMenu = false;
+  let showConsentBanner = false;
+  let analyticsEnabled = false;
+  let consentDecided = false;
 
   onMount(() => {
+    initPostHog();
+    const consent = getConsent();
+    analyticsEnabled = consent === true;
+    consentDecided = consent !== null;
     const onScroll = () => {
       scrolled = window.scrollY > 10;
     };
@@ -43,6 +52,8 @@
   }
 
   function signOut() {
+    capture("sign_out");
+    resetPostHog();
     clearSession();
     session = null;
     userAvatar = "";
@@ -53,6 +64,20 @@
 
   function handleMenuKeydown(e) {
     if (e.key === "Escape") showUserMenu = false;
+  }
+
+  function toggleAnalytics() {
+    const next = !analyticsEnabled;
+    analyticsEnabled = next;
+    consentDecided = true;
+    setConsent(next);
+  }
+
+  $: {
+    if (!consentDecided) {
+      const path = $page.url.pathname;
+      showConsentBanner = path === "/explore" || path === "/home";
+    }
   }
 </script>
 
@@ -135,6 +160,13 @@
               </div>
             </div>
             <div class="user-menu-divider" />
+            <button class="menu-item" on:click={toggleAnalytics}>
+              <span class="menu-item-label">Anonymous analytics</span>
+              <span class="toggle-track" class:active={analyticsEnabled}>
+                <span class="toggle-thumb" />
+              </span>
+            </button>
+            <div class="user-menu-divider" />
             <button class="menu-item menu-item-danger" on:click={signOut}
               >Sign out</button
             >
@@ -150,6 +182,15 @@
 <div class="min-h-screen w-full">
   <slot />
 </div>
+
+{#if showConsentBanner}
+  <AnalyticsBanner
+    on:dismiss={() => {
+      consentDecided = true;
+      analyticsEnabled = getConsent() === true;
+    }}
+  />
+{/if}
 
 <style>
   .nav {
@@ -374,7 +415,9 @@
   }
 
   .menu-item {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     width: 100%;
     padding: 11px 16px;
     background: none;
@@ -384,6 +427,7 @@
     font-weight: 500;
     cursor: pointer;
     font-family: inherit;
+    color: #c1c2c5;
     transition: background 0.1s;
   }
 
@@ -396,6 +440,36 @@
   }
   .menu-item-danger:hover {
     background: rgba(255, 107, 107, 0.08);
+  }
+
+  /* Analytics toggle */
+  .toggle-track {
+    width: 34px;
+    height: 18px;
+    border-radius: 9px;
+    background: #373a40;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+
+  .toggle-track.active {
+    background: #4dabf7;
+  }
+
+  .toggle-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s;
+  }
+
+  .toggle-track.active .toggle-thumb {
+    transform: translateX(16px);
   }
 
   @media (max-width: 640px) {
