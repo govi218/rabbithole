@@ -1,8 +1,9 @@
 /// <reference types="vitest" />
 import { crx } from "@crxjs/vite-plugin";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
-import { resolve } from "path";
-import { readFileSync } from "fs";
+import { resolve, dirname } from "path";
+import { readFileSync, readdirSync, copyFileSync, mkdirSync } from "fs";
+import { createRequire } from "module";
 import { defineConfig } from "vite";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 
@@ -23,8 +24,30 @@ const pkg = JSON.parse(
 );
 manifest.version = pkg.version;
 
+// Plugin to copy ONNX Runtime WASM files to the output directory
+function copyOrtWasm() {
+  return {
+    name: "copy-ort-wasm",
+    closeBundle() {
+      const require = createRequire(import.meta.url);
+      const ortDir = dirname(require.resolve("onnxruntime-web"));
+      const outDir = resolve(__dirname, `dist-${browser}`, "ort");
+      mkdirSync(outDir, { recursive: true });
+      const files = readdirSync(ortDir).filter(
+        (f) => f.endsWith(".wasm") || f.endsWith(".mjs"),
+      );
+      for (const f of files) {
+        copyFileSync(resolve(ortDir, f), resolve(outDir, f));
+      }
+      console.log(
+        `[copy-ort-wasm] copied ${files.length} files to dist-${browser}/ort/`,
+      );
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [svelte(), crx({ manifest }), nodePolyfills()],
+  plugins: [svelte(), crx({ manifest }), nodePolyfills(), copyOrtWasm()],
   resolve: {
     alias: {
       src: srcDir,

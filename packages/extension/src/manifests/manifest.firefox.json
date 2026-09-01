@@ -37,7 +37,8 @@
         "*.js",
         "*.css",
         "assets/*",
-        "src/*"
+        "src/*",
+        "ort/*"
       ],
       "matches": ["<all_urls>"]
     }
@@ -73,10 +74,16 @@
     "tabGroups",
     "alarms"
   ],
+  "optional_permissions": [
+    "trialML"
+  ],
   "host_permissions": [
     "*://*/*",
     "https://*.bsky.social/*",
     "https://public.api.bsky.app/*",
     "https://plc.directory/*"
-  ]
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  }
 }

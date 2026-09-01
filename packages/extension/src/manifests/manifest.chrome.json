@@ -26,7 +26,8 @@
         "*.js",
         "*.css",
         "assets/*",
-        "src/*"
+        "src/*",
+        "ort/*"
       ],
       "matches": ["<all_urls>"]
     }
@@ -66,5 +67,8 @@
     "https://*.bsky.social/*",
     "https://public.api.bsky.app/*",
     "https://plc.directory/*"
-  ]
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  }
 }
