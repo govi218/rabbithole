@@ -58,6 +58,8 @@ export enum MessageRequest {
   IMPORT_BURROW_FROM_EXPLORE,
   TOGGLE_BURROW_SYNC,
   FLUSH_SYNC_OPS,
+  RUN_CATEGORISE,
+  APPLY_CATEGORISE,
 }
 
 export type TrailWalkStatus = "ACTIVE" | "COMPLETED" | "ABANDONED";
