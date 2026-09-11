@@ -12,19 +12,45 @@ export interface CloudProviderConfig {
   model?: string;
 }
 
-export type CloudProviderId = "openai" | "anthropic" | "openrouter" | "groq" | "mistral";
+export type CloudProviderId =
+  | "openai"
+  | "anthropic"
+  | "openrouter"
+  | "groq"
+  | "mistral";
 
-export const CloudProviders: Record<CloudProviderId, { label: string; baseUrl: string; model: string }> = {
-  openai: { label: "OpenAI", baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini" },
-  anthropic: { label: "Anthropic", baseUrl: "https://api.anthropic.com/v1", model: "claude-sonnet-4-20250514" },
-  openrouter: { label: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1", model: "openai/gpt-4o-mini" },
-  groq: { label: "Groq", baseUrl: "https://api.groq.com/openai/v1", model: "llama-3.3-70b-versatile" },
-  mistral: { label: "Mistral", baseUrl: "https://api.mistral.ai/v1", model: "mistral-small-latest" },
+export const CloudProviders: Record<
+  CloudProviderId,
+  { label: string; baseUrl: string; model: string }
+> = {
+  openai: {
+    label: "OpenAI",
+    baseUrl: "https://api.openai.com/v1",
+    model: "gpt-4o-mini",
+  },
+  anthropic: {
+    label: "Anthropic",
+    baseUrl: "https://api.anthropic.com/v1",
+    model: "claude-sonnet-4-20250514",
+  },
+  openrouter: {
+    label: "OpenRouter",
+    baseUrl: "https://openrouter.ai/api/v1",
+    model: "openai/gpt-4o-mini",
+  },
+  groq: {
+    label: "Groq",
+    baseUrl: "https://api.groq.com/openai/v1",
+    model: "llama-3.3-70b-versatile",
+  },
+  mistral: {
+    label: "Mistral",
+    baseUrl: "https://api.mistral.ai/v1",
+    model: "mistral-small-latest",
+  },
 };
 
-export function getCloudProvider(
-  config: CloudProviderConfig,
-): LLMProvider {
+export function getCloudProvider(config: CloudProviderConfig): LLMProvider {
   const providerId = config.providerId ?? "openai";
   const defaults = CloudProviders[providerId];
   const baseUrl = defaults.baseUrl;
@@ -36,7 +62,11 @@ export function getCloudProvider(
 
   async function chat(
     messages: { role: string; content: string }[],
-    options?: { temperature?: number; maxTokens?: number; responseFormat?: any },
+    options?: {
+      temperature?: number;
+      maxTokens?: number;
+      responseFormat?: any;
+    },
   ): Promise<string> {
     const body: any = {
       model,
