@@ -12,14 +12,7 @@
   import Options from "./Options.svelte";
   import ContainerSelector from "src/lib/ContainerSelector.svelte";
   import { MessageRequest, NotificationDuration, Logger } from "../utils";
-  import {
-    Move,
-    EyeNone,
-    EyeOpen,
-    Update,
-    Check,
-    Cross2,
-  } from "svelte-radix";
+  import { Move, EyeNone, EyeOpen, Update, Check, Cross2 } from "svelte-radix";
   import type {
     Burrow,
     Rabbithole,

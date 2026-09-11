@@ -67,7 +67,11 @@ export function getTransformersProvider(
         progress_callback: (p: any) => {
           console.log(`[transformers] progress:`, p);
           if (onProgress && p.status === "progress") {
-            onProgress({ type: "downloading", progress: p.progress, message: p.file });
+            onProgress({
+              type: "downloading",
+              progress: p.progress,
+              message: p.file,
+            });
           }
         },
       });
@@ -80,7 +84,9 @@ export function getTransformersProvider(
       { role: "user", content: buildUserPrompt(opts) },
     ];
 
-    console.log(`[transformers] generate start`, { maxTokens: opts.maxTokens ?? 512 });
+    console.log(`[transformers] generate start`, {
+      maxTokens: opts.maxTokens ?? 512,
+    });
     const res = await generator(messages, {
       max_new_tokens: opts.maxTokens ?? 512,
       temperature: opts.temperature ?? 0.7,

@@ -74,9 +74,7 @@
     "tabGroups",
     "alarms"
   ],
-  "optional_permissions": [
-    "trialML"
-  ],
+  "optional_permissions": ["trialML"],
   "host_permissions": [
     "*://*/*",
     "https://*.bsky.social/*",
