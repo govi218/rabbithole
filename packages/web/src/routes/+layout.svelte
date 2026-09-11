@@ -6,7 +6,13 @@
   import { onMount } from "svelte";
   import { Agent } from "@atproto/api";
   import { getSession, clearSession } from "$lib/atproto/client";
-  import { initPostHog, capture, resetPostHog, getConsent, setConsent } from "$lib/posthog";
+  import {
+    initPostHog,
+    capture,
+    resetPostHog,
+    getConsent,
+    setConsent,
+  } from "$lib/posthog";
   import AnalyticsBanner from "$lib/AnalyticsBanner.svelte";
   import logo from "$lib/assets/logo.png";
   import logoStars from "@rabbithole/shared/assets/rabbithole-logo-stars.svg";

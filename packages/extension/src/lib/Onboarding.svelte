@@ -200,14 +200,12 @@
 
       <div class="import-container">
         <p class="import-desc">
-          Send anonymous usage data to help us understand how people use Rabbithole and make it better.
+          Send anonymous usage data to help us understand how people use
+          Rabbithole and make it better.
         </p>
 
         <label class="import-option">
-          <input
-            type="checkbox"
-            bind:checked={analyticsEnabled}
-          />
+          <input type="checkbox" bind:checked={analyticsEnabled} />
           <div class="option-text">
             <strong>Enable Analytics</strong>
             <span>Help us improve Rabbithole for everyone.</span>
@@ -216,15 +214,15 @@
 
         <div class="privacy-note">
           <p>
-            <strong>Privacy First:</strong> Analytics are completely anonymous. We don't collect any personal information, and your browsing data never leaves your device. You can turn this off anytime in settings.
+            <strong>Privacy First:</strong> Analytics are completely anonymous. We
+            don't collect any personal information, and your browsing data never leaves
+            your device. You can turn this off anytime in settings.
           </p>
         </div>
       </div>
 
       <div class="controls">
-        <button class="skip-btn" on:click={skipAnalytics}>
-          Skip
-        </button>
+        <button class="skip-btn" on:click={skipAnalytics}> Skip </button>
 
         <div class="spacer"></div>
 

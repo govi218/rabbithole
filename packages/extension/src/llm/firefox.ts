@@ -9,9 +9,7 @@ import { buildUserPrompt, getSystemPrompt, parseOutput } from "./provider";
 
 const GenerateModel = "onnx-community/Llama-3.2-1B-Instruct-ONNX";
 
-export function getFirefoxProvider(
-  onProgress?: ProgressCallback,
-): LLMProvider {
+export function getFirefoxProvider(onProgress?: ProgressCallback): LLMProvider {
   let currentTask: string | null = null;
 
   async function isAvailable(): Promise<boolean> {
@@ -33,7 +31,9 @@ export function getFirefoxProvider(
     const browserAny = globalThis as any;
     if (currentTask === taskName) return;
 
-    console.log(`[firefox] creating engine: ${taskName}${modelId ? ` (${modelId})` : ""}`);
+    console.log(
+      `[firefox] creating engine: ${taskName}${modelId ? ` (${modelId})` : ""}`,
+    );
     if (onProgress) onProgress({ type: "loading" });
 
     browserAny.browser.trial.ml.onProgress.addListener((p: any) => {
@@ -98,7 +98,10 @@ export function getFirefoxProvider(
       { role: "user", content: buildUserPrompt(opts) },
     ];
 
-    console.log(`[firefox] runEngine start`, { messages, maxTokens: opts.maxTokens ?? 512 });
+    console.log(`[firefox] runEngine start`, {
+      messages,
+      maxTokens: opts.maxTokens ?? 512,
+    });
     const res = await browserAny.browser.trial.ml.runEngine({
       args: [messages],
       options: {
