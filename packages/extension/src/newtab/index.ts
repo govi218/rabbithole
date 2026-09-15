@@ -1,5 +1,4 @@
 import Rabbithole from "src/lib/Rabbithole.svelte";
-import LLMTestPanel from "src/LLMTestPanel.svelte";
 import { initPostHog } from "src/utils/posthog";
 import { MessageRequest } from "src/utils";
 
@@ -10,8 +9,6 @@ const target = document.getElementById("app");
 
 function render() {
   new Rabbithole({ target });
-  // Enable for testing LLM features
-  // new LLMTestPanel({ target });
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
