@@ -174,7 +174,10 @@
     activeTrailWalk = null;
   }
 
-  async function handleOnboardingComplete(): Promise<void> {
+  async function handleOnboardingComplete(
+    event: CustomEvent<{ categoriseApplied: boolean }>,
+  ): Promise<void> {
+    const { categoriseApplied } = event.detail ?? { categoriseApplied: false };
     showOnboarding = false;
 
     const currentSettings: Settings = await chrome.runtime.sendMessage({
@@ -196,7 +199,9 @@
 
     await refreshHomeState();
 
-    showCreateFirstRabbithole = true;
+    if (!categoriseApplied) {
+      showCreateFirstRabbithole = true;
+    }
   }
 
   async function handleCreateFirstRabbithole(

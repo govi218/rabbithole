@@ -4,16 +4,19 @@
   import { Loader } from "@svelteuidev/core";
   import { MessageRequest } from "../utils";
   import { initPostHog } from "../utils/posthog";
+  import CategoriseModal from "src/lib/CategoriseModal.svelte";
   import logoStars from "@rabbithole/shared/assets/rabbithole-logo-stars.svg";
 
   const dispatch = createEventDispatcher();
 
-  let currentSlide = 0; // 0: welcome, 1: import, 2: analytics
+  let currentSlide = 0; // 0: welcome, 1: categorise, 2: import, 3: analytics
   let isImporting = false;
   let importBookmarks = true;
   let analyticsEnabled = false;
   let isDark = false;
   let hasInteractedWithTheme = false;
+  let showCategoriseModal = false;
+  let categoriseApplied = false;
 
   onMount(async () => {
     const cachedDarkMode = localStorage.getItem("rabbithole-dark-mode");
@@ -46,11 +49,27 @@
   }
 
   function goToImport() {
-    currentSlide = 1;
+    currentSlide = 2;
   }
 
   function goToAnalytics() {
-    currentSlide = 2;
+    currentSlide = 3;
+  }
+
+  function goToCategorise() {
+    currentSlide = 1;
+  }
+
+  function handleCategoriseApplied(): void {
+    categoriseApplied = true;
+    goToImport();
+  }
+
+  function handleCategoriseClose(): void {
+    showCategoriseModal = false;
+    if (!categoriseApplied) {
+      goToImport();
+    }
   }
 
   async function doImport() {
@@ -89,11 +108,11 @@
       }
     }
 
-    dispatch("complete");
+    dispatch("complete", { categoriseApplied });
   }
 
   function skipAnalytics() {
-    dispatch("complete");
+    dispatch("complete", { categoriseApplied });
   }
 </script>
 
@@ -151,10 +170,37 @@
       </div>
 
       <div class="controls centered">
-        <button class="primary-btn" on:click={goToImport}> Get Started </button>
+        <button class="primary-btn" on:click={goToCategorise}>
+          Get Started
+        </button>
       </div>
     </div>
   {:else if currentSlide === 1}
+    <!-- Categorise slide -->
+    <div class="content-wrapper">
+      <h1 class="slide-title">We see you're a tab enthusiast</h1>
+
+      <div class="import-container">
+        <p class="import-desc">
+          That's what Rabbithole is here to help you with. Let AI sort your open
+          tabs into rabbitholes — you stay in control of every decision.
+        </p>
+      </div>
+
+      <div class="controls">
+        <button class="skip-btn" on:click={goToImport}> Skip </button>
+
+        <div class="spacer"></div>
+
+        <button
+          class="primary-btn"
+          on:click={() => (showCategoriseModal = true)}
+        >
+          Clean Up My Tabs
+        </button>
+      </div>
+    </div>
+  {:else if currentSlide === 2}
     <!-- Import slide -->
     <div class="content-wrapper">
       <h1 class="slide-title">Import Bookmarks</h1>
@@ -236,6 +282,12 @@
       </div>
     </div>
   {/if}
+
+  <CategoriseModal
+    bind:isOpen={showCategoriseModal}
+    on:applied={handleCategoriseApplied}
+    on:close={handleCategoriseClose}
+  />
 </div>
 
 <style>
