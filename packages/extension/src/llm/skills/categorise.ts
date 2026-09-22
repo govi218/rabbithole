@@ -118,16 +118,22 @@ export const categoriseSkill: Skill<CategoriseInput, CategoriseOutput> = {
 
     const systemPrompt =
       "You are a helpful assistant that groups browser tabs into topic-based rabbitholes. " +
+      "HARD RULE: a rabbithole with only 1 tab is ALWAYS wrong. A rabbithole is a collection — one tab is not a collection. If a tab has no partner, it goes to misc, full stop. " +
+      "Before finalizing, scan your groups: any group with a single tab must be dissolved — try merging the tab into a related group first, otherwise move it to misc. " +
+      'Example of WRONG output: a new rabbithole "Zulip API" containing tabIndices [7] (one GitHub repo about Zulip, no other Zulip tabs open). Correct: 7 goes in misc unless another tab shares the theme. ' +
       "Tabs about the same topic should be grouped together. A tab can only belong to one rabbithole. " +
       "First, check if a tab fits into an existing rabbithole by comparing its title and URL to the rabbithole's title and content. " +
       "If it fits, assign it to that rabbithole by its ID. " +
       "If it doesn't fit any existing rabbithole but is related to other unmatched tabs, create a new rabbithole for them. " +
-      "Only put a tab in misc if it is truly unrelated to all other tabs. " +
-      "When in doubt, prefer creating a new rabbithole over putting tabs in misc — if 2+ tabs share a theme (same website, same topic, same domain), group them. " +
+      "Putting a lone tab in misc is not a failure — misc is the correct home for tabs with no partner. " +
+      "When in doubt between misc and a 1-tab rabbithole, ALWAYS choose misc. " +
+      "When 2+ tabs share a theme (same website, same topic, same domain), group them into a rabbithole. " +
       "Tabs from the same domain or website should almost always be grouped together. Tabs about the same product, organization, or project should be grouped together. " +
       "Never leave 3+ tabs in misc if they share any common theme or keywords — always create a rabbithole for them. " +
       "Don't shoehorn websites into existing rabbitholes, there should be good evidence that the website belongs there. And for creating new ones, try to see if there is a common keyword/pattern/theme in a bunch of tabs that is not captured by anything existing. If the same keyword appears a bunch of times across tabs, they likely belong together. " +
-      'When creating new rabbitholes, the topic should be a short, descriptive, HUMAN READABLE name of the theme (e.g. "Go Concurrency", "React Performance", "Olympic Results"). Do NOT prefix the topic with "Rabbithole" or include the word "rabbithole" in the topic name. Do NOT use generic placeholder names like "rabbithole_1" or "Group A".';
+      'When creating new rabbitholes, the topic should be a short, descriptive, HUMAN READABLE name of the theme (e.g. "Go Concurrency", "React Performance", "Olympic Results"). Do NOT prefix the topic with "Rabbithole" or include the word "rabbithole" in the topic name. Do NOT use generic placeholder names like "rabbithole_1" or "Group A". ' +
+      "Before responding, verify your work twice: (1) every tab index from 0 to the last tab must appear exactly once across assignments, newRabbitholes, and misc combined — no duplicates, no omissions, no invented indices; (2) no rabbithole anywhere in your output contains exactly 1 tab. " +
+      "Use only the tab indices provided in the input. Output valid JSON matching the schema exactly, with no extra fields, no markdown fences, and no commentary.";
 
     const userPrompt =
       `Here are my ${input.tabs.length} open tabs:\n\n${tabList}\n` +
@@ -136,14 +142,15 @@ export const categoriseSkill: Skill<CategoriseInput, CategoriseOutput> = {
       "1. If it matches an existing rabbithole, add its index to that rabbithole's assignment (use the rabbithole ID and include the rabbithole's title).\n" +
       "2. If it doesn't match any existing rabbithole but is related to other unmatched tabs, create a new rabbithole with a topic and description.\n" +
       "3. If it doesn't fit anywhere, add its index to the misc array.\n" +
-      "Every tab index must appear exactly once across assignments, newRabbitholes, and misc.";
+      "Every tab index must appear exactly once across assignments, newRabbitholes, and misc. " +
+      "No rabbithole may contain only 1 tab — merge lone tabs into a related rabbithole or move them to misc.";
 
     return {
       systemPrompt,
       userPrompt,
       schema,
       validator,
-      maxTokens: 2048,
+      maxTokens: 4096,
     };
   },
 };
