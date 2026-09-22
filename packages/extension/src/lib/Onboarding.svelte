@@ -4,7 +4,7 @@
   import { Loader } from "@svelteuidev/core";
   import { MessageRequest } from "../utils";
   import { initPostHog } from "../utils/posthog";
-  import CategoriseModal from "src/lib/CategoriseModal.svelte";
+  import Categorise from "src/lib/Categorise.svelte";
   import logoStars from "@rabbithole/shared/assets/rabbithole-logo-stars.svg";
 
   const dispatch = createEventDispatcher();
@@ -15,8 +15,10 @@
   let analyticsEnabled = false;
   let isDark = false;
   let hasInteractedWithTheme = false;
-  let showCategoriseModal = false;
+  let showCategorise = false;
+  let categoriseAttempt = 0;
   let categoriseApplied = false;
+  let categoriseHasResults = false;
 
   onMount(async () => {
     const cachedDarkMode = localStorage.getItem("rabbithole-dark-mode");
@@ -62,11 +64,17 @@
 
   function handleCategoriseApplied(): void {
     categoriseApplied = true;
+  }
+
+  function handleCategoriseResults(): void {
+    categoriseHasResults = true;
+  }
+
+  function handleCategoriseDone(): void {
     goToImport();
   }
 
   function handleCategoriseClose(): void {
-    showCategoriseModal = false;
     if (!categoriseApplied) {
       goToImport();
     }
@@ -177,28 +185,49 @@
     </div>
   {:else if currentSlide === 1}
     <!-- Categorise slide -->
-    <div class="content-wrapper">
-      <h1 class="slide-title">We see you're a tab enthusiast</h1>
+    <div class="content-wrapper categorise-wrapper">
+      <h1 class="slide-title">
+        {#if categoriseHasResults}
+          Your Rabbitholes are ready!
+        {:else}
+          We see you're a tab enthusiast
+        {/if}
+      </h1>
 
-      <div class="import-container">
-        <p class="import-desc">
-          That's what Rabbithole is here to help you with. Let AI sort your open
-          tabs into rabbitholes — you stay in control of every decision.
-        </p>
-      </div>
+      {#if showCategorise}
+        <div class="categorise-body">
+          <Categorise
+            key={categoriseAttempt}
+            on:applied={handleCategoriseApplied}
+            on:results={handleCategoriseResults}
+            on:done={handleCategoriseDone}
+            on:close={handleCategoriseClose}
+          />
+        </div>
+      {:else}
+        <div class="import-container">
+          <p class="import-desc">
+            That's what Rabbithole is here to help you with. Let AI sort your
+            open tabs into rabbitholes — you stay in control of every decision.
+          </p>
+        </div>
 
-      <div class="controls">
-        <button class="skip-btn" on:click={goToImport}> Skip </button>
+        <div class="controls">
+          <button class="skip-btn" on:click={goToImport}> Skip </button>
 
-        <div class="spacer"></div>
+          <div class="spacer"></div>
 
-        <button
-          class="primary-btn"
-          on:click={() => (showCategoriseModal = true)}
-        >
-          Clean Up My Tabs
-        </button>
-      </div>
+          <button
+            class="primary-btn"
+            on:click={() => {
+              categoriseAttempt += 1;
+              showCategorise = true;
+            }}
+          >
+            Clean Up My Tabs
+          </button>
+        </div>
+      {/if}
     </div>
   {:else if currentSlide === 2}
     <!-- Import slide -->
@@ -282,15 +311,19 @@
       </div>
     </div>
   {/if}
-
-  <CategoriseModal
-    bind:isOpen={showCategoriseModal}
-    on:applied={handleCategoriseApplied}
-    on:close={handleCategoriseClose}
-  />
 </div>
 
 <style>
+  .categorise-wrapper {
+    max-width: 560px;
+    align-items: stretch;
+  }
+
+  .categorise-body {
+    width: 100%;
+    margin-bottom: 16px;
+  }
+
   .onboarding-fullscreen {
     position: fixed;
     top: 0;
