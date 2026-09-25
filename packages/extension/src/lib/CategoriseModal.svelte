@@ -13,7 +13,7 @@
   }
 </script>
 
-<Modal {isOpen} title="Clean Up My Tabs" on:close={handleClose}>
+<Modal {isOpen} title="Clean Up My Tabs" wide on:close={handleClose}>
   {#if isOpen}
     <Categorise
       on:applied={() => dispatch("applied")}

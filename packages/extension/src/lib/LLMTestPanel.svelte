@@ -63,7 +63,7 @@
 
     try {
       const result = await chrome.runtime.sendMessage({
-        type: MessageRequest.RUN_CATEGORISE,
+        type: MessageRequest.PROPOSE_CATEGORISE,
         cloudConfig,
       });
 
