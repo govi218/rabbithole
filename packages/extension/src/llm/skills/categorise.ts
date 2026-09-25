@@ -5,6 +5,7 @@ export interface TabInfo {
   title: string;
   url: string;
   tabId?: number;
+  favIconUrl?: string;
 }
 
 export interface ExistingRabbithole {
@@ -23,6 +24,8 @@ export interface NewRabbithole {
   topic: string;
   description: string;
   tabIndices: number[];
+  /** Candidate key from the proposal stage — used for UI identity only */
+  candidateKey?: string;
 }
 
 export interface CategoriseInput {

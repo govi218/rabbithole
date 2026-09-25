@@ -26,13 +26,16 @@ import {
 } from "../utils/trails";
 import { initPostHog, capture, getPostHog } from "../utils/posthog";
 import { runSkill } from "../llm/provider";
-import { categoriseSkill } from "../llm/skills/categorise";
+import { proposeSkill } from "../llm/skills/propose";
+import { runJevAssignment } from "../llm/jev";
 import type {
-  CategoriseInput,
   CategoriseOutput,
   ExistingRabbithole,
   TabInfo,
+  RabbitholeAssignment,
+  NewRabbithole,
 } from "../llm/skills/categorise";
+import type { Candidate } from "../llm/skills/propose";
 
 type Handler = (
   request: any,
@@ -1126,12 +1129,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return { success: true };
     },
 
-    [MessageRequest.RUN_CATEGORISE]: async (req) => {
-      const cloudConfig = req.cloudConfig;
+    [MessageRequest.PROPOSE_CATEGORISE]: async (req) => {
+      const cloudConfig = (req as any).cloudConfig;
       const allTabs = await chrome.tabs.query({});
       const tabs: TabInfo[] = allTabs
         .filter((t) => isValidWebUrl(t.url))
-        .map((t) => ({ title: t.title ?? "", url: t.url ?? "", tabId: t.id }));
+        .map((t) => ({
+          title: t.title ?? "",
+          url: t.url ?? "",
+          tabId: t.id,
+          favIconUrl: t.favIconUrl,
+        }));
 
       if (tabs.length === 0) {
         return { error: "No tabs to categorise" };
@@ -1154,14 +1162,63 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
       }
 
-      const input: CategoriseInput = { tabs, existingRabbitholes };
-      const ctx = categoriseSkill.buildContext(input);
-      Logger.debug("[categorise] systemPrompt", ctx.systemPrompt);
-      Logger.debug("[categorise] userPrompt", ctx.userPrompt);
-      const result = await runSkill(categoriseSkill, input, { cloudConfig });
-      Logger.debug("[categorise] raw response", result.raw);
-      Logger.debug("[categorise] parsed data", result.data);
-      return { tabs, ...result.data };
+      const input = { tabs, existingRabbitholes };
+      const result = await runSkill(proposeSkill, input, { cloudConfig });
+      // Drop hallucinated existingIds (e.g. model copying the schema example)
+      const existingIds = new Set(existingRabbitholes.map((rh) => rh.id));
+      const seenKeys = new Set<string>();
+      const candidates = result.data.candidates.map((c) => {
+        const sanitized =
+          c.existingId && !existingIds.has(c.existingId)
+            ? { ...c, existingId: undefined }
+            : c;
+        // Guarantee unique keys — duplicates silently collapse in Jev's
+        // criteria object and break keyed each-blocks in the UI
+        let key = sanitized.key;
+        let suffix = 2;
+        while (seenKeys.has(key)) {
+          key = `${sanitized.key}-${suffix}`;
+          suffix += 1;
+        }
+        seenKeys.add(key);
+        return { ...sanitized, key };
+      });
+      return { tabs, candidates };
+    },
+
+    [MessageRequest.RUN_ASSIGNMENT]: async (req) => {
+      const { tabs, candidates } = req as {
+        tabs: TabInfo[];
+        candidates: Candidate[];
+      };
+      const result = await runJevAssignment({ tabs, candidates });
+
+      // Convert to CategoriseOutput format
+      const assignments: RabbitholeAssignment[] = [];
+      const newRabbitholes: NewRabbithole[] = [];
+      const misc = result.misc;
+
+      for (const [key, indices] of result.assignments) {
+        const candidate = candidates.find((c) => c.key === key);
+        if (!candidate) continue;
+
+        if (candidate.existingId) {
+          assignments.push({
+            rabbitholeId: candidate.existingId,
+            rabbitholeTitle: candidate.title,
+            tabIndices: indices,
+          });
+        } else {
+          newRabbitholes.push({
+            topic: candidate.title,
+            description: candidate.description,
+            tabIndices: indices,
+            candidateKey: candidate.key,
+          });
+        }
+      }
+
+      return { tabs, assignments, newRabbitholes, misc };
     },
 
     [MessageRequest.APPLY_CATEGORISE]: async (req) => {

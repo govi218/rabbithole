@@ -39,3 +39,4 @@ vite.config.ts.timestamp-*
 # Agent
 .letta
 .env
+datasets/
