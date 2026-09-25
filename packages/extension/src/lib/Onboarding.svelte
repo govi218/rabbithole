@@ -4,16 +4,21 @@
   import { Loader } from "@svelteuidev/core";
   import { MessageRequest } from "../utils";
   import { initPostHog } from "../utils/posthog";
+  import Categorise from "src/lib/Categorise.svelte";
   import logoStars from "@rabbithole/shared/assets/rabbithole-logo-stars.svg";
 
   const dispatch = createEventDispatcher();
 
-  let currentSlide = 0; // 0: welcome, 1: import, 2: analytics
+  let currentSlide = 0; // 0: welcome, 1: categorise, 2: import, 3: analytics
   let isImporting = false;
   let importBookmarks = true;
   let analyticsEnabled = false;
   let isDark = false;
   let hasInteractedWithTheme = false;
+  let showCategorise = false;
+  let categoriseAttempt = 0;
+  let categoriseApplied = false;
+  let categoriseHasResults = false;
 
   onMount(async () => {
     const cachedDarkMode = localStorage.getItem("rabbithole-dark-mode");
@@ -46,11 +51,33 @@
   }
 
   function goToImport() {
-    currentSlide = 1;
+    currentSlide = 2;
   }
 
   function goToAnalytics() {
-    currentSlide = 2;
+    currentSlide = 3;
+  }
+
+  function goToCategorise() {
+    currentSlide = 1;
+  }
+
+  function handleCategoriseApplied(): void {
+    categoriseApplied = true;
+  }
+
+  function handleCategoriseResults(): void {
+    categoriseHasResults = true;
+  }
+
+  function handleCategoriseDone(): void {
+    goToImport();
+  }
+
+  function handleCategoriseClose(): void {
+    if (!categoriseApplied) {
+      goToImport();
+    }
   }
 
   async function doImport() {
@@ -89,11 +116,11 @@
       }
     }
 
-    dispatch("complete");
+    dispatch("complete", { categoriseApplied });
   }
 
   function skipAnalytics() {
-    dispatch("complete");
+    dispatch("complete", { categoriseApplied });
   }
 </script>
 
@@ -151,10 +178,61 @@
       </div>
 
       <div class="controls centered">
-        <button class="primary-btn" on:click={goToImport}> Get Started </button>
+        <button class="primary-btn" on:click={goToCategorise}>
+          Get Started
+        </button>
       </div>
     </div>
   {:else if currentSlide === 1}
+    <!-- Categorise slide -->
+    <div
+      class="content-wrapper categorise-wrapper"
+      class:has-results={categoriseHasResults}
+    >
+      <h1 class="slide-title">
+        {#if categoriseHasResults}
+          Your Rabbitholes are ready!
+        {:else}
+          We see you're a tab enthusiast
+        {/if}
+      </h1>
+
+      {#if showCategorise}
+        <div class="categorise-body">
+          <Categorise
+            key={categoriseAttempt}
+            on:applied={handleCategoriseApplied}
+            on:results={handleCategoriseResults}
+            on:done={handleCategoriseDone}
+            on:close={handleCategoriseClose}
+          />
+        </div>
+      {:else}
+        <div class="import-container">
+          <p class="import-desc">
+            That's what Rabbithole is here to help you with. Let AI sort your
+            open tabs into rabbitholes — you stay in control of every decision.
+          </p>
+        </div>
+
+        <div class="controls">
+          <button class="skip-btn" on:click={goToImport}> Skip </button>
+
+          <div class="spacer"></div>
+
+          <button
+            class="primary-btn"
+            on:click={() => {
+              categoriseAttempt += 1;
+              showCategorise = true;
+            }}
+          >
+            Clean Up My Tabs
+          </button>
+        </div>
+      {/if}
+    </div>
+  {:else if currentSlide === 2}
     <!-- Import slide -->
     <div class="content-wrapper">
       <h1 class="slide-title">Import Bookmarks</h1>
@@ -200,14 +278,12 @@
 
       <div class="import-container">
         <p class="import-desc">
-          Send anonymous usage data to help us understand how people use Rabbithole and make it better.
+          Send anonymous usage data to help us understand how people use
+          Rabbithole and make it better.
         </p>
 
         <label class="import-option">
-          <input
-            type="checkbox"
-            bind:checked={analyticsEnabled}
-          />
+          <input type="checkbox" bind:checked={analyticsEnabled} />
           <div class="option-text">
             <strong>Enable Analytics</strong>
             <span>Help us improve Rabbithole for everyone.</span>
@@ -216,15 +292,15 @@
 
         <div class="privacy-note">
           <p>
-            <strong>Privacy First:</strong> Analytics are completely anonymous. We don't collect any personal information, and your browsing data never leaves your device. You can turn this off anytime in settings.
+            <strong>Privacy First:</strong> Analytics are completely anonymous. We
+            don't collect any personal information, and your browsing data never leaves
+            your device. You can turn this off anytime in settings.
           </p>
         </div>
       </div>
 
       <div class="controls">
-        <button class="skip-btn" on:click={skipAnalytics}>
-          Skip
-        </button>
+        <button class="skip-btn" on:click={skipAnalytics}> Skip </button>
 
         <div class="spacer"></div>
 
@@ -241,6 +317,21 @@
 </div>
 
 <style>
+  .categorise-wrapper {
+    max-width: 560px;
+    align-items: stretch;
+    transition: max-width 0.25s ease;
+  }
+
+  .categorise-wrapper.has-results {
+    max-width: 960px;
+  }
+
+  .categorise-body {
+    width: 100%;
+    margin-bottom: 16px;
+  }
+
   .onboarding-fullscreen {
     position: fixed;
     top: 0;

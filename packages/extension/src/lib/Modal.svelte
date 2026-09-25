@@ -6,6 +6,7 @@
   export let isOpen: boolean = false;
   export let title: string = "";
   export let titleLink: string = "";
+  export let wide: boolean = false;
 
   const dispatch = createEventDispatcher();
 
@@ -26,7 +27,7 @@
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="modal-overlay" on:click={close}>
-    <div class="modal-content" on:click|stopPropagation>
+    <div class="modal-content" class:wide on:click|stopPropagation>
       <div class="modal-close">
         <ActionIcon on:click={close}>
           <Cross2 />
@@ -81,6 +82,10 @@
     overflow-y: auto;
     animation: popIn 0.2s ease-out;
     position: relative;
+  }
+
+  .modal-content.wide {
+    max-width: 960px;
   }
 
   @keyframes popIn {

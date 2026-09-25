@@ -36,12 +36,15 @@
   "dependencies": {
     "@atproto/api": "^0.18.7",
     "@atproto/oauth-client-browser": "^0.3.37",
+    "@huggingface/transformers": "^4.2.0",
     "@rabbithole/shared": "workspace:*",
     "@svelteuidev/core": "^0.15.3",
     "d3-scale": "^4.0.2",
     "d3-time": "^3.1.0",
     "fuse.js": "^7.0.0",
+    "onnxruntime-web": "^1.29.0",
     "posthog-js": "^1.379.0",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "zod": "^4.5.4"
   }
 }

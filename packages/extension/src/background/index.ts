@@ -1,6 +1,6 @@
 import { MessageRequest, Logger } from "../utils";
 import { WebsiteStore } from "../storage/db";
-import type { Burrow } from "../utils/types";
+import type { Burrow, Website } from "../utils/types";
 import { getSession } from "../atproto/client";
 import { syncBurrowToCollection } from "../atproto/cosmik";
 import {
@@ -11,7 +11,7 @@ import {
   abandonSidetrailWalk,
 } from "../atproto/sidetrail";
 import { syncFromAtproto } from "../atproto/sync";
-import { storeWebsites } from "../utils/browser";
+import { storeWebsites, isValidWebUrl } from "../utils/browser";
 import {
   importBookmarksFromBrowser,
   importTabGroupsFromBrowser,
@@ -25,6 +25,17 @@ import {
   focusOrOpenTrailTab,
 } from "../utils/trails";
 import { initPostHog, capture, getPostHog } from "../utils/posthog";
+import { runSkill } from "../llm/provider";
+import { proposeSkill } from "../llm/skills/propose";
+import { runJevAssignment } from "../llm/jev";
+import type {
+  CategoriseOutput,
+  ExistingRabbithole,
+  TabInfo,
+  RabbitholeAssignment,
+  NewRabbithole,
+} from "../llm/skills/categorise";
+import type { Candidate } from "../llm/skills/propose";
 
 type Handler = (
   request: any,
@@ -150,7 +161,10 @@ async function ensureAnalyticsInit() {
       await initPostHog({ persistence: "memory" });
     }
   } catch (err) {
-    Logger.warn("Analytics init failed, events will be lost until next restart", err);
+    Logger.warn(
+      "Analytics init failed, events will be lost until next restart",
+      err,
+    );
   }
 }
 
@@ -1112,6 +1126,150 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
 
       await db.setBurrowSyncEnabled(req.burrowId, req.enabled);
+      return { success: true };
+    },
+
+    [MessageRequest.PROPOSE_CATEGORISE]: async (req) => {
+      const cloudConfig = (req as any).cloudConfig;
+      const allTabs = await chrome.tabs.query({});
+      const tabs: TabInfo[] = allTabs
+        .filter((t) => isValidWebUrl(t.url))
+        .map((t) => ({
+          title: t.title ?? "",
+          url: t.url ?? "",
+          tabId: t.id,
+          favIconUrl: t.favIconUrl,
+        }));
+
+      if (tabs.length === 0) {
+        return { error: "No tabs to categorise" };
+      }
+
+      const rholes = await db.getAllRabbitholes();
+      const existingRabbitholes: ExistingRabbithole[] = [];
+
+      for (const rh of rholes) {
+        const websites: Website[] = [];
+        for (const url of (rh.meta ?? []).slice(0, 10)) {
+          const w = await db.getWebsite(url);
+          if (w) websites.push(w);
+        }
+        const content = websites.map((w) => `  - ${w.name}`).join("\n");
+        existingRabbitholes.push({
+          id: rh.id,
+          title: rh.title,
+          content,
+        });
+      }
+
+      const input = { tabs, existingRabbitholes };
+      const result = await runSkill(proposeSkill, input, { cloudConfig });
+      // Drop hallucinated existingIds (e.g. model copying the schema example)
+      const existingIds = new Set(existingRabbitholes.map((rh) => rh.id));
+      const seenKeys = new Set<string>();
+      const candidates = result.data.candidates.map((c) => {
+        const sanitized =
+          c.existingId && !existingIds.has(c.existingId)
+            ? { ...c, existingId: undefined }
+            : c;
+        // Guarantee unique keys — duplicates silently collapse in Jev's
+        // criteria object and break keyed each-blocks in the UI
+        let key = sanitized.key;
+        let suffix = 2;
+        while (seenKeys.has(key)) {
+          key = `${sanitized.key}-${suffix}`;
+          suffix += 1;
+        }
+        seenKeys.add(key);
+        return { ...sanitized, key };
+      });
+      return { tabs, candidates };
+    },
+
+    [MessageRequest.RUN_ASSIGNMENT]: async (req) => {
+      const { tabs, candidates } = req as {
+        tabs: TabInfo[];
+        candidates: Candidate[];
+      };
+      const result = await runJevAssignment({ tabs, candidates });
+
+      // Convert to CategoriseOutput format
+      const assignments: RabbitholeAssignment[] = [];
+      const newRabbitholes: NewRabbithole[] = [];
+      const misc = result.misc;
+
+      for (const [key, indices] of result.assignments) {
+        const candidate = candidates.find((c) => c.key === key);
+        if (!candidate) continue;
+
+        if (candidate.existingId) {
+          assignments.push({
+            rabbitholeId: candidate.existingId,
+            rabbitholeTitle: candidate.title,
+            tabIndices: indices,
+          });
+        } else {
+          newRabbitholes.push({
+            topic: candidate.title,
+            description: candidate.description,
+            tabIndices: indices,
+            candidateKey: candidate.key,
+          });
+        }
+      }
+
+      return { tabs, assignments, newRabbitholes, misc };
+    },
+
+    [MessageRequest.APPLY_CATEGORISE]: async (req) => {
+      const { assignments, newRabbitholes, tabs } = req as CategoriseOutput & {
+        tabs: TabInfo[];
+      };
+      const tabUrlByIndex = new Map<number, string>();
+      (tabs ?? [])
+        .filter((t) => isValidWebUrl(t.url))
+        .forEach((t, i) => {
+          tabUrlByIndex.set(i, t.url ?? "");
+        });
+
+      for (const newRh of newRabbitholes ?? []) {
+        const urls = newRh.tabIndices
+          .map((idx) => tabUrlByIndex.get(idx))
+          .filter((u): u is string => !!u);
+        const websitesToSave: Website[] = urls.map((url) => ({
+          url,
+          name: url,
+          savedAt: Date.now(),
+          faviconUrl: "",
+          description: "",
+        }));
+        const created = await db.createRabbithole(
+          newRh.topic,
+          newRh.description,
+        );
+        if (urls.length > 0) {
+          await db.saveWebsiteStubs(websitesToSave);
+          await db.addWebsitesToRabbitholeMeta(created.id, urls);
+        }
+      }
+
+      for (const assignment of assignments ?? []) {
+        const urls = assignment.tabIndices
+          .map((idx) => tabUrlByIndex.get(idx))
+          .filter((u): u is string => !!u);
+        const websitesToSave: Website[] = urls.map((url) => ({
+          url,
+          name: url,
+          savedAt: Date.now(),
+          faviconUrl: "",
+          description: "",
+        }));
+        if (urls.length > 0) {
+          await db.saveWebsiteStubs(websitesToSave);
+          await db.addWebsitesToRabbitholeMeta(assignment.rabbitholeId, urls);
+        }
+      }
+
       return { success: true };
     },
 
