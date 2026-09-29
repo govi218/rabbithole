@@ -22,7 +22,7 @@ export interface TestHarness {
   msgPage: Page;
   sendMessage: (msg: unknown) => Promise<BackgroundResponse>;
   skipOnboarding: () => Promise<void>;
-  seedCloudKey: () => Promise<void>;
+  seedCloudKey: (apiKey?: string) => Promise<void>;
   openNewtab: () => Promise<Page>;
 }
 
@@ -86,13 +86,14 @@ export const test = base.extend<{ bg: TestHarness }>({
       });
     };
 
-    const seedCloudKey = async (): Promise<void> => {
-      await msgPage.evaluate(() => {
+    const seedCloudKey = async (apiKey?: string): Promise<void> => {
+      const key = apiKey ?? "test-key";
+      await msgPage.evaluate((k) => {
         chrome.storage.local.set({
           cloudProvider: "openrouter",
-          cloudApiKey: "test-key",
+          cloudApiKey: k,
         });
-      });
+      }, key);
     };
 
     const openNewtab = async (): Promise<Page> => {

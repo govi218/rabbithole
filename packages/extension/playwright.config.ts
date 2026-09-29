@@ -1,8 +1,10 @@
 import { defineConfig } from "@playwright/test";
-import { resolve } from "path";
+
+delete process.env.OPENROUTER_API_KEY;
+process.loadEnvFile(".env");
 
 export default defineConfig({
-  testDir: ".",
+  testDir: "test/e2e",
   timeout: 30000,
   retries: 0,
   use: {
