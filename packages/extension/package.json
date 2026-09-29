@@ -9,10 +9,12 @@
     "build:chrome": "node scripts/build.js chrome",
     "build:firefox": "node scripts/build.js firefox",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "test": "vitest"
+    "test": "vitest",
+    "test:e2e": "E2E=1 BROWSER=chrome vite build && playwright test test/e2e/"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "2.0.0",
+    "@playwright/test": "^1.63.0",
     "@sveltejs/vite-plugin-svelte": "^3.0.0",
     "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/svelte": "^4.1.0",
