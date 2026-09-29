@@ -185,7 +185,10 @@
     </div>
   {:else if currentSlide === 1}
     <!-- Categorise slide -->
-    <div class="content-wrapper categorise-wrapper">
+    <div
+      class="content-wrapper categorise-wrapper"
+      class:has-results={categoriseHasResults}
+    >
       <h1 class="slide-title">
         {#if categoriseHasResults}
           Your Rabbitholes are ready!
@@ -317,6 +320,11 @@
   .categorise-wrapper {
     max-width: 560px;
     align-items: stretch;
+    transition: max-width 0.25s ease;
+  }
+
+  .categorise-wrapper.has-results {
+    max-width: 960px;
   }
 
   .categorise-body {
