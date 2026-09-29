@@ -1,15 +1,12 @@
-import type {
-  ClassificationResult,
-  GenerateOptions,
-  GenerateResult,
-  LLMProvider,
-} from "./provider";
+import type { GenerateOptions, GenerateResult, LLMProvider } from "./provider";
 import { buildUserPrompt, getSystemPrompt, parseOutput } from "./provider";
 
 export interface CloudProviderConfig {
   apiKey: string;
   providerId?: CloudProviderId;
   model?: string;
+  // extra request body fields (e.g. reasoning: {enabled: false} for DeepSeek)
+  extraBody?: Record<string, unknown>;
 }
 
 export type CloudProviderId =
@@ -36,7 +33,10 @@ export const CloudProviders: Record<
   openrouter: {
     label: "OpenRouter",
     baseUrl: "https://openrouter.ai/api/v1",
-    model: "openai/gpt-4o-mini",
+    // benchmarked on the 188-tab eval dataset — see
+    // test/categorisation/benchmarks/RESULTS.md. Gemini Flash-Lite:
+    // 0 misc, fastest, cheapest tier.
+    model: "google/gemini-3.1-flash-lite",
   },
   groq: {
     label: "Groq",
@@ -56,10 +56,6 @@ export function getCloudProvider(config: CloudProviderConfig): LLMProvider {
   const baseUrl = defaults.baseUrl;
   const model = config.model ?? defaults.model;
 
-  async function isAvailable(): Promise<boolean> {
-    return !!config.apiKey;
-  }
-
   async function chat(
     messages: { role: string; content: string }[],
     options?: {
@@ -77,8 +73,11 @@ export function getCloudProvider(config: CloudProviderConfig): LLMProvider {
     if (options?.responseFormat) {
       body.response_format = options.responseFormat;
     }
+    if (config.extraBody) {
+      Object.assign(body, config.extraBody);
+    }
 
-    console.log(`[cloud] POST ${baseUrl}/chat/completions`, { model });
+    console.error(`[cloud] POST ${baseUrl}/chat/completions`, { model });
     const res = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
@@ -95,56 +94,8 @@ export function getCloudProvider(config: CloudProviderConfig): LLMProvider {
 
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content ?? "";
-    console.log(`[cloud] response:`, JSON.stringify(content));
+    console.error(`[cloud] response:`, JSON.stringify(content));
     return content;
-  }
-
-  async function classify(
-    text: string,
-    labels: string[],
-  ): Promise<ClassificationResult> {
-    const labelsText = labels.map((l) => `- ${l}`).join("\n");
-    const schema = {
-      type: "object",
-      properties: {
-        label: { type: "string" },
-        confidence: { type: "number" },
-      },
-      required: ["label", "confidence"],
-    };
-
-    const prompt = `Classify the following text into exactly one of these categories. Return the best matching category name and a confidence score between 0 and 1.
-
-Categories:
-${labelsText}
-
-Text: "${text}"
-
-Return ONLY valid JSON with these keys: "label", "confidence". No other text.`;
-
-    const raw = await chat(
-      [
-        { role: "system", content: "You are a text classification assistant." },
-        { role: "user", content: prompt },
-      ],
-      { responseFormat: { type: "json_object" } },
-    );
-
-    let parsed: any;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      parsed = { label: labels[0], confidence: 0 };
-    }
-
-    return {
-      label: parsed.label,
-      score: parsed.confidence,
-      allScores: labels.map((label) => ({
-        label,
-        score: label === parsed.label ? parsed.confidence : 0,
-      })),
-    };
   }
 
   async function generate<T = string>(
@@ -169,7 +120,5 @@ Return ONLY valid JSON with these keys: "label", "confidence". No other text.`;
     return { data, raw, providerType: "cloud" };
   }
 
-  async function dispose(): Promise<void> {}
-
-  return { name: "cloud", isAvailable, classify, generate, dispose };
+  return { generate };
 }
