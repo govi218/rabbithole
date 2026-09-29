@@ -24,7 +24,6 @@ export async function runCategorisePipeline(
   input: PipelineInput,
 ): Promise<PipelineOutput> {
   const { tabs, existingRabbitholes, fixedCandidates, cloudConfig } = input;
-  const fixedKeys = new Set(fixedCandidates.map((c) => c.key));
   const existingIds = new Set(existingRabbitholes.map((rh) => rh.id));
 
   const proposed = await runSkill(
@@ -76,16 +75,6 @@ export async function runCategorisePipeline(
         ...(assignments[existingKey] ?? []),
         ...assignments[c.key],
       ];
-      delete assignments[c.key];
-    }
-  }
-
-  for (const c of canonical) {
-    if (
-      assignments[c.key]?.length === 1 &&
-      !fixedKeys.has(c.key) &&
-      !c.existingId
-    ) {
       delete assignments[c.key];
     }
   }

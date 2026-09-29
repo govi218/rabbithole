@@ -539,13 +539,36 @@
   }
 
   function undoCloseTabs(): void {
-    const savedUrls = groups
+    // reopen tabs in their original windows — a flat chrome.tabs.create
+    // would dump everything into one window
+    const savedTabs = groups
       .filter((g) => g.tabIndices.length > 0)
       .flatMap((g) => g.tabIndices)
-      .map((i) => tabs[i]?.url)
-      .filter((url): url is string => !!url);
-    for (const url of savedUrls) {
-      chrome.tabs.create({ url, active: false });
+      .map((i) => tabs[i])
+      .filter((t): t is TabInfo => !!t?.url);
+    const byWindow = new Map<number, TabInfo[]>();
+    const orphans: TabInfo[] = [];
+    for (const t of savedTabs) {
+      if (t.windowId != null) {
+        const list = byWindow.get(t.windowId);
+        if (list) {
+          list.push(t);
+        } else {
+          byWindow.set(t.windowId, [t]);
+        }
+      } else {
+        orphans.push(t);
+      }
+    }
+    for (const groupTabs of byWindow.values()) {
+      chrome.windows.create({ url: groupTabs[0].url }, (win) => {
+        for (const t of groupTabs.slice(1)) {
+          chrome.tabs.create({ windowId: win.id, url: t.url });
+        }
+      });
+    }
+    for (const t of orphans) {
+      chrome.tabs.create({ url: t.url, active: false });
     }
     dispatch("done");
   }
