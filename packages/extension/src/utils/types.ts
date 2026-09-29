@@ -161,3 +161,21 @@ export interface SyncOp {
   createdAt: number;
   syncedAt?: number;
 }
+
+/* for LLM generation */
+
+export interface TabInfo {
+  title: string;
+  url: string;
+  tabId?: number;
+  favIconUrl?: string;
+  windowId?: number;
+  groupId?: number;
+  ogDescription?: string;
+}
+
+export interface RabbitholeContext {
+  id: string;
+  title: string;
+  content: string;
+}

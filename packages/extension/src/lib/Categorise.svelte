@@ -7,7 +7,7 @@
   import type { CloudProviderConfig, CloudProviderId } from "../llm/cloud";
   import { CloudProviders } from "../llm/cloud";
   import type { Rabbithole } from "../utils/types";
-  import type { TabInfo } from "../llm/skills/categorise";
+  import type { TabInfo } from "../utils/types";
   import type { Candidate } from "../llm/skills/propose";
 
   const dispatch = createEventDispatcher();

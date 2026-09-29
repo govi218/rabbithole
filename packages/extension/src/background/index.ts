@@ -20,19 +20,14 @@ import {
   getTrailWalkTabId,
   setTrailWalkTabId,
   clearTrailWalkTab,
-  broadcastToTabs,
   broadcastTrailWalkUpdated,
   focusOrOpenTrailTab,
 } from "../utils/trails";
 import { initPostHog, capture, getPostHog } from "../utils/posthog";
-import { runSkill } from "../llm/provider";
-import { categoriseSkill } from "../llm/skills/categorise";
-import type {
-  CategoriseInput,
-  CategoriseOutput,
-  ExistingRabbithole,
-  TabInfo,
-} from "../llm/skills/categorise";
+import { runJevAssignment } from "../llm/jev";
+import { runCategorisePipeline } from "../llm/pipeline";
+import type { RabbitholeContext, TabInfo } from "../utils/types";
+import type { Candidate } from "../llm/skills/propose";
 
 type Handler = (
   request: any,
@@ -1126,19 +1121,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return { success: true };
     },
 
-    [MessageRequest.RUN_CATEGORISE]: async (req) => {
-      const cloudConfig = req.cloudConfig;
+    [MessageRequest.PROPOSE_CATEGORISE]: async (req) => {
+      const cloudConfig = (req as any).cloudConfig;
       const allTabs = await chrome.tabs.query({});
       const tabs: TabInfo[] = allTabs
         .filter((t) => isValidWebUrl(t.url))
-        .map((t) => ({ title: t.title ?? "", url: t.url ?? "", tabId: t.id }));
+        .map((t) => ({
+          title: t.title ?? "",
+          url: t.url ?? "",
+          tabId: t.id,
+          favIconUrl: t.favIconUrl,
+          windowId: t.windowId,
+          groupId: t.groupId,
+        }));
 
       if (tabs.length === 0) {
         return { error: "No tabs to categorise" };
       }
 
       const rholes = await db.getAllRabbitholes();
-      const existingRabbitholes: ExistingRabbithole[] = [];
+      const existingRabbitholes: RabbitholeContext[] = [];
 
       for (const rh of rholes) {
         const websites: Website[] = [];
@@ -1154,18 +1156,86 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
       }
 
-      const input: CategoriseInput = { tabs, existingRabbitholes };
-      const ctx = categoriseSkill.buildContext(input);
-      Logger.debug("[categorise] systemPrompt", ctx.systemPrompt);
-      Logger.debug("[categorise] userPrompt", ctx.userPrompt);
-      const result = await runSkill(categoriseSkill, input, { cloudConfig });
-      Logger.debug("[categorise] raw response", result.raw);
-      Logger.debug("[categorise] parsed data", result.data);
-      return { tabs, ...result.data };
+      // Tab groups the user already made are explicit rabbitholes — seed
+      // candidates from them before the LLM proposes more
+      const groupCandidates: Candidate[] = [];
+      const groupIds = new Set(
+        tabs
+          .map((t) => t.groupId)
+          .filter((id): id is number => id != null && id !== -1),
+      );
+      if (groupIds.size > 0) {
+        const groups = await chrome.tabGroups.query({});
+        const groupTitleById = new Map(
+          groups.map((g) => [g.id, g.title?.trim() || "Untitled group"]),
+        );
+        for (const gid of groupIds) {
+          const indices: number[] = [];
+          tabs.forEach((t, i) => {
+            if (t.groupId === gid) {
+              indices.push(i);
+            }
+          });
+          if (indices.length === 0) continue;
+          const title = groupTitleById.get(gid) ?? "Untitled group";
+          groupCandidates.push({
+            key: `group-${gid}`,
+            title,
+            description: `Browser tab group "${title}"`,
+            userAdded: true,
+          });
+        }
+      }
+
+      // collect og descriptions from live pages — thin titles like "Blog"
+      // or "Sign in" get a real description for the Jev questions
+      const ogResults = await Promise.allSettled(
+        tabs.map((t) =>
+          t.tabId != null
+            ? chrome.tabs.sendMessage(t.tabId, {
+                type: MessageRequest.GET_OG_METADATA,
+              })
+            : Promise.resolve(null),
+        ),
+      );
+      tabs.forEach((t, i) => {
+        const og = ogResults[i];
+        if (og.status === "fulfilled" && og.value?.description) {
+          t.ogDescription = og.value.description;
+        }
+      });
+
+      const result = await runCategorisePipeline({
+        tabs,
+        existingRabbitholes,
+        fixedCandidates: groupCandidates,
+        cloudConfig,
+      });
+      return {
+        tabs,
+        candidates: result.candidates,
+        assignments: result.assignments,
+        misc: result.misc,
+      };
+    },
+
+    [MessageRequest.RUN_ASSIGNMENT]: async (req) => {
+      const { tabs, candidates } = req as {
+        tabs: TabInfo[];
+        candidates: Candidate[];
+      };
+      const result = await runJevAssignment({ tabs, candidates });
+      const assignments: Record<string, number[]> = {};
+      for (const [key, indices] of result.assignments) {
+        assignments[key] = indices;
+      }
+      return { tabs, candidates, assignments, misc: result.misc };
     },
 
     [MessageRequest.APPLY_CATEGORISE]: async (req) => {
-      const { assignments, newRabbitholes, tabs } = req as CategoriseOutput & {
+      const { candidates, assignments, tabs } = req as {
+        candidates: Candidate[];
+        assignments: Record<string, number[]>;
         tabs: TabInfo[];
       };
       const tabUrlByIndex = new Map<number, string>();
@@ -1175,10 +1245,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           tabUrlByIndex.set(i, t.url ?? "");
         });
 
-      for (const newRh of newRabbitholes ?? []) {
-        const urls = newRh.tabIndices
-          .map((idx) => tabUrlByIndex.get(idx))
+      for (const c of candidates) {
+        const indices = assignments[c.key];
+        if (!indices || indices.length === 0) continue;
+
+        const urls = indices
+          .map((i) => tabUrlByIndex.get(i))
           .filter((u): u is string => !!u);
+        if (urls.length === 0) continue;
+
         const websitesToSave: Website[] = urls.map((url) => ({
           url,
           name: url,
@@ -1186,30 +1261,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           faviconUrl: "",
           description: "",
         }));
-        const created = await db.createRabbithole(
-          newRh.topic,
-          newRh.description,
-        );
-        if (urls.length > 0) {
+
+        if (c.existingId) {
+          await db.saveWebsiteStubs(websitesToSave);
+          await db.addWebsitesToRabbitholeMeta(c.existingId, urls);
+        } else {
+          const created = await db.createRabbithole(c.title, c.description);
           await db.saveWebsiteStubs(websitesToSave);
           await db.addWebsitesToRabbitholeMeta(created.id, urls);
-        }
-      }
-
-      for (const assignment of assignments ?? []) {
-        const urls = assignment.tabIndices
-          .map((idx) => tabUrlByIndex.get(idx))
-          .filter((u): u is string => !!u);
-        const websitesToSave: Website[] = urls.map((url) => ({
-          url,
-          name: url,
-          savedAt: Date.now(),
-          faviconUrl: "",
-          description: "",
-        }));
-        if (urls.length > 0) {
-          await db.saveWebsiteStubs(websitesToSave);
-          await db.addWebsitesToRabbitholeMeta(assignment.rabbitholeId, urls);
         }
       }
 
