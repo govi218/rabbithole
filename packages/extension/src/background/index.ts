@@ -1232,9 +1232,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     },
 
     [MessageRequest.APPLY_CATEGORISE]: async (req) => {
-      const { candidates, assignments, tabs } = req as {
-        candidates: Candidate[];
-        assignments: Record<string, number[]>;
+      const { assignments, newRabbitholes, tabs } = req as {
+        assignments: { rabbitholeId: string; tabIndices: number[] }[];
+        newRabbitholes: {
+          topic: string;
+          description: string;
+          tabIndices: number[];
+        }[];
         tabs: TabInfo[];
       };
       const tabUrlByIndex = new Map<number, string>();
@@ -1244,31 +1248,40 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           tabUrlByIndex.set(i, t.url ?? "");
         });
 
-      for (const c of candidates) {
-        const indices = assignments[c.key];
-        if (!indices || indices.length === 0) continue;
-
+      const saveStubs = async (indices: number[]): Promise<string[]> => {
         const urls = indices
           .map((i) => tabUrlByIndex.get(i))
           .filter((u): u is string => !!u);
-        if (urls.length === 0) continue;
-
-        const websitesToSave: Website[] = urls.map((url) => ({
-          url,
-          name: url,
-          savedAt: Date.now(),
-          faviconUrl: "",
-          description: "",
-        }));
-
-        if (c.existingId) {
-          await db.saveWebsiteStubs(websitesToSave);
-          await db.addWebsitesToRabbitholeMeta(c.existingId, urls);
-        } else {
-          const created = await db.createRabbithole(c.title, c.description);
-          await db.saveWebsiteStubs(websitesToSave);
-          await db.addWebsitesToRabbitholeMeta(created.id, urls);
+        if (urls.length === 0) {
+          return [];
         }
+        await db.saveWebsiteStubs(
+          urls.map((url) => ({
+            url,
+            name: url,
+            savedAt: Date.now(),
+            faviconUrl: "",
+            description: "",
+          })),
+        );
+        return urls;
+      };
+
+      for (const nr of newRabbitholes ?? []) {
+        const urls = await saveStubs(nr.tabIndices);
+        if (urls.length === 0) {
+          continue;
+        }
+        const created = await db.createRabbithole(nr.topic, nr.description);
+        await db.addWebsitesToRabbitholeMeta(created.id, urls);
+      }
+
+      for (const a of assignments ?? []) {
+        const urls = await saveStubs(a.tabIndices);
+        if (urls.length === 0) {
+          continue;
+        }
+        await db.addWebsitesToRabbitholeMeta(a.rabbitholeId, urls);
       }
 
       return { success: true };
