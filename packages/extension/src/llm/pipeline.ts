@@ -16,7 +16,6 @@ export interface PipelineInput {
 export interface PipelineOutput {
   candidates: Candidate[];
   assignments: Record<string, number[]>;
-  misc: number[];
 }
 
 const maxProposed = 24;
@@ -60,7 +59,6 @@ export async function runCategorisePipeline(
   for (const [key, indices] of assignment.assignments) {
     assignments[key] = indices;
   }
-  const misc: number[] = [...assignment.misc];
 
   const canonical: Candidate[] = [];
   const titleToKey = new Map<string, string>();
@@ -82,24 +80,18 @@ export async function runCategorisePipeline(
     }
   }
 
-  const dissolved: number[] = [];
   for (const c of canonical) {
     if (
       assignments[c.key]?.length === 1 &&
       !fixedKeys.has(c.key) &&
       !c.existingId
     ) {
-      dissolved.push(...assignments[c.key]);
       delete assignments[c.key];
     }
-  }
-  if (dissolved.length > 0) {
-    misc.push(...dissolved);
   }
 
   return {
     candidates: canonical.filter((c) => assignments[c.key]?.length),
     assignments,
-    misc,
   };
 }

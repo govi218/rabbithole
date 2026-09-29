@@ -1215,7 +1215,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         tabs,
         candidates: result.candidates,
         assignments: result.assignments,
-        misc: result.misc,
       };
     },
 
@@ -1229,7 +1228,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       for (const [key, indices] of result.assignments) {
         assignments[key] = indices;
       }
-      return { tabs, candidates, assignments, misc: result.misc };
+      return { tabs, candidates, assignments };
     },
 
     [MessageRequest.APPLY_CATEGORISE]: async (req) => {

@@ -34,7 +34,6 @@
   let tabs: TabInfo[] = [];
   let candidates: Candidate[] = [];
   let groups: CategoriseGroup[] = [];
-  let miscIndices: number[] = [];
   let allRabbitholes: Rabbithole[] = [];
   let applying: boolean = false;
   let showSuccess: boolean = false;
@@ -155,7 +154,7 @@
       if (result.assignments) {
         // pipeline already computed assignments — render them directly
         // without a redundant Jev pass
-        await renderAssignments(result.assignments, result.misc ?? []);
+        await renderAssignments(result.assignments ?? {});
       } else {
         // fallback: candidates without assignments (older message shape)
         await runAssignment(true);
@@ -179,8 +178,7 @@
       .slice(0, 20);
     let key = base;
     let suffix = 2;
-    // "misc" is reserved for unpartnered tabs in the Jev criteria
-    while (key === "misc" || candidates.some((c) => c.key === key)) {
+    while (candidates.some((c) => c.key === key)) {
       key = `${base}-${suffix}`;
       suffix += 1;
     }
@@ -202,14 +200,9 @@
     candidates.splice(idx, 1);
     candidates = candidates;
     candidatesDirty = true;
-    // Drop the removed candidate's group so Confirm can't save its tabs —
-    // they fall back to misc rather than being silently saved
+    // Drop the removed candidate's group so Confirm can't save its tabs
     const groupId = candidateGroupId(removed);
-    const group = groups.find((g) => g.id === groupId);
-    if (group) {
-      miscIndices.push(...group.tabIndices);
-      groups = groups.filter((g) => g.id !== groupId);
-    }
+    groups = groups.filter((g) => g.id !== groupId);
     newRabbitholeDefs.delete(groupId);
   }
 
@@ -246,10 +239,7 @@
   // existingId mapping. Shared by the initial pipeline run and reruns.
   async function renderAssignments(
     assignments: Record<string, number[]>,
-    misc: number[],
   ): Promise<void> {
-    miscIndices = misc;
-
     allRabbitholes = await chrome.runtime.sendMessage({
       type: MessageRequest.GET_ALL_RABBITHOLES,
     });
@@ -327,7 +317,6 @@
       tabs = result.tabs ?? [];
       const assignments = result.assignments ?? [];
       const newRabbitholes = result.newRabbitholes ?? [];
-      miscIndices = result.misc ?? [];
 
       allRabbitholes = await chrome.runtime.sendMessage({
         type: MessageRequest.GET_ALL_RABBITHOLES,
@@ -486,27 +475,11 @@
     for (const g of groups) {
       g.tabIndices = g.tabIndices.filter((i) => i !== tabIdx);
     }
-    miscIndices = miscIndices.filter((i) => i !== tabIdx);
 
     if (target) {
       target.tabIndices.push(tabIdx);
-    } else {
-      // Unresolvable target — keep the tab in misc rather than dropping it
-      miscIndices.push(tabIdx);
     }
 
-    movingTabIdx = null;
-    searchQuery = "";
-    groups = groups.filter((g) => g.tabIndices.length > 0);
-  }
-
-  function moveToMisc(tabIdx: number): void {
-    for (const g of groups) {
-      g.tabIndices = g.tabIndices.filter((i) => i !== tabIdx);
-    }
-    if (!miscIndices.includes(tabIdx)) {
-      miscIndices.push(tabIdx);
-    }
     movingTabIdx = null;
     searchQuery = "";
     groups = groups.filter((g) => g.tabIndices.length > 0);
@@ -553,41 +526,6 @@
           await chrome.tabs.remove(savedTabIds);
         } catch (e) {
           logWarn("Failed to close saved tabs", e);
-        }
-      }
-
-      // Gather leftover misc tabs into one new window so the user sees
-      // their remaining pile in a single place instead of scattered
-      // Pinned tabs can't be moved into a new window (chrome.tabs.move
-      // silently fails on them) — leave them where they are
-      const miscTabIds = miscIndices
-        .map((i) => tabs[i]?.tabId)
-        .filter((id): id is number => id != null);
-      const movableTabIds: number[] = [];
-      for (const id of miscTabIds) {
-        try {
-          const t = await chrome.tabs.get(id);
-          if (!t.pinned) {
-            movableTabIds.push(id);
-          }
-        } catch {
-          // tab already closed — skip it
-        }
-      }
-      if (movableTabIds.length > 0) {
-        try {
-          const window = await chrome.windows.create({
-            tabId: movableTabIds[0],
-            focused: false,
-          });
-          if (movableTabIds.length > 1) {
-            await chrome.tabs.move(movableTabIds.slice(1), {
-              windowId: window.id,
-              index: -1,
-            });
-          }
-        } catch (e) {
-          logWarn("Failed to gather misc tabs into one window", e);
         }
       }
 
@@ -880,12 +818,6 @@
                             </div>
                           {/each}
                         </div>
-                        <button
-                          class="move-to-misc"
-                          on:click={() => moveToMisc(tabIdx)}
-                        >
-                          Move to Misc
-                        </button>
                       </div>
                     {/if}
                   </div>
@@ -893,79 +825,6 @@
               </div>
             </div>
           {/each}
-
-          {#if miscIndices.length > 0}
-            <div class="group-section misc-section">
-              <div class="group-header">
-                <span class="group-title">Misc</span>
-                <span class="misc-note">(will not be saved)</span>
-                <span class="group-count">{miscIndices.length} tabs</span>
-              </div>
-              <div class="tab-list">
-                {#each miscIndices as tabIdx (tabIdx)}
-                  <div class="tab-row">
-                    {#if tabs[tabIdx]?.favIconUrl}
-                      <img
-                        class="tab-favicon"
-                        src={tabs[tabIdx].favIconUrl}
-                        alt=""
-                        loading="lazy"
-                      />
-                    {:else}
-                      <span class="tab-favicon fallback"
-                        >{getDomain(tabs[tabIdx]?.url ?? "")
-                          .charAt(0)
-                          .toUpperCase() || "?"}</span
-                      >
-                    {/if}
-                    <div class="tab-info">
-                      <span class="tab-title"
-                        >{tabs[tabIdx]?.title || "Untitled"}</span
-                      >
-                      <span class="tab-domain"
-                        >{getDomain(tabs[tabIdx]?.url ?? "")}</span
-                      >
-                    </div>
-                    <button
-                      class="move-btn"
-                      class:active={movingTabIdx === tabIdx}
-                      on:click|stopPropagation={() => startMove(tabIdx)}
-                      title="Move to a rabbithole"
-                    >
-                      <ArrowRight size={14} />
-                    </button>
-                    {#if movingTabIdx === tabIdx}
-                      <div class="move-panel" on:click|stopPropagation>
-                        <input
-                          bind:this={searchInput}
-                          bind:value={searchQuery}
-                          placeholder="Search rabbitholes..."
-                          class="search-input"
-                        />
-                        <div class="search-results">
-                          {#each getMoveTargets() as target (target.id)}
-                            <button
-                              class="search-result-item"
-                              on:click={() => moveTab(tabIdx, target.id)}
-                            >
-                              <span>{target.title}</span>
-                              {#if target.isNew}
-                                <span class="badge new-badge">new</span>
-                              {/if}
-                            </button>
-                          {:else}
-                            <div class="no-results">
-                              No matching rabbitholes
-                            </div>
-                          {/each}
-                        </div>
-                      </div>
-                    {/if}
-                  </div>
-                {/each}
-              </div>
-            </div>
-          {/if}
         </div>
       </div>
     </div>
@@ -1054,12 +913,6 @@
   .hint-icon {
     display: inline-flex;
     vertical-align: -2px;
-  }
-
-  .misc-note {
-    font-size: 12px;
-    color: #868e96;
-    font-weight: normal;
   }
 
   .setup {
@@ -1555,28 +1408,6 @@
     text-align: center;
   }
 
-  .move-to-misc {
-    display: block;
-    width: 100%;
-    padding: 8px 12px;
-    border: none;
-    border-top: 1px solid rgba(0, 0, 0, 0.08);
-    background: transparent;
-    text-align: left;
-    cursor: pointer;
-    font-size: 13px;
-    color: #868e96;
-    transition: background 0.1s ease;
-  }
-
-  .move-to-misc:hover {
-    background: rgba(0, 0, 0, 0.04);
-  }
-
-  .misc-section {
-    border-style: dashed;
-  }
-
   .action-bar {
     display: flex;
     justify-content: space-between;
@@ -1655,15 +1486,6 @@
     color: #909296;
   }
 
-  :global(body.dark-mode) .move-to-misc {
-    border-top-color: rgba(255, 255, 255, 0.08);
-    color: #909296;
-  }
-
-  :global(body.dark-mode) .move-to-misc:hover {
-    background: rgba(255, 255, 255, 0.06);
-  }
-
   :global(body.dark-mode) .error {
     color: #ff6b6b;
   }
@@ -1673,10 +1495,6 @@
   }
 
   :global(body.dark-mode) .hint {
-    color: #909296;
-  }
-
-  :global(body.dark-mode) .misc-note {
     color: #909296;
   }
 
