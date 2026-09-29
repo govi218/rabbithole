@@ -35,7 +35,7 @@ export const CloudProviders: Record<
     baseUrl: "https://openrouter.ai/api/v1",
     // benchmarked on the 188-tab eval dataset — see
     // test/categorisation/benchmarks/RESULTS.md. Gemini Flash-Lite:
-    // 0 misc, fastest, cheapest tier.
+    // fastest, cheapest tier.
     model: "google/gemini-3.1-flash-lite",
   },
   groq: {

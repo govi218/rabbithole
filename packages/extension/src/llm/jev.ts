@@ -18,7 +18,6 @@ export interface JevAnswer {
 
 export interface JevAssignmentOutput {
   assignments: Map<string, number[]>; // candidate key → tab indices
-  misc: number[];
 }
 
 export async function runJevAssignment(
@@ -65,7 +64,6 @@ export async function runJevAssignment(
   for (const c of candidates) {
     criteria[c.key] = c.title;
   }
-  criteria["misc"] = "No partner tab";
 
   const state =
     "Open browser tabs to be sorted into rabbitholes:\n\n" +
@@ -89,7 +87,7 @@ export async function runJevAssignment(
         : "";
     questions[`tab_${i}`] = {
       type: "choice",
-      instructions: `Tab ${i}${tag} "${tabs[i].title.slice(0, 80)}"${tabs[i].ogDescription ? ` — ${tabs[i].ogDescription.slice(0, 150)}` : ""} — which rabbithole? Pick "misc" if no partner.`,
+      instructions: `Tab ${i}${tag} "${tabs[i].title.slice(0, 80)}"${tabs[i].ogDescription ? ` — ${tabs[i].ogDescription.slice(0, 150)}` : ""} — which rabbithole?`,
       criteria,
     };
   }
@@ -127,17 +125,14 @@ export async function runJevAssignment(
   }
 
   const assignments = new Map<string, number[]>();
-  const misc: number[] = [];
 
   for (const [key, answer] of Object.entries(answers)) {
     const i = Number(key.split("_")[1]);
     if (!Number.isInteger(i) || i < 0 || i >= tabs.length) {
       continue;
     }
-    const choice = answer?.choice ?? "misc";
-    if (choice === "misc" || !criteria[choice]) {
-      misc.push(i);
-    } else {
+    const choice = answer?.choice;
+    if (choice && criteria[choice]) {
       if (!assignments.has(choice)) {
         assignments.set(choice, []);
       }
@@ -151,10 +146,9 @@ export async function runJevAssignment(
   );
   for (const [key, indices] of assignments) {
     if (indices.length < 2 && !userAddedKeys.has(key)) {
-      misc.push(...indices);
       assignments.delete(key);
     }
   }
 
-  return { assignments, misc };
+  return { assignments };
 }

@@ -94,7 +94,12 @@ export const proposeSkill: Skill<ProposeInput, ProposeOutput> = {
       "Aim for roughly one candidate per 5-8 tabs — for a 150-tab list that means ~20-30 candidates. " +
       "Split by the actual project/topic (one per repo, event, or research thread), NOT by medium or site — " +
       "a GitHub repo's issues, a forum thread, and a blog post about one project are the SAME candidate. " +
-      "NEVER propose a candidate for a lone tab with no partners — those go to misc. " +
+      "NEVER propose a candidate for a lone tab with no partners. " +
+      "For tabs that don't fit a project-level cluster, propose broad catch-all categories instead — " +
+      'e.g. "Social Media" (feeds, chats, forums), "Wikipedia & Reference" (encyclopedia rabbit holes), ' +
+      '"Entertainment" (movies, TV, YouTube, music listening), "Casual Reading" (blog posts and essays not tied to a project), ' +
+      '"Shopping", "Travel & Places", "Health & Medical", "Finance & Investing", ' +
+      '"Local Tools & Dashboards" (self-hosted admin panels, WebUIs), "Logins & Accounts" (sign-in pages, portals). ' +
       "Before finalizing, re-scan the tab list for clusters you missed — " +
       "recurring domains (e.g. many tabs from the same site), a shared subject across different sites, " +
       "or tabs about the same event/place are all candidates. " +
