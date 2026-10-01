@@ -12,6 +12,8 @@
 
   const dispatch = createEventDispatcher();
 
+  export let onboarding = false;
+
   const providerEntries = Object.entries(CloudProviders) as [
     CloudProviderId,
     (typeof CloudProviders)[CloudProviderId],
@@ -596,11 +598,13 @@
         : "s"}
       and closed.
     </p>
-    <p class="success-subtext">
-      This is your first Rabbithole trust fall! All your knowledge is saved but
-      your tabs are finally gone. Doesn't that feel good? Don't worry, you'll
-      see how easy it is to find them again in just a sec.
-    </p>
+    {#if onboarding}
+      <p class="success-subtext">
+        This is your first Rabbithole trust fall! All your knowledge is saved
+        but your tabs are finally gone. Doesn't that feel good? Don't worry,
+        you'll see how easy it is to find them again in just a sec.
+      </p>
+    {/if}
     <div class="success-actions">
       <Button variant="light" color="blue" on:click={undoCloseTabs}>
         Undo
@@ -652,25 +656,29 @@
     <p>Analyzing your tabs...</p>
   </div>
 {:else if error && groups.length === 0}
-  <p class="error">{error}</p>
-  <div class="error-actions">
-    <Button
-      variant="subtle"
-      color="gray"
-      on:click={() => {
-        error = null;
-        // If candidates already exist only the assignment failed —
-        // skip the paid proposal call and retry the assignment directly
-        if (candidates.length > 0) {
-          runAssignment(true);
-        } else {
-          runProposal();
-        }
-      }}
-    >
-      Retry
-    </Button>
-    <Button variant="subtle" color="gray" on:click={handleClose}>Cancel</Button>
+  <div class="error-view">
+    <p class="error">{error}</p>
+    <div class="error-actions">
+      <Button
+        variant="subtle"
+        color="gray"
+        on:click={() => {
+          error = null;
+          // If candidates already exist only the assignment failed —
+          // skip the paid proposal call and retry the assignment directly
+          if (candidates.length > 0) {
+            runAssignment(true);
+          } else {
+            runProposal();
+          }
+        }}
+      >
+        Retry
+      </Button>
+      <Button variant="subtle" color="gray" on:click={handleClose}
+        >Cancel</Button
+      >
+    </div>
   </div>
 {:else}
   <div class="combined">
@@ -693,6 +701,9 @@
               groups.find((g) => g.id === candidateGroupId(c))?.tabIndices
                 .length ?? 0}
             <div class="candidate-row" class:empty={count === 0}>
+              {#if !c.existingId}
+                <span class="candidate-new-badge">new</span>
+              {/if}
               <div class="candidate-info">
                 <span class="candidate-title">{c.title}</span>
                 <span class="candidate-desc">{c.description}</span>
@@ -1001,6 +1012,15 @@
     font-size: 14px;
   }
 
+  .error-view {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    text-align: center;
+  }
+
   .error {
     color: #e03131;
     font-size: 14px;
@@ -1109,6 +1129,7 @@
   }
 
   .candidate-row {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -1128,6 +1149,23 @@
     font-size: 13px;
     font-weight: 600;
     color: #1a1b1e;
+  }
+
+  .candidate-new-badge {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 3px 6px;
+    border: 1px solid #4dabf7;
+    border-radius: 4px;
+    color: #4dabf7;
+    background: transparent;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    pointer-events: none;
   }
 
   .candidate-desc {
