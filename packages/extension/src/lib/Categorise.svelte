@@ -322,58 +322,8 @@
       }
 
       tabs = result.tabs ?? [];
-      const assignments = result.assignments ?? [];
-      const newRabbitholes = result.newRabbitholes ?? [];
-
-      allRabbitholes = await chrome.runtime.sendMessage({
-        type: MessageRequest.GET_ALL_RABBITHOLES,
-      });
-
-      groups = [];
-
-      const merged = new Map<
-        string,
-        { rabbitholeId: string; rabbitholeTitle: string; tabIndices: number[] }
-      >();
-      for (const a of assignments) {
-        const existing = merged.get(a.rabbitholeId);
-        if (existing) {
-          existing.tabIndices.push(...a.tabIndices);
-        } else {
-          merged.set(a.rabbitholeId, {
-            rabbitholeId: a.rabbitholeId,
-            rabbitholeTitle: a.rabbitholeTitle,
-            tabIndices: [...a.tabIndices],
-          });
-        }
-      }
-
-      for (const a of merged.values()) {
-        const rh = allRabbitholes.find((r) => r.id === a.rabbitholeId);
-        groups.push({
-          id: a.rabbitholeId,
-          title: a.rabbitholeTitle || rh?.title || a.rabbitholeId,
-          description: rh?.description ?? "",
-          isNew: !rh,
-          tabIndices: a.tabIndices,
-        });
-      }
-
-      newRabbitholeDefs = new Map();
-      for (const nr of newRabbitholes) {
-        const id = `new-${nr.candidateKey ?? nr.topic}`;
-        newRabbitholeDefs.set(id, {
-          title: nr.topic,
-          description: nr.description,
-        });
-        groups.push({
-          id,
-          title: nr.topic,
-          description: nr.description,
-          isNew: true,
-          tabIndices: [...nr.tabIndices],
-        });
-      }
+      // RUN_ASSIGNMENT returns candidate-key → tab-indices (pipeline shape)
+      await renderAssignments(result.assignments ?? {});
 
       rerunCount++;
       candidatesDirty = false;
@@ -537,12 +487,17 @@
           tabIndices: g.tabIndices,
         }));
 
-      await chrome.runtime.sendMessage({
+      const result = await chrome.runtime.sendMessage({
         type: MessageRequest.APPLY_CATEGORISE,
         assignments,
         newRabbitholes,
         tabs,
       });
+
+      if (result?.error) {
+        error = String(result.error);
+        return;
+      }
 
       const savedGroups = groups.filter(
         (g) => !g.isMisc && g.tabIndices.length > 0,
@@ -664,10 +619,15 @@
       </p>
     {/if}
     <div class="success-actions">
-      <Button variant="light" color="blue" on:click={undoCloseTabs}>
-        Undo
+      <Button
+        variant="subtle"
+        color="gray"
+        on:click={undoCloseTabs}
+        title="They will still be saved to your rabbitholes"
+      >
+        I want my tabs back
       </Button>
-      <Button variant="subtle" color="gray" on:click={finish}>Continue</Button>
+      <Button variant="light" color="blue" on:click={finish}>Continue</Button>
     </div>
   </div>
 {:else if needsSetup}
@@ -940,14 +900,12 @@
           variant="default"
           color="gray"
           on:click={() => runAssignment()}
-          disabled={rerunCount >= maxReruns || rerunning}
+          disabled={rerunning}
         >
           {#if rerunning}
             Rerunning...
-          {:else if rerunCount >= maxReruns}
-            Max reruns reached
           {:else}
-            Rerun ({maxReruns - rerunCount} left)
+            Rerun
           {/if}
         </Button>
       {:else}
