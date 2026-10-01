@@ -24,8 +24,12 @@
     title: string;
     description: string;
     isNew: boolean;
+    isMisc?: boolean;
     tabIndices: number[];
   }
+
+  // user-only bucket: tabs stay open, never saved to a rabbithole
+  const MiscGroupId = "misc";
 
   let loading: boolean = false;
   let error: string | null = null;
@@ -487,18 +491,45 @@
     groups = groups.filter((g) => g.tabIndices.length > 0);
   }
 
+  function moveTabToMisc(tabIdx: number): void {
+    let target = groups.find((g) => g.isMisc);
+    if (!target) {
+      target = {
+        id: MiscGroupId,
+        title: "Don't Save",
+        description: "",
+        isNew: false,
+        isMisc: true,
+        tabIndices: [],
+      };
+      // pinned to the top — visually distinct from saved groups
+      groups.unshift(target);
+    }
+
+    for (const g of groups) {
+      g.tabIndices = g.tabIndices.filter((i) => i !== tabIdx);
+    }
+    target.tabIndices.push(tabIdx);
+
+    movingTabIdx = null;
+    searchQuery = "";
+    groups = groups
+      .filter((g) => g.tabIndices.length > 0)
+      .sort((a, b) => (b.isMisc ? 1 : 0) - (a.isMisc ? 1 : 0));
+  }
+
   async function applyChanges(): Promise<void> {
     applying = true;
     try {
       const assignments = groups
-        .filter((g) => !g.isNew && g.tabIndices.length > 0)
+        .filter((g) => !g.isMisc && !g.isNew && g.tabIndices.length > 0)
         .map((g) => ({
           rabbitholeId: g.id,
           tabIndices: g.tabIndices,
         }));
 
       const newRabbitholes = groups
-        .filter((g) => g.isNew && g.tabIndices.length > 0)
+        .filter((g) => !g.isMisc && g.isNew && g.tabIndices.length > 0)
         .map((g) => ({
           topic: g.title,
           description: g.description,
@@ -512,14 +543,17 @@
         tabs,
       });
 
-      savedTabCount = groups
-        .filter((g) => g.tabIndices.length > 0)
-        .reduce((sum, g) => sum + g.tabIndices.length, 0);
-      savedGroupCount = groups.filter((g) => g.tabIndices.length > 0).length;
+      const savedGroups = groups.filter(
+        (g) => !g.isMisc && g.tabIndices.length > 0,
+      );
+      savedTabCount = savedGroups.reduce(
+        (sum, g) => sum + g.tabIndices.length,
+        0,
+      );
+      savedGroupCount = savedGroups.length;
 
       // Pre-close the saved tabs so the success screen reflects reality
-      const savedTabIds = groups
-        .filter((g) => g.tabIndices.length > 0)
+      const savedTabIds = savedGroups
         .flatMap((g) => g.tabIndices)
         .map((i) => tabs[i]?.tabId)
         .filter((id): id is number => id != null);
@@ -528,6 +562,29 @@
           await chrome.tabs.remove(savedTabIds);
         } catch (e) {
           logWarn("Failed to close saved tabs", e);
+        }
+      }
+
+      // gather misc tabs into their own window, kept open
+      const miscTabIds =
+        groups
+          .find((g) => g.isMisc)
+          ?.tabIndices.map((i) => tabs[i]?.tabId)
+          .filter((id): id is number => id != null) ?? [];
+      if (miscTabIds.length > 0) {
+        try {
+          const win = await chrome.windows.create({
+            tabId: miscTabIds[0],
+            focused: true,
+          });
+          if (win?.id != null && miscTabIds.length > 1) {
+            await chrome.tabs.move(miscTabIds.slice(1), {
+              windowId: win.id,
+              index: -1,
+            });
+          }
+        } catch (e) {
+          logWarn("Failed to gather misc tabs into a window", e);
         }
       }
 
@@ -544,7 +601,7 @@
     // reopen tabs in their original windows — a flat chrome.tabs.create
     // would dump everything into one window
     const savedTabs = groups
-      .filter((g) => g.tabIndices.length > 0)
+      .filter((g) => !g.isMisc && g.tabIndices.length > 0)
       .flatMap((g) => g.tabIndices)
       .map((i) => tabs[i])
       .filter((t): t is TabInfo => !!t?.url);
@@ -786,7 +843,7 @@
       <div class="editor">
         <div class="editor-scroll" class:rerunning>
           {#each groups as group (group.id)}
-            <div class="group-section">
+            <div class="group-section" class:misc={group.isMisc}>
               <div class="group-header">
                 <span class="group-title">{group.title}</span>
                 <span class="group-count">{group.tabIndices.length} tabs</span>
@@ -823,10 +880,19 @@
                       class="move-btn"
                       class:active={movingTabIdx === tabIdx}
                       on:click|stopPropagation={() => startMove(tabIdx)}
-                      title="Move to another rabbithole"
+                      data-label="Move to another rabbithole"
                     >
                       <ArrowRight size={14} />
                     </button>
+                    {#if !group.isMisc}
+                      <button
+                        class="misc-btn"
+                        on:click|stopPropagation={() => moveTabToMisc(tabIdx)}
+                        data-label="Don't save — kept open in a separate window"
+                      >
+                        <Cross1 size={14} />
+                      </button>
+                    {/if}
                     {#if movingTabIdx === tabIdx}
                       <div class="move-panel" on:click|stopPropagation>
                         <input
@@ -1302,6 +1368,10 @@
     padding: 14px;
   }
 
+  .group-section.misc {
+    border: 1px dashed rgba(250, 82, 82, 0.5);
+  }
+
   .group-header {
     display: flex;
     align-items: center;
@@ -1412,6 +1482,57 @@
   .move-btn.active {
     background: rgba(17, 133, 254, 0.15);
     color: #1185fe;
+  }
+
+  .misc-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #868e96;
+    cursor: pointer;
+    transition:
+      background 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .misc-btn:hover {
+    background: rgba(250, 82, 82, 0.1);
+    color: #fa5252;
+  }
+
+  .move-btn,
+  .misc-btn {
+    position: relative;
+  }
+
+  .move-btn::after,
+  .misc-btn::after {
+    content: attr(data-label);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: 0;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: #25262b;
+    border: 1px solid #373a40;
+    color: #c1c2c5;
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+    z-index: 20;
+  }
+
+  .move-btn:hover::after,
+  .misc-btn:hover::after {
+    opacity: 1;
   }
 
   .move-panel {
