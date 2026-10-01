@@ -1188,13 +1188,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
 
       // collect og descriptions from live pages — thin titles like "Blog"
-      // or "Sign in" get a real description for the Jev questions
+      // or "Sign in" get a real description for the Jev questions.
+      // frozen/discarded tabs never answer, so race each tab against a
+      // 2s timeout instead of waiting on chrome's internal one
+      const ogTimeoutMs = 2000;
+      const withTimeout = (p: Promise<unknown>): Promise<unknown> =>
+        Promise.race([
+          p,
+          new Promise((resolve) =>
+            setTimeout(() => resolve(null), ogTimeoutMs),
+          ),
+        ]);
       const ogResults = await Promise.allSettled(
         tabs.map((t) =>
           t.tabId != null
-            ? chrome.tabs.sendMessage(t.tabId, {
-                type: MessageRequest.GET_OG_METADATA,
-              })
+            ? withTimeout(
+                chrome.tabs.sendMessage(t.tabId, {
+                  type: MessageRequest.GET_OG_METADATA,
+                }),
+              )
             : Promise.resolve(null),
         ),
       );
