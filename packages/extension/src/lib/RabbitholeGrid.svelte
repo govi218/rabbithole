@@ -57,7 +57,6 @@
           <Trash size={13} />
         </button>
       {/if}
-
       <div class="card-content">
         <div class="card-title">{rabbithole.title || "Untitled"}</div>
         <div class="card-stats">

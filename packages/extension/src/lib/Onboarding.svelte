@@ -201,6 +201,7 @@
         <div class="categorise-body">
           <Categorise
             key={categoriseAttempt}
+            onboarding={true}
             on:applied={handleCategoriseApplied}
             on:results={handleCategoriseResults}
             on:done={handleCategoriseDone}
