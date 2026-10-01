@@ -10,27 +10,15 @@ export interface CloudProviderConfig {
   extraBody?: Record<string, unknown>;
 }
 
-export type CloudProviderId =
-  | "openai"
-  | "anthropic"
-  | "openrouter"
-  | "groq"
-  | "mistral";
+// categorise is OpenRouter-only for now — the Jev assignment stage only
+// exists on OpenRouter, so other providers would silently misroute tab
+// data (and the key) to openrouter.ai anyway
+export type CloudProviderId = "openrouter";
 
 export const CloudProviders: Record<
   CloudProviderId,
   { label: string; baseUrl: string; model: string }
 > = {
-  openai: {
-    label: "OpenAI",
-    baseUrl: "https://api.openai.com/v1",
-    model: "gpt-4o-mini",
-  },
-  anthropic: {
-    label: "Anthropic",
-    baseUrl: "https://api.anthropic.com/v1",
-    model: "claude-sonnet-4-20250514",
-  },
   openrouter: {
     label: "OpenRouter",
     baseUrl: "https://openrouter.ai/api/v1",
@@ -39,20 +27,10 @@ export const CloudProviders: Record<
     // fastest, cheapest tier.
     model: "google/gemini-3.1-flash-lite",
   },
-  groq: {
-    label: "Groq",
-    baseUrl: "https://api.groq.com/openai/v1",
-    model: "llama-3.3-70b-versatile",
-  },
-  mistral: {
-    label: "Mistral",
-    baseUrl: "https://api.mistral.ai/v1",
-    model: "mistral-small-latest",
-  },
 };
 
 export function getCloudProvider(config: CloudProviderConfig): LLMProvider {
-  const providerId = config.providerId ?? "openai";
+  const providerId = config.providerId ?? "openrouter";
   const defaults = CloudProviders[providerId];
   const baseUrl = defaults.baseUrl;
   const model = config.model ?? defaults.model;
