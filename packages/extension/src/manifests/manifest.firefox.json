@@ -1,7 +1,7 @@
 {
   "name": "Rabbithole",
   "description": "Track your internet rabbitholes!",
-  "version": "4.9",
+  "version": "5.0",
   "manifest_version": 3,
   "browser_specific_settings": {
     "gecko": {
