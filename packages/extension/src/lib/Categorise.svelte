@@ -46,7 +46,6 @@
   let savedTabCount: number = 0;
   let savedGroupCount: number = 0;
   let rerunCount: number = 0;
-  const maxReruns: number = 5;
   let rerunning: boolean = false;
   let candidatesDirty: boolean = false;
   let showAddCandidate: boolean = false;
@@ -290,11 +289,6 @@
   }
 
   async function runAssignment(isInitialRun: boolean = false): Promise<void> {
-    if (rerunCount >= maxReruns && !isInitialRun) {
-      error = `Maximum reruns (${maxReruns}) reached`;
-      return;
-    }
-
     // Only show the full-screen loading state for the initial run;
     // reruns keep the results visible with an inline indicator
     if (isInitialRun) {
