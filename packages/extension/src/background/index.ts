@@ -1,6 +1,6 @@
 import { MessageRequest, Logger } from "../utils";
 import { WebsiteStore } from "../storage/db";
-import type { Burrow } from "../utils/types";
+import type { Burrow, Website } from "../utils/types";
 import { getSession } from "../atproto/client";
 import { syncBurrowToCollection } from "../atproto/cosmik";
 import {
@@ -11,7 +11,7 @@ import {
   abandonSidetrailWalk,
 } from "../atproto/sidetrail";
 import { syncFromAtproto } from "../atproto/sync";
-import { storeWebsites } from "../utils/browser";
+import { storeWebsites, isValidWebUrl } from "../utils/browser";
 import {
   importBookmarksFromBrowser,
   importTabGroupsFromBrowser,
@@ -20,11 +20,14 @@ import {
   getTrailWalkTabId,
   setTrailWalkTabId,
   clearTrailWalkTab,
-  broadcastToTabs,
   broadcastTrailWalkUpdated,
   focusOrOpenTrailTab,
 } from "../utils/trails";
 import { initPostHog, capture, getPostHog } from "../utils/posthog";
+import { runJevAssignment } from "../llm/jev";
+import { runCategorisePipeline } from "../llm/pipeline";
+import type { RabbitholeContext, TabInfo } from "../utils/types";
+import type { Candidate } from "../llm/skills/propose";
 
 type Handler = (
   request: any,
@@ -73,6 +76,10 @@ function handle(
 }
 
 // Debounced sync flush — batches ops and pushes after 5s of inactivity
+// enrich categorise tab context with og metadata from live pages —
+// on by default while we measure how much it actually helps
+const EnrichTabsWithOgMetadata = true;
+
 const flushTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function scheduleFlush(burrowId: string) {
@@ -150,7 +157,10 @@ async function ensureAnalyticsInit() {
       await initPostHog({ persistence: "memory" });
     }
   } catch (err) {
-    Logger.warn("Analytics init failed, events will be lost until next restart", err);
+    Logger.warn(
+      "Analytics init failed, events will be lost until next restart",
+      err,
+    );
   }
 }
 
@@ -1112,6 +1122,197 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
 
       await db.setBurrowSyncEnabled(req.burrowId, req.enabled);
+      return { success: true };
+    },
+
+    [MessageRequest.PROPOSE_CATEGORISE]: async (req) => {
+      const cloudConfig = (req as any).cloudConfig;
+      const allTabs = await chrome.tabs.query({});
+      const tabs: TabInfo[] = allTabs
+        .filter((t) => isValidWebUrl(t.url))
+        .map((t) => ({
+          title: t.title ?? "",
+          url: t.url ?? "",
+          tabId: t.id,
+          favIconUrl: t.favIconUrl,
+          windowId: t.windowId,
+          groupId: t.groupId,
+        }));
+
+      if (tabs.length === 0) {
+        return { error: "No tabs to categorise" };
+      }
+
+      const rholes = await db.getAllRabbitholes();
+      const existingRabbitholes: RabbitholeContext[] = [];
+
+      for (const rh of rholes) {
+        const websites: Website[] = [];
+        for (const url of (rh.meta ?? []).slice(0, 10)) {
+          const w = await db.getWebsite(url);
+          if (w) websites.push(w);
+        }
+        const content = websites.map((w) => `  - ${w.name}`).join("\n");
+        existingRabbitholes.push({
+          id: rh.id,
+          title: rh.title,
+          content,
+        });
+      }
+
+      // Tab groups the user already made are explicit rabbitholes — seed
+      // candidates from them before the LLM proposes more
+      const groupCandidates: Candidate[] = [];
+      const groupIds = new Set(
+        tabs
+          .map((t) => t.groupId)
+          .filter((id): id is number => id != null && id !== -1),
+      );
+      if (groupIds.size > 0) {
+        const groups = await chrome.tabGroups.query({});
+        const groupTitleById = new Map(
+          groups.map((g) => [g.id, g.title?.trim() || "Untitled group"]),
+        );
+        for (const gid of groupIds) {
+          const indices: number[] = [];
+          tabs.forEach((t, i) => {
+            if (t.groupId === gid) {
+              indices.push(i);
+            }
+          });
+          if (indices.length === 0) continue;
+          const title = groupTitleById.get(gid) ?? "Untitled group";
+          groupCandidates.push({
+            key: `group-${gid}`,
+            title,
+            description: `Browser tab group "${title}"`,
+            userAdded: true,
+          });
+        }
+      }
+
+      // collect og descriptions from live pages — thin titles like "Blog"
+      // or "Sign in" get a real description for the Jev questions.
+      // frozen/discarded tabs never answer, so race each tab against a
+      // 2s timeout instead of waiting on chrome's internal one
+      if (EnrichTabsWithOgMetadata) {
+        const ogTimeoutMs = 2000;
+        const withTimeout = (p: Promise<unknown>): Promise<unknown> =>
+          Promise.race([
+            p,
+            new Promise((resolve) =>
+              setTimeout(() => resolve(null), ogTimeoutMs),
+            ),
+          ]);
+        const ogResults = await Promise.allSettled(
+          tabs.map((t) =>
+            t.tabId != null
+              ? withTimeout(
+                  chrome.tabs.sendMessage(t.tabId, {
+                    type: MessageRequest.GET_OG_METADATA,
+                  }),
+                )
+              : Promise.resolve(null),
+          ),
+        );
+        tabs.forEach((t, i) => {
+          const og = ogResults[i];
+          if (og.status === "fulfilled" && og.value?.description) {
+            t.ogDescription = og.value.description;
+          }
+        });
+      }
+
+      const result = await runCategorisePipeline({
+        tabs,
+        existingRabbitholes,
+        fixedCandidates: groupCandidates,
+        cloudConfig,
+      });
+      return {
+        tabs,
+        candidates: result.candidates,
+        assignments: result.assignments,
+      };
+    },
+
+    [MessageRequest.RUN_ASSIGNMENT]: async (req) => {
+      const { tabs, candidates } = req as {
+        tabs: TabInfo[];
+        candidates: Candidate[];
+      };
+      const result = await runJevAssignment({ tabs, candidates });
+      const assignments: Record<string, number[]> = {};
+      for (const [key, indices] of result.assignments) {
+        assignments[key] = indices;
+      }
+      return { tabs, candidates, assignments };
+    },
+
+    [MessageRequest.APPLY_CATEGORISE]: async (req) => {
+      const { assignments, newRabbitholes, tabs } = req as {
+        assignments: { rabbitholeId: string; tabIndices: number[] }[];
+        newRabbitholes: {
+          topic: string;
+          description: string;
+          tabIndices: number[];
+        }[];
+        tabs: TabInfo[];
+      };
+      // one table read for the whole apply — records that already have
+      // real metadata are preserved; bare stubs left by older categorise
+      // runs get re-fetched so they heal
+      const existingWebsites = await db.getAllWebsites();
+      const rich = new Set(
+        existingWebsites
+          .filter((w) => w.name && w.name !== w.url)
+          .map((w) => w.url),
+      );
+
+      // same OG-fetching save flow as a normal tab save — bare stubs
+      // would leave cards with no title/image/description
+      const saveStubs = async (indices: number[]): Promise<string[]> => {
+        const assignedTabs = (tabs ?? [])
+          .filter((_, i) => indices.includes(i))
+          .filter((t) => isValidWebUrl(t.url))
+          .map(
+            (t) =>
+              ({
+                url: t.url,
+                title: t.title,
+                favIconUrl: t.favIconUrl,
+              }) as chrome.tabs.Tab,
+          );
+        if (assignedTabs.length === 0) {
+          return [];
+        }
+        const fresh = assignedTabs.filter((t) => !rich.has(t.url ?? ""));
+        if (fresh.length > 0) {
+          await storeWebsites(fresh, db);
+          // mark saved URLs so a URL appearing in two groups isn't
+          // fetched twice
+          fresh.forEach((t) => rich.add(t.url ?? ""));
+        }
+        return assignedTabs.map((t) => t.url ?? "");
+      };
+
+      for (const nr of newRabbitholes ?? []) {
+        const urls = await saveStubs(nr.tabIndices);
+        if (urls.length === 0) {
+          continue;
+        }
+        const created = await db.createRabbithole(nr.topic, nr.description);
+        await db.addWebsitesToRabbitholeMeta(created.id, urls);
+      }
+
+      for (const a of assignments ?? []) {
+        const urls = await saveStubs(a.tabIndices);
+        if (urls.length === 0) {
+          continue;
+        }
+        await db.addWebsitesToRabbitholeMeta(a.rabbitholeId, urls);
+      }
+
       return { success: true };
     },
 

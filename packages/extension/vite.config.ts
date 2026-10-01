@@ -1,7 +1,7 @@
 /// <reference types="vitest" />
 import { crx } from "@crxjs/vite-plugin";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
-import { resolve } from "path";
+import { resolve, dirname } from "path";
 import { readFileSync } from "fs";
 import { defineConfig } from "vite";
 import { nodePolyfills } from "vite-plugin-node-polyfills";

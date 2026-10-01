@@ -58,6 +58,10 @@ export enum MessageRequest {
   IMPORT_BURROW_FROM_EXPLORE,
   TOGGLE_BURROW_SYNC,
   FLUSH_SYNC_OPS,
+  PROPOSE_CATEGORISE,
+  GET_OG_METADATA,
+  RUN_ASSIGNMENT,
+  APPLY_CATEGORISE,
 }
 
 export type TrailWalkStatus = "ACTIVE" | "COMPLETED" | "ABANDONED";
@@ -156,4 +160,22 @@ export interface SyncOp {
   payload: { url: string; name?: string; description?: string };
   createdAt: number;
   syncedAt?: number;
+}
+
+/* for LLM generation */
+
+export interface TabInfo {
+  title: string;
+  url: string;
+  tabId?: number;
+  favIconUrl?: string;
+  windowId?: number;
+  groupId?: number;
+  ogDescription?: string;
+}
+
+export interface RabbitholeContext {
+  id: string;
+  title: string;
+  content: string;
 }

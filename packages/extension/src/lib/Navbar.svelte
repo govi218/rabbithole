@@ -23,6 +23,7 @@
   import logoStars from "@rabbithole/shared/assets/rabbithole-logo-stars.svg";
   import Auth from "src/lib/Auth.svelte";
   import OnboardingModal from "src/lib/OnboardingModal.svelte";
+  import CategoriseModal from "src/lib/CategoriseModal.svelte";
   import { getSession, clearSession } from "../atproto/client";
   import { MessageRequest, Logger } from "../utils";
   import { initPostHog, stopPostHog } from "../utils/posthog";
@@ -38,6 +39,7 @@
   let showSearchModal: boolean = false;
   let showAuthModal: boolean = false;
   let showOnboardingModal: boolean = false;
+  let showCategoriseModal: boolean = false;
   let showImportModal: boolean = false;
   let importSyncing: boolean = false;
   let importResult: string | null = null;
@@ -71,7 +73,8 @@
     });
     showOverlay = settings?.show ?? true;
     analyticsEnabled = settings?.analyticsEnabled ?? false;
-    showAnalyticsNudge = settings?.hasSeenOnboarding && !settings?.analyticsEnabled;
+    showAnalyticsNudge =
+      settings?.hasSeenOnboarding && !settings?.analyticsEnabled;
 
     const session = await getSession();
     if (session) {
@@ -123,6 +126,10 @@
 
   function handleSignIn(): void {
     showAuthModal = true;
+  }
+
+  function handleCleanUpTabs(): void {
+    showCategoriseModal = true;
   }
 
   function handleToggleTheme(): void {
@@ -497,7 +504,11 @@
           >
             {showOverlay ? "Hide Overlay" : "Show Overlay"}
           </Menu.Item>
-          <Menu.Item icon={BarChart} on:click={handleToggleAnalytics} class={showAnalyticsNudge ? 'analytics-nudge-item' : ''}>
+          <Menu.Item
+            icon={BarChart}
+            on:click={handleToggleAnalytics}
+            class={showAnalyticsNudge ? "analytics-nudge-item" : ""}
+          >
             <span class="analytics-menu-item">
               <span>{analyticsEnabled ? "Disable" : "Enable"} Analytics</span>
               {#if showAnalyticsNudge}
@@ -508,7 +519,9 @@
           <Menu.Item icon={Upload} on:click={triggerImport}>
             Import Data
           </Menu.Item>
-          <Menu.Item icon={Download} on:click={exportData}>Export Data</Menu.Item>
+          <Menu.Item icon={Download} on:click={exportData}
+            >Export Data</Menu.Item
+          >
           <Menu.Item icon={FileText} on:click={handleDownloadLogs}>
             Download Logs
           </Menu.Item>
@@ -522,6 +535,14 @@
       </div>
     {:else}
       <div class="connect-container" id="tour-signin-btn">
+        <Button
+          variant="light"
+          color="blue"
+          size="sm"
+          on:click={handleCleanUpTabs}
+        >
+          Clean Up My Tabs
+        </Button>
         <Button variant="light" color="blue" size="sm" on:click={handleSignIn}>
           Sign in
         </Button>
@@ -538,7 +559,11 @@
               <Gear size={18} />
             </ActionIcon>
 
-            <Menu.Item icon={BarChart} on:click={handleToggleAnalytics} class={showAnalyticsNudge ? 'analytics-nudge-item' : ''}>
+            <Menu.Item
+              icon={BarChart}
+              on:click={handleToggleAnalytics}
+              class={showAnalyticsNudge ? "analytics-nudge-item" : ""}
+            >
               <span class="analytics-menu-item">
                 <span>{analyticsEnabled ? "Disable" : "Enable"} Analytics</span>
                 {#if showAnalyticsNudge}
@@ -574,6 +599,11 @@
 <OnboardingModal
   isOpen={showOnboardingModal}
   on:close={() => (showOnboardingModal = false)}
+/>
+
+<CategoriseModal
+  bind:isOpen={showCategoriseModal}
+  on:applied={() => dispatch("authStateChange", { type: "refresh" })}
 />
 
 <style>

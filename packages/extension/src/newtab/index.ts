@@ -8,9 +8,7 @@ import "./styles.css";
 const target = document.getElementById("app");
 
 function render() {
-  new Rabbithole({
-    target,
-  });
+  new Rabbithole({ target });
 }
 
 document.addEventListener("DOMContentLoaded", async () => {

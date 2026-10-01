@@ -17,8 +17,11 @@
 <div class="analytics-banner">
   <div class="banner-content">
     <p class="banner-text">
-      We collect anonymous usage data to improve Rabbithole. No personal info, ever.
-      <a href="https://rabbithole.land/privacy" class="banner-link">Learn more</a>
+      We collect anonymous usage data to improve Rabbithole. No personal info,
+      ever.
+      <a href="https://rabbithole.land/privacy" class="banner-link"
+        >Learn more</a
+      >
     </p>
     <div class="banner-actions">
       <button class="btn-decline" on:click={decline}>Decline</button>
@@ -91,7 +94,9 @@
     font-weight: 500;
     cursor: pointer;
     font-family: inherit;
-    transition: border-color 0.15s, color 0.15s;
+    transition:
+      border-color 0.15s,
+      color 0.15s;
   }
 
   .btn-decline:hover {
@@ -109,7 +114,9 @@
     font-weight: 500;
     cursor: pointer;
     font-family: inherit;
-    transition: background 0.15s, border-color 0.15s;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
   }
 
   .btn-accept:hover {

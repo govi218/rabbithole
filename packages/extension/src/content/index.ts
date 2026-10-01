@@ -136,6 +136,26 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     sendResponse({ error: "request type required" });
     return;
   }
+  if (request.type === "GET_OG_METADATA") {
+    // read og metadata from the live page — thin tab titles ("Blog",
+    // "Sign in") get a real description for categorisation.
+    // DOM read, not a refetch: categorise needs og for every open tab at
+    // once, and every page is already loaded — fetch()ing 100+ tabs from
+    // the background (like the save flow does) would be pointless network load.
+    const meta = document.querySelector(
+      'meta[property="og:description"]',
+    ) as HTMLMetaElement | null;
+    const ogTitle = document.querySelector(
+      'meta[property="og:title"]',
+    ) as HTMLMetaElement | null;
+    const description = meta?.content?.trim() ?? "";
+    const title = ogTitle?.content?.trim() ?? "";
+    sendResponse({
+      description:
+        description || (title && title !== document.title ? title : ""),
+    });
+    return;
+  }
   if (request.type === "SETTINGS_UPDATED" && overlay && loaded) {
     overlay.refreshData();
   }

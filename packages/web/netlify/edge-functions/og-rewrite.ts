@@ -14,7 +14,9 @@ export default async (request: Request, context: Context) => {
   const isTrail = !!trailMatch;
 
   // Debug: verify edge function is running
-  console.log(`og-rewrite: path=${path} handle=${handle} rkey=${rkey} isTrail=${isTrail}`);
+  console.log(
+    `og-rewrite: path=${path} handle=${handle} rkey=${rkey} isTrail=${isTrail}`,
+  );
 
   try {
     // Fetch the record directly from the AppView (accepts handles)
@@ -22,7 +24,9 @@ export default async (request: Request, context: Context) => {
       ? "app.sidetrail.trail"
       : "network.cosmik.collection";
     const record = await fetchRecord(handle, collection, rkey);
-    console.log(`og-rewrite: record=${record ? JSON.stringify(record).slice(0, 200) : "null"}`);
+    console.log(
+      `og-rewrite: record=${record ? JSON.stringify(record).slice(0, 200) : "null"}`,
+    );
     if (!record) return context.next();
 
     // Get the original HTML
@@ -62,7 +66,10 @@ export default async (request: Request, context: Context) => {
 
     return new Response(rewritten, {
       status: response.status,
-      headers: { ...Object.fromEntries(response.headers), "x-og-rewrite": "hit" },
+      headers: {
+        ...Object.fromEntries(response.headers),
+        "x-og-rewrite": "hit",
+      },
     });
   } catch (e) {
     // On any error, just serve the original page
