@@ -260,13 +260,20 @@
       }
       if (candidate.existingId) {
         const rh = allRabbitholes.find((r) => r.id === candidate.existingId);
-        groups.push({
-          id: candidate.existingId,
-          title: candidate.title || rh?.title || candidate.existingId,
-          description: rh?.description ?? "",
-          isNew: !rh,
-          tabIndices: indices,
-        });
+        // two candidates can point at the same rabbithole — merge their
+        // tabs into one group instead of producing duplicate keyed rows
+        const existing = groups.find((g) => g.id === candidate.existingId);
+        if (existing) {
+          existing.tabIndices.push(...indices);
+        } else {
+          groups.push({
+            id: candidate.existingId,
+            title: candidate.title || rh?.title || candidate.existingId,
+            description: rh?.description ?? "",
+            isNew: !rh,
+            tabIndices: indices,
+          });
+        }
       } else {
         const id = `new-${candidate.key}`;
         newRabbitholeDefs.set(id, {
