@@ -115,6 +115,61 @@ test("categorise confirm applies changes", async ({ bg }) => {
   await expect(newtab.locator(".success")).toContainText(/saved|done/i);
 });
 
+// a single valid web tab produces a singleton assignment — the modal must
+// still show the group (regression: singleton dissolve silently emptied it)
+test("categorise with a single tab still shows its group", async ({ bg }) => {
+  await bg.skipOnboarding();
+  await bg.seedCloudKey();
+
+  await bg.context.route("**/api/v1/chat/completions", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                candidates: [
+                  { key: "test", title: "Test", description: "test" },
+                ],
+              }),
+            },
+          },
+        ],
+      }),
+    });
+  });
+
+  await bg.context.route("**/api/alpha/decisions", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        answers: {
+          tab_0: { choice: "r1-test" },
+        },
+      }),
+    });
+  });
+
+  const p = await bg.context.newPage();
+  await p.goto("https://example.com/alpha");
+
+  const newtab = await bg.openNewtab();
+
+  const btn = newtab.locator("button", { hasText: /clean up/i }).first();
+  await btn.waitFor({ timeout: 10000 });
+  await btn.click();
+
+  await expect(newtab.locator(".candidate-list")).toContainText("Test", {
+    timeout: 10000,
+  });
+  await expect(newtab.locator(".group-section")).toHaveCount(1, {
+    timeout: 10000,
+  });
+});
+
 test("categorise with real LLM (Flash-Lite + Jev)", async ({ bg }) => {
   const apiKey = process.env.OPENROUTER_API_KEY;
   test.skip(!apiKey, "OPENROUTER_API_KEY not set");

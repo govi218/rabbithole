@@ -140,15 +140,5 @@ export async function runJevAssignment(
     }
   }
 
-  // dissolve singleton assignments; user-added candidates are exempt
-  const userAddedKeys = new Set(
-    candidates.filter((c) => c.userAdded).map((c) => c.key),
-  );
-  for (const [key, indices] of assignments) {
-    if (indices.length < 2 && !userAddedKeys.has(key)) {
-      assignments.delete(key);
-    }
-  }
-
   return { assignments };
 }
