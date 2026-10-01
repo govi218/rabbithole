@@ -1259,30 +1259,41 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }[];
         tabs: TabInfo[];
       };
-      const tabUrlByIndex = new Map<number, string>();
-      (tabs ?? [])
-        .filter((t) => isValidWebUrl(t.url))
-        .forEach((t, i) => {
-          tabUrlByIndex.set(i, t.url ?? "");
-        });
+      // one table read for the whole apply — records that already have
+      // real metadata are preserved; bare stubs left by older categorise
+      // runs get re-fetched so they heal
+      const existingWebsites = await db.getAllWebsites();
+      const rich = new Set(
+        existingWebsites
+          .filter((w) => w.name && w.name !== w.url)
+          .map((w) => w.url),
+      );
 
+      // same OG-fetching save flow as a normal tab save — bare stubs
+      // would leave cards with no title/image/description
       const saveStubs = async (indices: number[]): Promise<string[]> => {
-        const urls = indices
-          .map((i) => tabUrlByIndex.get(i))
-          .filter((u): u is string => !!u);
-        if (urls.length === 0) {
+        const assignedTabs = (tabs ?? [])
+          .filter((_, i) => indices.includes(i))
+          .filter((t) => isValidWebUrl(t.url))
+          .map(
+            (t) =>
+              ({
+                url: t.url,
+                title: t.title,
+                favIconUrl: t.favIconUrl,
+              }) as chrome.tabs.Tab,
+          );
+        if (assignedTabs.length === 0) {
           return [];
         }
-        await db.saveWebsiteStubs(
-          urls.map((url) => ({
-            url,
-            name: url,
-            savedAt: Date.now(),
-            faviconUrl: "",
-            description: "",
-          })),
-        );
-        return urls;
+        const fresh = assignedTabs.filter((t) => !rich.has(t.url ?? ""));
+        if (fresh.length > 0) {
+          await storeWebsites(fresh, db);
+          // mark saved URLs so a URL appearing in two groups isn't
+          // fetched twice
+          fresh.forEach((t) => rich.add(t.url ?? ""));
+        }
+        return assignedTabs.map((t) => t.url ?? "");
       };
 
       for (const nr of newRabbitholes ?? []) {
