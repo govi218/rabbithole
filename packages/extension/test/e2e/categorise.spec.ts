@@ -210,3 +210,43 @@ test("categorise with real LLM (Flash-Lite + Jev)", async ({ bg }) => {
     timeout: 60000,
   });
 });
+
+// X button moves a tab to misc — misc tabs stay open in their own window
+// after confirm, saved tabs get closed
+test("categorise misc tabs stay open after confirm", async ({ bg }) => {
+  await bg.skipOnboarding();
+  await bg.seedCloudKey();
+
+  await mockPropose(bg, [{ key: "test", title: "Test", description: "test" }]);
+  await mockDecisions(bg, {
+    tab_0: { choice: "r1-test" },
+    tab_1: { choice: "r1-test" },
+  });
+  await openTabs(bg, ["https://example.com/alpha", "https://example.com/beta"]);
+
+  const newtab = await runCategorise(bg);
+
+  await expect(newtab.locator(".candidate-list")).toContainText("Test", {
+    timeout: 10000,
+  });
+
+  // X the first tab row into misc
+  await newtab.locator(".tab-row .misc-btn").first().click();
+  await expect(newtab.locator(".group-section")).toHaveCount(2, {
+    timeout: 10000,
+  });
+  await expect(newtab.locator(".group-section").first()).toContainText(
+    "Don't Save",
+  );
+
+  const confirmBtn = newtab.locator("button", { hasText: /confirm/i }).first();
+  await confirmBtn.click();
+  await expect(newtab.locator(".success")).toBeVisible({ timeout: 10000 });
+
+  // misc tab gathered into a separate window and still open; saved tab closed
+  const pages = bg.context.pages();
+  const remaining = pages
+    .map((p) => p.url())
+    .filter((u) => u.startsWith("https://example.com"));
+  expect(remaining).toEqual(["https://example.com/alpha"]);
+});
