@@ -50,13 +50,15 @@ export async function runCategorisePipeline(
     }),
   ];
 
-  const assignment = await runJevAssignment({
-    tabs,
-    candidates: allCandidates,
-  });
   const assignments: Record<string, number[]> = {};
-  for (const [key, indices] of assignment.assignments) {
-    assignments[key] = indices;
+  if (allCandidates.length > 0) {
+    const assignment = await runJevAssignment({
+      tabs,
+      candidates: allCandidates,
+    });
+    for (const [key, indices] of assignment.assignments) {
+      assignments[key] = indices;
+    }
   }
 
   const canonical: Candidate[] = [];
