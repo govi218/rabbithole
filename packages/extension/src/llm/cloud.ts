@@ -1,5 +1,6 @@
 import type { GenerateOptions, GenerateResult, LLMProvider } from "./provider";
 import { buildUserPrompt, getSystemPrompt, parseOutput } from "./provider";
+import { debug as logDebug } from "../utils/logger";
 
 export interface CloudProviderConfig {
   apiKey: string;
@@ -77,7 +78,7 @@ export function getCloudProvider(config: CloudProviderConfig): LLMProvider {
       Object.assign(body, config.extraBody);
     }
 
-    console.error(`[cloud] POST ${baseUrl}/chat/completions`, { model });
+    logDebug(`[cloud] POST ${baseUrl}/chat/completions`, { model });
     const res = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
@@ -94,7 +95,7 @@ export function getCloudProvider(config: CloudProviderConfig): LLMProvider {
 
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content ?? "";
-    console.error(`[cloud] response:`, JSON.stringify(content));
+    logDebug(`[cloud] response:`, JSON.stringify(content));
     return content;
   }
 
