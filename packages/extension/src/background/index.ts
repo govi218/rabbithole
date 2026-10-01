@@ -76,6 +76,10 @@ function handle(
 }
 
 // Debounced sync flush — batches ops and pushes after 5s of inactivity
+// enrich categorise tab context with og metadata from live pages —
+// on by default while we measure how much it actually helps
+const EnrichTabsWithOgMetadata = true;
+
 const flushTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function scheduleFlush(burrowId: string) {
@@ -1191,31 +1195,33 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       // or "Sign in" get a real description for the Jev questions.
       // frozen/discarded tabs never answer, so race each tab against a
       // 2s timeout instead of waiting on chrome's internal one
-      const ogTimeoutMs = 2000;
-      const withTimeout = (p: Promise<unknown>): Promise<unknown> =>
-        Promise.race([
-          p,
-          new Promise((resolve) =>
-            setTimeout(() => resolve(null), ogTimeoutMs),
+      if (EnrichTabsWithOgMetadata) {
+        const ogTimeoutMs = 2000;
+        const withTimeout = (p: Promise<unknown>): Promise<unknown> =>
+          Promise.race([
+            p,
+            new Promise((resolve) =>
+              setTimeout(() => resolve(null), ogTimeoutMs),
+            ),
+          ]);
+        const ogResults = await Promise.allSettled(
+          tabs.map((t) =>
+            t.tabId != null
+              ? withTimeout(
+                  chrome.tabs.sendMessage(t.tabId, {
+                    type: MessageRequest.GET_OG_METADATA,
+                  }),
+                )
+              : Promise.resolve(null),
           ),
-        ]);
-      const ogResults = await Promise.allSettled(
-        tabs.map((t) =>
-          t.tabId != null
-            ? withTimeout(
-                chrome.tabs.sendMessage(t.tabId, {
-                  type: MessageRequest.GET_OG_METADATA,
-                }),
-              )
-            : Promise.resolve(null),
-        ),
-      );
-      tabs.forEach((t, i) => {
-        const og = ogResults[i];
-        if (og.status === "fulfilled" && og.value?.description) {
-          t.ogDescription = og.value.description;
-        }
-      });
+        );
+        tabs.forEach((t, i) => {
+          const og = ogResults[i];
+          if (og.status === "fulfilled" && og.value?.description) {
+            t.ogDescription = og.value.description;
+          }
+        });
+      }
 
       const result = await runCategorisePipeline({
         tabs,
