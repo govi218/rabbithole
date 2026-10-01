@@ -861,7 +861,7 @@ export class WebsiteStore {
         const store = tx.objectStore("websites");
 
         items.forEach((item) => {
-          // Use add instead of put to avoid overwriting existing websites
+          // TODO: Use add instead of put to avoid overwriting existing websites
           // This preserves original savedAt, title, description etc.
           const req = store.put(item);
           req.onerror = (e) => {
@@ -1903,8 +1903,12 @@ export class WebsiteStore {
       const tx = db.transaction(["websites"], "readwrite");
       const store = tx.objectStore("websites");
       for (const item of items) {
-        const req = store.put(item);
-        req.onerror = () => {}; // ignore duplicates
+        const req = store.add(item);
+        // preventDefault or the duplicate-key error aborts the whole
+        // transaction and oncomplete never fires
+        req.onerror = (e) => {
+          e.preventDefault();
+        }; // ignore duplicates
       }
       tx.oncomplete = () => resolve();
     });
